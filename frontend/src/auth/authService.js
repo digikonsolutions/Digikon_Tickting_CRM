@@ -1,0 +1,125 @@
+import { ROLES, isKnownRole } from './roles'
+
+const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api').replace(/\/$/, '')
+const AUTH_MODE = import.meta.env.VITE_AUTH_MODE ?? 'api'
+const SAFE_ERROR_MESSAGE = 'Something went wrong. Please try again.'
+
+export class ApiError extends Error {
+  constructor(message, { status = 0, errors = {}, retryAfter = null } = {}) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.errors = errors
+    this.retryAfter = retryAfter
+  }
+}
+
+export function getErrorMessage(error) {
+  return error instanceof Error ? error.message : SAFE_ERROR_MESSAGE
+}
+
+function xsrfToken() {
+  const cookie = document.cookie.split('; ').find((value) => value.startsWith('XSRF-TOKEN='))
+  return cookie ? decodeURIComponent(cookie.slice('XSRF-TOKEN='.length)) : null
+}
+
+async function establishCsrfCookie() {
+  const response = await fetch(`${API_URL}/auth/csrf-cookie`, {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!response.ok || !xsrfToken()) {
+    throw new Error('Unable to establish a secure session. Please try again.')
+  }
+}
+
+async function request(path, options = {}) {
+  const method = options.method ?? 'GET'
+  const isStateChanging = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())
+
+  try {
+    if (isStateChanging) await establishCsrfCookie()
+
+    const csrf = xsrfToken()
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(csrf && isStateChanging ? { 'X-XSRF-TOKEN': csrf } : {}),
+        ...options.headers,
+      },
+    })
+    const isJson = response.headers.get('content-type')?.includes('application/json')
+    const payload = isJson ? await response.json().catch(() => null) : null
+
+    if (!response.ok) {
+      const status = response.status
+      const message = status === 401
+        ? 'Your session has expired. Please sign in again.'
+        : status === 403
+          ? 'You do not have permission to perform this action.'
+          : status === 419
+            ? 'Your session expired. Refresh the page and try again.'
+            : status === 429
+              ? 'Too many attempts. Please wait a moment and try again.'
+              : status >= 500
+                ? 'The server is temporarily unavailable. Please try again later.'
+                : payload?.message ?? SAFE_ERROR_MESSAGE
+
+      throw new ApiError(message, {
+        status,
+        errors: payload?.errors ?? {},
+        retryAfter: response.headers.get('retry-after'),
+      })
+    }
+
+    if (!isJson || payload === null) {
+      throw new ApiError('The server returned an invalid response. Please try again.')
+    }
+
+    return payload
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    if (error instanceof TypeError) {
+      throw new ApiError('Cannot connect to the server. Check your connection and try again.')
+    }
+    throw new ApiError(SAFE_ERROR_MESSAGE)
+  }
+}
+
+function mockUser(email) {
+  const localPart = email.split('@')[0].toLowerCase()
+  const role = Object.values(ROLES).find((candidate) => localPart.startsWith(candidate.replace('_', '.'))) ?? ROLES.CLIENT
+  return { id: 'demo-user', name: localPart || 'Demo user', email, role }
+}
+
+export const authService = {
+  isMockMode: AUTH_MODE === 'mock',
+  async getCurrentUser() {
+    if (AUTH_MODE === 'mock') return null
+    return request('/auth/me')
+  },
+  async signIn({ email, password }) {
+    if (AUTH_MODE === 'mock') {
+      if (!password) throw new Error('Enter your password to continue.')
+      return { user: mockUser(email) }
+    }
+    return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+  },
+  async requestPasswordReset(email) {
+    if (AUTH_MODE === 'mock') return { message: 'If an account exists, we sent password reset instructions.' }
+    return request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) })
+  },
+  async resetPassword({ token, email, password, passwordConfirmation }) {
+    if (AUTH_MODE === 'mock') return { message: 'Your password has been reset.' }
+    return request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, email, password, password_confirmation: passwordConfirmation }) })
+  },
+  async signOut() {
+    if (AUTH_MODE !== 'mock') await request('/auth/logout', { method: 'POST' })
+  },
+}
+
+export { isKnownRole }

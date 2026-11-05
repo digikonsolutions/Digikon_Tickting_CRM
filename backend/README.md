@@ -1,0 +1,156 @@
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
+
+## ClientHub API and authentication
+
+The API uses Laravel's server-side session guard for the first-party React SPA. Authentication endpoints are under `/api/auth`; the browser must first request `/api/auth/csrf-cookie`, then send the `X-XSRF-TOKEN` header on state-changing requests. The frontend auth service handles this when `VITE_AUTH_MODE=api`. Public registration is disabled: only an authenticated administrator can create accounts.
+
+Configure the backend `.env` with:
+
+```env
+APP_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:5173
+SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=false
+MAIL_MAILER=log
+```
+
+Set the frontend `.env.local` to:
+
+```env
+VITE_API_URL=http://localhost:8000/api
+VITE_AUTH_MODE=api
+```
+
+Run `php artisan migrate` before starting the application. In local development, password-reset links are written to `storage/logs/laravel.log` when `MAIL_MAILER=log`. Configure a production mail provider, HTTPS, secure cookies, a restricted `FRONTEND_URL`, and appropriate session domain settings before deployment.
+
+There is no default admin account. Bootstrap the first one from trusted local tooling with `php artisan tinker`, creating a `User` with a unique email and strong random password, then set its `role` via `forceFill(['role' => App\Enums\UserRole::Admin])`. Do not seed a known admin password into production.
+
+Available routes:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/auth/csrf-cookie` | Establish the CSRF/session cookies |
+| POST | `/api/auth/users` | Admin-only account creation; role is required |
+| POST | `/api/auth/login` | Sign in |
+| POST | `/api/auth/logout` | End the current session |
+| GET | `/api/auth/me` | Return the authenticated user and role |
+| POST | `/api/auth/forgot-password` | Request a reset link |
+| POST | `/api/auth/reset-password` | Reset password with a time-limited token |
+
+Roles are `admin`, `agency_owner`, `client`, and `employee`. An administrator can create accounts with any of these roles; other authenticated users cannot create accounts. Bootstrap the first admin through trusted local tooling, then create further users through the admin-only endpoint. Protect future ticket routes with `auth` and `role:admin` (or the required role list). Ticket ownership and agency/client data access should additionally be enforced with policies and tenant scoping, not role checks alone.
+
+### Testing with Postman
+
+Use the same host consistently throughout this flow (for example, `http://127.0.0.1:8000`). In Postman, enable its cookie jar for that host, and add these headers to JSON requests:
+
+```text
+Accept: application/json
+Content-Type: application/json
+X-XSRF-TOKEN: <URL-decoded value of the XSRF-TOKEN cookie>
+```
+
+1. Start Laravel with `php artisan serve`, and run `php artisan migrate`.
+2. Create the first admin locally with `php artisan tinker`:
+
+   ```php
+   $admin = App\Models\User::create([
+       'name' => 'Administrator',
+       'email' => 'admin@example.com',
+       'password' => 'Your-Strong-Local-Password!',
+   ]);
+   $admin->forceFill(['role' => App\Enums\UserRole::Admin])->save();
+   ```
+
+3. In Postman, send `GET http://127.0.0.1:8000/api/auth/csrf-cookie`. Postman should retain the `laravel_session` and `XSRF-TOKEN` cookies. Copy the `XSRF-TOKEN` cookie value, URL-decode it, and use it in the `X-XSRF-TOKEN` header for the following POST requests. Keep Postman’s cookie jar enabled so the session cookie is sent too.
+4. Send `POST http://127.0.0.1:8000/api/auth/login` with:
+
+   ```json
+   {
+     "email": "admin@example.com",
+     "password": "Your-Strong-Local-Password!"
+   }
+   ```
+
+5. Confirm the session with `GET http://127.0.0.1:8000/api/auth/me`.
+6. As the admin, create another user with `POST http://127.0.0.1:8000/api/auth/users`:
+
+   ```json
+   {
+     "name": "Agency Owner",
+     "email": "owner@example.com",
+     "password": "Another-Strong-Password!",
+     "password_confirmation": "Another-Strong-Password!",
+     "role": "agency_owner"
+   }
+   ```
+
+   Valid roles are `admin`, `agency_owner`, `client`, and `employee`. An unauthenticated request returns 401; a signed-in non-admin request returns 403.
+7. Test `POST /api/auth/forgot-password` with `{"email":"admin@example.com"}`. With `MAIL_MAILER=log`, find the reset URL in `storage/logs/laravel.log`; submit its `token` and `email` with `password` and `password_confirmation` to `POST /api/auth/reset-password`.
+8. Send `POST /api/auth/logout`, then verify `GET /api/auth/me` returns 401.
+
+Refresh the CSRF-cookie request and update the token header if Postman reports a CSRF mismatch. Do not send real credentials to a shared Postman workspace or commit them into a collection.
+
+## About Laravel
+
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
+
+## Learning Laravel
+
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+
+You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+
+If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+
+## Laravel Sponsors
+
+We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+
+### Premium Partners
+
+- **[Vehikl](https://vehikl.com/)**
+- **[Tighten Co.](https://tighten.co)**
+- **[WebReinvent](https://webreinvent.com/)**
+- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+- **[64 Robots](https://64robots.com)**
+- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
+- **[Cyber-Duck](https://cyber-duck.co.uk)**
+- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+- **[Jump24](https://jump24.co.uk)**
+- **[Redberry](https://redberry.international/laravel/)**
+- **[Active Logic](https://activelogic.com)**
+- **[byte5](https://byte5.de)**
+- **[OP.GG](https://op.gg)**
+
+## Contributing
+
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+
+## Code of Conduct
+
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+
+## Security Vulnerabilities
+
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+
+## License
+
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
