@@ -5,7 +5,7 @@ import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } f
 import { ROLES } from './auth/roles'
 import { Loader } from './components/ui'
 import { ToastProvider } from './components/ui/Toast'
-import { DashboardHome } from './pages/dashboard/DashboardHome'
+import { AdminDashboard, AgencyDashboard, MyTicketsPage, QaQueuePage, TeamQueuePage } from './pages/dashboard/RolePages'
 import { PlaceholderPage } from './pages/dashboard/PlaceholderPage'
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { LoginPage } from './pages/auth/LoginPage'
@@ -35,21 +35,21 @@ function App() {
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route element={<AppLayout />}>
               <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
-                <Route path="/admin/dashboard" element={<DashboardHome />} />
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users/new" element={<AdminCreateUserPage />} />
                 <Route path="/admin/settings" element={<PlaceholderPage title="Settings" />} />
               </Route>
               <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
-                <Route path="/team/queue" element={<PlaceholderPage title="Team Queue" />} />
+                <Route path="/team/queue" element={<TeamQueuePage />} />
               </Route>
               <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE, ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
-                <Route path="/my-tickets" element={<PlaceholderPage title="My Tickets" />} />
+                <Route path="/my-tickets" element={<MyTicketsPage />} />
               </Route>
               <Route element={<RoleRoute allowedRoles={[ROLES.QA, ROLES.ADMIN]} />}>
-                <Route path="/qa/queue" element={<PlaceholderPage title="QA Queue" />} />
+                <Route path="/qa/queue" element={<QaQueuePage />} />
               </Route>
               <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER]} />}>
-                <Route path="/agency/dashboard" element={<PlaceholderPage title="Agency Dashboard" />} />
+                <Route path="/agency/dashboard" element={<AgencyDashboard />} />
               </Route>
             </Route>
           </Route>

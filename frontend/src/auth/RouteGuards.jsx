@@ -3,7 +3,7 @@ import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-route
 import { useAuth } from './useAuth'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../components/auth/ApiErrorMessage'
-import { Badge, Button } from '../components/ui'
+import { Badge, Button, Icon } from '../components/ui'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -34,18 +34,18 @@ export function RoleRoute({ allowedRoles }) {
 
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
-    { to: '/admin/dashboard', label: 'Dashboard' },
-    { to: '/admin/users/new', label: 'Create User' },
-    { to: '/admin/settings', label: 'Settings' },
+    { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/admin/users/new', label: 'Create User', icon: 'userPlus' },
+    { to: '/admin/settings', label: 'Settings', icon: 'settings' },
   ],
   [ROLES.TEAM_LEAD]: [
-    { to: '/team/queue', label: 'Team Queue' },
-    { to: '/my-tickets', label: 'My Tickets' },
+    { to: '/team/queue', label: 'Team Queue', icon: 'queue' },
+    { to: '/my-tickets', label: 'My Tickets', icon: 'ticket' },
   ],
-  [ROLES.EMPLOYEE]: [{ to: '/my-tickets', label: 'My Tickets' }],
-  [ROLES.QA]: [{ to: '/qa/queue', label: 'QA Queue' }],
-  [ROLES.AGENCY_OWNER]: [{ to: '/agency/dashboard', label: 'Dashboard' }],
-  [ROLES.AGENCY_MEMBER]: [{ to: '/agency/dashboard', label: 'Dashboard' }],
+  [ROLES.EMPLOYEE]: [{ to: '/my-tickets', label: 'My Tickets', icon: 'ticket' }],
+  [ROLES.QA]: [{ to: '/qa/queue', label: 'QA Queue', icon: 'check' }],
+  [ROLES.AGENCY_OWNER]: [{ to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' }],
+  [ROLES.AGENCY_MEMBER]: [{ to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' }],
 })
 
 export function AppLayout() {
@@ -86,10 +86,10 @@ export function AppLayout() {
     <div className={`app-shell${isNavOpen ? ' app-nav-open' : ''}`}>
       {isNavOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setIsNavOpen(false)} />}
       <aside className="sidebar" id="primary-navigation">
-        <NavLink className="brand" to={ROLE_HOME[user.role]}>ClientHub</NavLink>
+        <NavLink className="brand" to={ROLE_HOME[user.role]}><span className="brand-mark">C</span>ClientHub</NavLink>
         <nav aria-label="Dashboard">
           {visibleItems.map((item) => (
-            <NavLink key={item.to} to={item.to} onClick={() => setIsNavOpen(false)}>{item.label}</NavLink>
+            <NavLink key={item.to} to={item.to} onClick={() => setIsNavOpen(false)}><Icon name={item.icon} size={18} /><span>{item.label}</span></NavLink>
           ))}
         </nav>
       </aside>
