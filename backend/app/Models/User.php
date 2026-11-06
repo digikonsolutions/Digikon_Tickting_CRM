@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
-use App\Enums\UserRole;
+use App\Enums\Role;
+use App\Notifications\SetPasswordNotification;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -23,6 +25,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'agency_id',
+        'is_active',
     ];
 
     /**
@@ -45,7 +50,18 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'role' => UserRole::class,
+            'role' => Role::class,
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function agency(): BelongsTo
+    {
+        return $this->belongsTo(Agency::class);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new SetPasswordNotification($token));
     }
 }

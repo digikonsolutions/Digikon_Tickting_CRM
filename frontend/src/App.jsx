@@ -1,13 +1,14 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
-import { AppLayout, ProtectedRoute, PublicOnlyRoute, RoleRoute } from './auth/RouteGuards'
+import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } from './auth/RouteGuards'
 import { ROLES } from './auth/roles'
 import { DashboardHome } from './pages/dashboard/DashboardHome'
 import { PlaceholderPage } from './pages/dashboard/PlaceholderPage'
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
-import { SignupPage } from './pages/auth/SignupPage'
+import { AdminCreateUserPage } from './pages/admin/AdminCreateUserPage'
+import { NotFoundPage, UnauthorizedPage } from './pages/dashboard/StatusPages'
 import './App.css'
 
 function App() {
@@ -16,25 +17,34 @@ function App() {
       <Routes>
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ProtectedRoute />}>
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<DashboardHome />} />
-            <Route path="/clients" element={<PlaceholderPage title="Clients" />} />
-            <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.AGENCY_OWNER]} />}>
-              <Route path="/team" element={<PlaceholderPage title="Team" />} />
-              <Route path="/reports" element={<PlaceholderPage title="Reports" />} />
-            </Route>
             <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
-              <Route path="/settings" element={<PlaceholderPage title="Workspace settings" />} />
+              <Route path="/admin/dashboard" element={<DashboardHome />} />
+              <Route path="/admin/users/new" element={<AdminCreateUserPage />} />
+              <Route path="/admin/settings" element={<PlaceholderPage title="Settings" />} />
+            </Route>
+            <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
+              <Route path="/team/queue" element={<PlaceholderPage title="Team Queue" />} />
+            </Route>
+            <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE, ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
+              <Route path="/my-tickets" element={<PlaceholderPage title="My Tickets" />} />
+            </Route>
+            <Route element={<RoleRoute allowedRoles={[ROLES.QA, ROLES.ADMIN]} />}>
+              <Route path="/qa/queue" element={<PlaceholderPage title="QA Queue" />} />
+            </Route>
+            <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER]} />}>
+              <Route path="/agency/dashboard" element={<PlaceholderPage title="Agency Dashboard" />} />
             </Route>
           </Route>
         </Route>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="/" element={<HomeRedirect />} />
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
     </AuthProvider>
   )

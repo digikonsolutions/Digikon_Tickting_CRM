@@ -9,5 +9,10 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public function run(): void {}
+    public function run(): void
+    {
+        if (app()->environment('local')) {
+            $this->call(LocalAdminSeeder::class);
+        }
+    }
 }

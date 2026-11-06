@@ -4,28 +4,31 @@ import { authService, isKnownRole } from './authService'
 const AuthContext = createContext(null)
 
 async function fetchSession() {
+  if (authService.isMockMode) return { user: null, error: '' }
+
   try {
-    const { user } = await authService.getCurrentUser()
+    const response = await authService.getCurrentUser()
+    const user = response?.user ?? response
     if (!isKnownRole(user?.role)) throw new Error('Your account has no valid role assigned.')
-    return { user, error: '' }
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        agency_id: user.agency_id ?? null,
+        agency_name: user.agency_name ?? null,
+      },
+      error: '',
+    }
   } catch (error) {
     return { user: null, error: error.status === 401 ? '' : error.message }
   }
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    if (!authService.isMockMode) return null
-    const saved = sessionStorage.getItem('client-session')
-    if (!saved) return null
-    try {
-      const candidate = JSON.parse(saved)
-      return isKnownRole(candidate.role) ? candidate : null
-    } catch {
-      return null
-    }
-  })
-  const [isLoading, setIsLoading] = useState(!authService.isMockMode)
+  const [user, setUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [authError, setAuthError] = useState('')
 
   const refreshSession = useCallback(async () => {
@@ -38,8 +41,6 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    if (authService.isMockMode) return undefined
-
     let active = true
     void fetchSession().then((session) => {
       if (!active) return
@@ -53,11 +54,28 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  useEffect(() => {
+    function clearSession() {
+      setUser(null)
+      setAuthError('')
+      setIsLoading(false)
+    }
+
+    window.addEventListener('clienthub:unauthorized', clearSession)
+    return () => window.removeEventListener('clienthub:unauthorized', clearSession)
+  }, [])
+
   const establishSession = (nextUser) => {
     if (!isKnownRole(nextUser?.role)) throw new Error('Your account has no valid role assigned.')
-    setUser(nextUser)
+    setUser({
+      id: nextUser.id,
+      name: nextUser.name,
+      email: nextUser.email,
+      role: nextUser.role,
+      agency_id: nextUser.agency_id ?? null,
+      agency_name: nextUser.agency_name ?? null,
+    })
     setAuthError('')
-    if (authService.isMockMode) sessionStorage.setItem('client-session', JSON.stringify(nextUser))
   }
 
   const value = useMemo(() => ({
@@ -67,12 +85,22 @@ export function AuthProvider({ children }) {
     refreshSession,
     signIn: async (credentials) => {
       setIsLoading(true)
-      try { establishSession((await authService.signIn(credentials)).user) } finally { setIsLoading(false) }
+      try {
+        const response = await authService.signIn(credentials)
+        const nextUser = response?.user ?? response
+        establishSession(nextUser)
+        return nextUser
+      } finally {
+        setIsLoading(false)
+      }
     },
     signOut: async () => {
-      await authService.signOut()
-      setUser(null)
-      if (authService.isMockMode) sessionStorage.removeItem('client-session')
+      try {
+        await authService.signOut()
+      } finally {
+        setUser(null)
+        setAuthError('')
+      }
     },
   }), [user, isLoading, authError, refreshSession])
 

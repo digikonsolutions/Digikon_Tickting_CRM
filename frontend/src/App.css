@@ -152,10 +152,13 @@
 
 form { display: grid; gap: 1.15rem; }
 .field { display: grid; gap: .55rem; color: #343650; font-size: .82rem; font-weight: 700; }
-.field input { width: 100%; min-height: 3.2rem; box-sizing: border-box; border: 1px solid #e1e3ed; border-radius: .72rem; padding: .8rem .95rem; background: #fbfbfd; color: #252640; font: inherit; font-weight: 450; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.field-error { color: #a42a2a; font-size: .76rem; font-weight: 500; }
+.field-help { color: #777b91; font-size: .74rem; font-weight: 450; }
+.field input[aria-invalid="true"], .field select[aria-invalid="true"] { border-color: #d97777; }
+.field input, .field select { width: 100%; min-height: 3.2rem; box-sizing: border-box; border: 1px solid #e1e3ed; border-radius: .72rem; padding: .8rem .95rem; background: #fbfbfd; color: #252640; font: inherit; font-weight: 450; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
 .field input::placeholder { color: #a5a7b6; }
-.field input:hover { border-color: #c5c6db; }
-.field input:focus { outline: 0; border-color: #6d63d9; background: #fff; box-shadow: 0 0 0 .22rem rgb(109 99 217 / 13%); }
+.field input:hover, .field select:hover { border-color: #c5c6db; }
+.field input:focus, .field select:focus { outline: 0; border-color: #6d63d9; background: #fff; box-shadow: 0 0 0 .22rem rgb(109 99 217 / 13%); }
 .auth-form-meta { display: flex; justify-content: flex-end; margin-top: -.25rem; }
 .primary-button { min-height: 3.15rem; border: 0; border-radius: .72rem; padding: .8rem 1rem; background: linear-gradient(100deg, #4c45b8, #6757d6); color: #fff; cursor: pointer; font: inherit; font-size: .9rem; font-weight: 750; box-shadow: 0 .5rem 1.1rem rgb(79 70 170 / 20%); transition: transform .16s ease, box-shadow .16s ease, filter .16s ease; }
 .primary-button:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 .75rem 1.4rem rgb(79 70 170 / 25%); }
@@ -183,12 +186,20 @@ form { display: grid; gap: 1.15rem; }
 .sidebar nav { display: grid; gap: .25rem; }
 .sidebar nav a { padding: .68rem .75rem; border-radius: .45rem; color: #cbd5e1; text-decoration: none; }
 .sidebar nav a:hover, .sidebar nav a.active { background: #312e81; color: #fff; }
-.account-summary { display: grid; gap: .2rem; margin-top: auto; color: #fff; font-size: .86rem; }
-.account-summary span { color: #94a3b8; }
-.text-button { justify-self: start; margin-top: .6rem; padding: 0; border: 0; background: none; color: #c7d2fe; cursor: pointer; font: inherit; }
-.account-summary .form-error { margin-top: .5rem; color: #ffd1cf; }
+.app-main { min-width: 0; }
+.dashboard-header { min-height: 5rem; display: flex; align-items: center; justify-content: flex-end; gap: 1.25rem; padding: .8rem clamp(1.5rem, 5vw, 4rem); border-bottom: 1px solid #e5e7eb; background: #fff; }
+.user-summary { display: grid; gap: .15rem; color: #252640; font-size: .84rem; text-align: right; }
+.user-summary span { color: #777b91; font-size: .76rem; }
+.text-button { padding: .55rem .75rem; border: 1px solid #dfe1ea; border-radius: .55rem; background: #fff; color: #343650; cursor: pointer; font: inherit; font-size: .82rem; font-weight: 700; }
+.text-button:hover { border-color: #b7b2e8; color: #5148bb; }
+.text-button:disabled { cursor: wait; opacity: .65; }
 .dashboard-content { padding: clamp(1.5rem, 5vw, 4rem); }
 .page { max-width: 60rem; }
+.admin-user-form { max-width: 34rem; margin-top: 1.75rem; }
+.status-page { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; background: #f8fafc; }
+.status-card { width: min(100%, 34rem); padding: clamp(1.5rem, 5vw, 3rem); border: 1px solid #e5e7eb; border-radius: 1rem; background: #fff; box-shadow: 0 1rem 2.5rem rgb(26 33 67 / 8%); }
+.status-card h1 { margin: .5rem 0 0; color: #20213d; font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -.05em; }
+.status-link { display: inline-flex; align-items: center; justify-content: center; margin-top: 1.5rem; text-decoration: none; }
 .eyebrow { margin: 0 0 .7rem; color: #4f46e5; font-size: .8rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 2.5rem; }
 .dashboard-grid article { padding: 1.25rem; border: 1px solid #e5e7eb; border-radius: .75rem; background: #fff; }
@@ -210,7 +221,7 @@ form { display: grid; gap: 1.15rem; }
   .sidebar { gap: 1rem; }
   .sidebar nav { display: flex; overflow-x: auto; }
   .sidebar nav a { white-space: nowrap; }
-  .account-summary { margin-top: 0; }
+  .dashboard-header { min-height: 4.5rem; }
   .dashboard-grid { grid-template-columns: 1fr; }
 }
 

@@ -34,6 +34,30 @@ async function establishCsrfCookie() {
   }
 }
 
+function notifyUnauthorized(path) {
+  if (path !== '/auth/me' && path !== '/auth/login') {
+    window.dispatchEvent(new Event('clienthub:unauthorized'))
+  }
+}
+
+function requestHeaders(options, isStateChanging) {
+  const csrf = xsrfToken()
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(csrf && isStateChanging ? { 'X-XSRF-TOKEN': csrf } : {}),
+    ...options.headers,
+  }
+}
+
+async function send(path, options, isStateChanging) {
+  return fetch(`${API_URL}${path}`, {
+    ...options,
+    credentials: 'include',
+    headers: requestHeaders(options, isStateChanging),
+  })
+}
+
 async function request(path, options = {}) {
   const method = options.method ?? 'GET'
   const isStateChanging = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())
@@ -41,26 +65,23 @@ async function request(path, options = {}) {
   try {
     if (isStateChanging) await establishCsrfCookie()
 
-    const csrf = xsrfToken()
-    const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(csrf && isStateChanging ? { 'X-XSRF-TOKEN': csrf } : {}),
-        ...options.headers,
-      },
-    })
+    let response = await send(path, options, isStateChanging)
+
+    if (response.status === 419 && isStateChanging) {
+      await establishCsrfCookie()
+      response = await send(path, options, isStateChanging)
+    }
+
     const isJson = response.headers.get('content-type')?.includes('application/json')
     const payload = isJson ? await response.json().catch(() => null) : null
 
     if (!response.ok) {
       const status = response.status
+      if (status === 401) notifyUnauthorized(path)
       const message = status === 401
         ? 'Your session has expired. Please sign in again.'
         : status === 403
-          ? 'You do not have permission to perform this action.'
+          ? "You don't have access"
           : status === 419
             ? 'Your session expired. Refresh the page and try again.'
             : status === 429
@@ -92,8 +113,8 @@ async function request(path, options = {}) {
 
 function mockUser(email) {
   const localPart = email.split('@')[0].toLowerCase()
-  const role = Object.values(ROLES).find((candidate) => localPart.startsWith(candidate.replace('_', '.'))) ?? ROLES.CLIENT
-  return { id: 'demo-user', name: localPart || 'Demo user', email, role }
+  const role = Object.values(ROLES).find((candidate) => localPart.startsWith(candidate.replaceAll('_', '.'))) ?? ROLES.EMPLOYEE
+  return { id: 'demo-user', name: localPart || 'Demo user', email, role, agency_id: null, agency_name: null }
 }
 
 export const authService = {
@@ -119,6 +140,23 @@ export const authService = {
   },
   async signOut() {
     if (AUTH_MODE !== 'mock') await request('/auth/logout', { method: 'POST' })
+  },
+  async createUser({ name, email, role, agency_id, agency_name }) {
+    if (AUTH_MODE === 'mock') return { user: { name, email, role, agency_id: agency_id ?? null, agency_name } }
+    return request('/auth/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        email,
+        role,
+        ...(agency_id ? { agency_id: Number(agency_id) } : {}),
+        ...(agency_name ? { agency_name } : {}),
+      }),
+    })
+  },
+  async listAgencies() {
+    if (AUTH_MODE === 'mock') return { agencies: [] }
+    return request('/admin/agencies')
   },
 }
 

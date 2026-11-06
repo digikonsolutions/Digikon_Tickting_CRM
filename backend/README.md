@@ -30,21 +30,25 @@ VITE_AUTH_MODE=api
 
 Run `php artisan migrate` before starting the application. In local development, password-reset links are written to `storage/logs/laravel.log` when `MAIL_MAILER=log`. Configure a production mail provider, HTTPS, secure cookies, a restricted `FRONTEND_URL`, and appropriate session domain settings before deployment.
 
-There is no default admin account. Bootstrap the first one from trusted local tooling with `php artisan tinker`, creating a `User` with a unique email and strong random password, then set its `role` via `forceFill(['role' => App\Enums\UserRole::Admin])`. Do not seed a known admin password into production.
+There is no default admin account or public signup route. Bootstrap the first administrator from trusted local tooling with `php artisan app:create-admin "Administrator" admin@example.com`; the command prompts for a strong password without echoing it. For local-only seeding, set `LOCAL_ADMIN_NAME`, `LOCAL_ADMIN_EMAIL`, and `LOCAL_ADMIN_PASSWORD` in the local environment before running `php artisan db:seed`. Do not set these values in production.
 
 Available routes:
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/auth/csrf-cookie` | Establish the CSRF/session cookies |
-| POST | `/api/auth/users` | Admin-only account creation; role is required |
+| POST | `/api/auth/users` | Admin-only account invitation; role and agency assignment are validated |
+| GET | `/api/admin/agencies` | Admin-only list of active agencies for agency-member assignment |
+| POST | `/api/agency/users` | Agency-owner invitation; always creates an agency member in the owner's active agency |
 | POST | `/api/auth/login` | Sign in |
 | POST | `/api/auth/logout` | End the current session |
 | GET | `/api/auth/me` | Return the authenticated user and role |
 | POST | `/api/auth/forgot-password` | Request a reset link |
 | POST | `/api/auth/reset-password` | Reset password with a time-limited token |
 
-Roles are `admin`, `agency_owner`, `client`, and `employee`. An administrator can create accounts with any of these roles; other authenticated users cannot create accounts. Bootstrap the first admin through trusted local tooling, then create further users through the admin-only endpoint. Protect future ticket routes with `auth` and `role:admin` (or the required role list). Ticket ownership and agency/client data access should additionally be enforced with policies and tenant scoping, not role checks alone.
+Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, and `agency_member`. Admin-created internal users must not have an agency. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Admin-created agency members must be assigned to an existing agency. Agency owners can invite only agency members for their own active agency. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes must enforce authorization. Protect future ticket routes with `auth` and `role:admin` (or a comma-separated role list), and enforce record ownership and tenant scoping with policies as well.
+
+There is not yet a user-update endpoint. When one is added, it must prevent an administrator from deactivating or demoting their own account and prevent deactivation or demotion of the last active administrator.
 
 ### Testing with Postman
 
@@ -57,16 +61,7 @@ X-XSRF-TOKEN: <URL-decoded value of the XSRF-TOKEN cookie>
 ```
 
 1. Start Laravel with `php artisan serve`, and run `php artisan migrate`.
-2. Create the first admin locally with `php artisan tinker`:
-
-   ```php
-   $admin = App\Models\User::create([
-       'name' => 'Administrator',
-       'email' => 'admin@example.com',
-       'password' => 'Your-Strong-Local-Password!',
-   ]);
-   $admin->forceFill(['role' => App\Enums\UserRole::Admin])->save();
-   ```
+2. Create the first admin from a trusted terminal with `php artisan app:create-admin "Administrator" admin@example.com`.
 
 3. In Postman, send `GET http://127.0.0.1:8000/api/auth/csrf-cookie`. Postman should retain the `laravel_session` and `XSRF-TOKEN` cookies. Copy the `XSRF-TOKEN` cookie value, URL-decode it, and use it in the `X-XSRF-TOKEN` header for the following POST requests. Keep Postman’s cookie jar enabled so the session cookie is sent too.
 4. Send `POST http://127.0.0.1:8000/api/auth/login` with:
@@ -79,19 +74,17 @@ X-XSRF-TOKEN: <URL-decoded value of the XSRF-TOKEN cookie>
    ```
 
 5. Confirm the session with `GET http://127.0.0.1:8000/api/auth/me`.
-6. As the admin, create another user with `POST http://127.0.0.1:8000/api/auth/users`:
+6. As the admin, invite an employee with `POST http://127.0.0.1:8000/api/auth/users`:
 
    ```json
    {
-     "name": "Agency Owner",
-     "email": "owner@example.com",
-     "password": "Another-Strong-Password!",
-     "password_confirmation": "Another-Strong-Password!",
-     "role": "agency_owner"
+     "name": "Employee",
+     "email": "employee@example.com",
+     "role": "employee"
    }
    ```
 
-   Valid roles are `admin`, `agency_owner`, `client`, and `employee`. An unauthenticated request returns 401; a signed-in non-admin request returns 403.
+   Valid roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, and `agency_member`. Agency roles require an existing `agency_id`; internal roles must omit it. Agency owners invite members through `/api/agency/users`, which ignores client-supplied role and agency identifiers. An unauthenticated request returns 401; a signed-in user without the required role returns 403.
 7. Test `POST /api/auth/forgot-password` with `{"email":"admin@example.com"}`. With `MAIL_MAILER=log`, find the reset URL in `storage/logs/laravel.log`; submit its `token` and `email` with `password` and `password_confirmation` to `POST /api/auth/reset-password`.
 8. Send `POST /api/auth/logout`, then verify `GET /api/auth/me` returns 401.
 

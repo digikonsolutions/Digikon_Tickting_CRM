@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Enums\UserRole;
+use App\Enums\Role;
+use App\Models\Agency;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\SetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -29,118 +30,232 @@ class AuthTest extends TestCase
         $this->assertSame('true', $response->headers->get('Access-Control-Allow-Credentials'));
     }
 
-    public function test_signup_is_admin_only_and_creates_the_requested_role(): void
+    public function test_admin_can_create_employee_and_agency_owner_and_send_invites(): void
     {
-        $data = [
-            'name' => 'New Client',
-            'email' => 'OWNER@example.com',
-            'password' => 'GoodPassword123!',
-            'password_confirmation' => 'GoodPassword123!',
-            'role' => UserRole::AgencyOwner->value,
-        ];
+        Notification::fake();
+        $admin = User::factory()->create(['role' => Role::Admin]);
 
-        $this->postJson('/api/auth/users', $data)->assertUnauthorized();
+        $employeeResponse = $this->actingAs($admin)->postJson('/api/auth/users', [
+            'name' => 'New Employee',
+            'email' => 'EMPLOYEE@example.com',
+            'role' => Role::Employee->value,
+        ]);
+        $employeeResponse->assertCreated()
+            ->assertJsonPath('user.role', Role::Employee->value)
+            ->assertJsonPath('user.agency_id', null);
+        $employee = User::where('email', 'employee@example.com')->firstOrFail();
+        $this->assertTrue($employee->is_active);
+        Notification::assertSentTo($employee, SetPasswordNotification::class);
 
-        $admin = User::factory()->create();
-        $admin->forceFill(['role' => UserRole::Admin])->save();
-        $response = $this->actingAs($admin)->postJson('/api/auth/users', $data);
+        $ownerResponse = $this->postJson('/api/auth/users', [
+            'name' => 'Agency Owner',
+            'email' => 'owner@example.com',
+            'role' => Role::AgencyOwner->value,
+            'agency_name' => 'Northwind',
+        ]);
+        $agency = Agency::where('name', 'Northwind')->firstOrFail();
+        $ownerResponse->assertCreated()
+            ->assertJsonPath('user.role', Role::AgencyOwner->value)
+            ->assertJsonPath('user.agency_id', $agency->id)
+            ->assertJsonPath('user.agency_name', 'Northwind');
+        Notification::assertSentTo(User::where('email', 'owner@example.com')->firstOrFail(), SetPasswordNotification::class);
+    }
+
+    public function test_admin_cannot_create_agency_roles_without_an_agency_or_internal_roles_with_one(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $agency = Agency::create(['name' => 'Northwind']);
+
+        $this->actingAs($admin)->postJson('/api/auth/users', [
+            'name' => 'Owner',
+            'email' => 'owner@example.com',
+            'role' => Role::AgencyOwner->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['agency_name']);
+
+        $this->postJson('/api/auth/users', [
+            'name' => 'Owner',
+            'email' => 'another-owner@example.com',
+            'role' => Role::AgencyOwner->value,
+            'agency_name' => 'Created automatically',
+            'agency_id' => $agency->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
+
+        $this->postJson('/api/auth/users', [
+            'name' => 'Member',
+            'email' => 'member@example.com',
+            'role' => Role::AgencyMember->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
+
+        $this->postJson('/api/auth/users', [
+            'name' => 'Employee',
+            'email' => 'employee@example.com',
+            'role' => Role::Employee->value,
+            'agency_id' => $agency->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
+    }
+
+    public function test_admin_can_list_active_agencies_for_member_assignment(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        Agency::create(['name' => 'Northwind']);
+        Agency::create(['name' => 'Suspended', 'status' => 'suspended']);
+
+        $this->getJson('/api/admin/agencies')->assertUnauthorized();
+
+        $this->actingAs(User::factory()->create(['role' => Role::Employee]))
+            ->getJson('/api/admin/agencies')
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->getJson('/api/admin/agencies')
+            ->assertOk()
+            ->assertJsonCount(1, 'agencies')
+            ->assertJsonPath('agencies.0.name', 'Northwind');
+    }
+
+    public function test_agency_owner_creates_members_in_own_agency_and_cannot_override_role_or_agency(): void
+    {
+        Notification::fake();
+        $agency = Agency::create(['name' => 'Owner Agency']);
+        $otherAgency = Agency::create(['name' => 'Other Agency']);
+        $owner = User::factory()->create([
+            'role' => Role::AgencyOwner,
+            'agency_id' => $agency->id,
+        ]);
+
+        $response = $this->actingAs($owner)->postJson('/api/agency/users', [
+            'name' => 'Invited Member',
+            'email' => 'MEMBER@example.com',
+            'role' => Role::Admin->value,
+            'agency_id' => $otherAgency->id,
+        ]);
 
         $response->assertCreated()
-            ->assertJsonPath('user.role', UserRole::AgencyOwner->value)
-            ->assertJsonMissingPath('user.password');
+            ->assertJsonPath('user.role', Role::AgencyMember->value)
+            ->assertJsonPath('user.agency_id', $agency->id)
+            ->assertJsonPath('user.agency_name', 'Owner Agency');
 
-        $this->assertDatabaseHas('users', [
-            'email' => 'owner@example.com',
-            'role' => UserRole::AgencyOwner->value,
-        ]);
-        $this->assertAuthenticatedAs($admin);
+        $member = User::where('email', 'member@example.com')->firstOrFail();
+        $this->assertSame(Role::AgencyMember, $member->role);
+        $this->assertSame($agency->id, $member->agency_id);
+        Notification::assertSentTo($member, SetPasswordNotification::class);
     }
 
-    public function test_non_admin_users_cannot_create_accounts(): void
+    public function test_agency_owner_cannot_invite_without_an_active_agency(): void
     {
-        $client = User::factory()->create();
+        $agency = Agency::create(['name' => 'Suspended Agency', 'status' => 'suspended']);
+        $owner = User::factory()->create([
+            'role' => Role::AgencyOwner,
+            'agency_id' => $agency->id,
+        ]);
 
-        $this->actingAs($client)->postJson('/api/auth/users', [
-            'name' => 'Another User',
-            'email' => 'another@example.com',
-            'password' => 'GoodPassword123!',
-            'password_confirmation' => 'GoodPassword123!',
-            'role' => UserRole::Client->value,
+        $this->actingAs($owner)->postJson('/api/agency/users', [
+            'name' => 'Member',
+            'email' => 'member@example.com',
         ])->assertForbidden();
 
-        $this->assertDatabaseMissing('users', ['email' => 'another@example.com']);
+        $this->assertDatabaseMissing('users', ['email' => 'member@example.com']);
     }
 
-    public function test_api_validation_errors_include_field_details(): void
+    public function test_guests_receive_401_on_account_creation_endpoints(): void
     {
-        $admin = User::factory()->create();
-        $admin->forceFill(['role' => UserRole::Admin])->save();
+        $this->postJson('/api/auth/users', [])->assertUnauthorized();
+        $this->postJson('/api/agency/users', [])->assertUnauthorized();
+    }
+
+    public function test_non_admin_roles_receive_403_on_both_account_creation_endpoints(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+
+        foreach ([Role::AgencyMember, Role::Employee, Role::Qa, Role::TeamLead] as $role) {
+            $user = User::factory()->create([
+                'role' => $role,
+                'agency_id' => $role->isAgencyRole() ? $agency->id : null,
+            ]);
+
+            $this->actingAs($user)->postJson('/api/auth/users', [
+                'name' => 'New User',
+                'email' => 'admin-route-'.$role->value.'@example.com',
+                'role' => Role::Employee->value,
+            ])->assertForbidden();
+
+            $this->postJson('/api/agency/users', [
+                'name' => 'New Member',
+                'email' => 'agency-route-'.$role->value.'@example.com',
+            ])->assertForbidden();
+        }
+    }
+
+    public function test_validation_errors_include_field_details_and_public_signup_is_disabled(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
 
         $this->actingAs($admin)->postJson('/api/auth/users', [
             'name' => '',
             'email' => 'not-an-email',
             'role' => 'unknown',
-            'password' => 'short',
-            'password_confirmation' => 'different',
         ])->assertUnprocessable()
             ->assertJsonPath('message', 'The given data was invalid.')
-            ->assertJsonValidationErrors(['name', 'email', 'role', 'password']);
-    }
+            ->assertJsonValidationErrors(['name', 'email', 'role']);
 
-    public function test_api_auth_and_not_found_errors_are_json(): void
-    {
-        $this->getJson('/api/auth/me')
-            ->assertUnauthorized()
-            ->assertJsonPath('message', 'Unauthenticated.');
-
-        $this->getJson('/api/not-a-route')
-            ->assertNotFound()
-            ->assertJsonPath('message', 'The requested resource was not found.');
-    }
-
-    public function test_api_unexpected_errors_do_not_expose_internal_details(): void
-    {
-        Route::get('/api/test-error', function () {
-            throw new \RuntimeException('Sensitive internal exception details.');
-        });
-
-        $this->getJson('/api/test-error')
-            ->assertInternalServerError()
-            ->assertJsonPath('message', 'The server encountered an error. Please try again.')
-            ->assertDontSee('Sensitive internal exception details.');
-    }
-
-    public function test_public_signup_routes_are_not_available(): void
-    {
         $this->postJson('/api/auth/signup')->assertNotFound();
         $this->postJson('/api/auth/register')->assertNotFound();
     }
 
-    public function test_login_and_logout_use_a_server_side_session(): void
+    public function test_login_and_logout_use_a_server_side_session_and_me_returns_agency_details(): void
     {
-        $user = User::factory()->create(['password' => 'GoodPassword123!']);
+        $agency = Agency::create(['name' => 'Northwind']);
+        $user = User::factory()->create([
+            'email' => 'owner@example.com',
+            'password' => 'GoodPassword123!',
+            'role' => Role::AgencyOwner,
+            'agency_id' => $agency->id,
+        ]);
 
         $this->postJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'GoodPassword123!',
-        ])->assertOk()->assertJsonPath('user.role', UserRole::Client->value);
+        ])->assertOk()->assertJsonPath('user.role', Role::AgencyOwner->value);
 
         $this->assertAuthenticatedAs($user);
-        $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('user.id', $user->id);
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.role', Role::AgencyOwner->value)
+            ->assertJsonPath('user.agency_id', $agency->id)
+            ->assertJsonPath('user.agency_name', 'Northwind');
 
         $this->postJson('/api/auth/logout')->assertOk();
         $this->assertGuest();
     }
 
-    public function test_login_uses_a_generic_error_for_invalid_credentials(): void
+    public function test_login_uses_a_generic_error_for_invalid_inactive_and_suspended_users(): void
     {
-        User::factory()->create(['email' => 'known@example.com']);
-
-        $this->postJson('/api/auth/login', [
+        $active = User::factory()->create([
             'email' => 'known@example.com',
-            'password' => 'incorrect',
-        ])->assertUnprocessable()
-            ->assertJsonPath('message', 'The provided credentials are incorrect.');
+            'password' => 'GoodPassword123!',
+        ]);
+
+        $inactive = User::factory()->create([
+            'email' => 'inactive@example.com',
+            'password' => 'GoodPassword123!',
+            'is_active' => false,
+        ]);
+        $agency = Agency::create(['name' => 'Suspended', 'status' => 'suspended']);
+        $suspended = User::factory()->create([
+            'email' => 'suspended@example.com',
+            'password' => 'GoodPassword123!',
+            'agency_id' => $agency->id,
+        ]);
+
+        foreach ([$active, $inactive, $suspended] as $user) {
+            $this->postJson('/api/auth/login', [
+                'email' => $user->email,
+                'password' => $user->is($active) ? 'incorrect' : 'GoodPassword123!',
+            ])->assertUnprocessable()
+                ->assertJsonPath('message', 'The provided credentials are incorrect.');
+            $this->assertGuest();
+        }
 
         $this->postJson('/api/auth/login', [
             'email' => 'unknown@example.com',
@@ -149,7 +264,7 @@ class AuthTest extends TestCase
             ->assertJsonPath('message', 'The provided credentials are incorrect.');
     }
 
-    public function test_forgot_password_does_not_disclose_whether_an_email_exists(): void
+    public function test_forgot_password_does_not_disclose_email_existence_and_sends_custom_notification(): void
     {
         Notification::fake();
 
@@ -165,7 +280,7 @@ class AuthTest extends TestCase
         ])->assertAccepted()
             ->assertJsonPath('message', 'If an account exists for that email, password reset instructions will be sent.');
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertSentTo($user, SetPasswordNotification::class);
     }
 
     public function test_password_reset_changes_the_password_and_revokes_sessions(): void
@@ -192,16 +307,38 @@ class AuthTest extends TestCase
         $this->assertDatabaseMissing('sessions', ['id' => 'existing-session']);
     }
 
+    public function test_api_auth_and_not_found_errors_are_json(): void
+    {
+        $this->getJson('/api/auth/me')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
+
+        $this->getJson('/api/not-a-route')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'The requested resource was not found.');
+    }
+
+    public function test_api_unexpected_errors_do_not_expose_internal_details(): void
+    {
+        Route::get('/api/test-error', function () {
+            throw new \RuntimeException('Sensitive internal exception details.');
+        });
+
+        $this->getJson('/api/test-error')
+            ->assertInternalServerError()
+            ->assertJsonPath('message', 'The server encountered an error. Please try again.')
+            ->assertDontSee('Sensitive internal exception details.');
+    }
+
     public function test_role_middleware_blocks_users_without_the_required_role(): void
     {
         Route::get('/test/admin-only', fn () => response()->json(['ok' => true]))
-            ->middleware(['auth', 'role:admin']);
+            ->middleware(['auth', 'role:admin,team_lead']);
 
-        $client = User::factory()->create();
-        $this->actingAs($client)->getJson('/test/admin-only')->assertForbidden();
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $this->actingAs($employee)->getJson('/test/admin-only')->assertForbidden();
 
-        $admin = User::factory()->create();
-        $admin->forceFill(['role' => UserRole::Admin])->save();
-        $this->actingAs($admin)->getJson('/test/admin-only')->assertOk();
+        $teamLead = User::factory()->create(['role' => Role::TeamLead]);
+        $this->actingAs($teamLead)->getJson('/test/admin-only')->assertOk();
     }
 }

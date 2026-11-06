@@ -20,3 +20,10 @@ Route::middleware('web')->prefix('auth')->group(function () {
     Route::post('/users', [AuthController::class, 'createUser'])
         ->middleware(['auth', 'role:admin', 'throttle:auth-admin-signup']);
 });
+
+Route::middleware('web')->prefix('agency')->group(function () {
+    Route::post('/users', [AuthController::class, 'createAgencyUser'])
+        ->middleware(['auth', 'role:agency_owner', 'throttle:auth-admin-signup']);
+});
+
+Route::middleware(['web', 'auth', 'role:admin'])->get('/admin/agencies', [AuthController::class, 'agencies']);

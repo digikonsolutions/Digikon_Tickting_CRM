@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
+use App\Enums\Role;
+use App\Http\Requests\AdminCreateUserRequest;
+use App\Http\Requests\AgencyCreateUserRequest;
+use App\Models\Agency;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
@@ -11,34 +14,43 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
 {
-    public function createUser(Request $request): JsonResponse
+    public function createUser(AdminCreateUserRequest $request): JsonResponse
     {
-        $this->normalizeEmail($request);
-
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'string', 'email', 'max:254', 'unique:users,email'],
-            'role' => ['required', Rule::enum(UserRole::class)],
-            'password' => ['required', 'string', 'max:128', 'confirmed', PasswordRule::min(12)->letters()->mixedCase()->numbers()->symbols()],
-        ]);
-
-        $user = DB::transaction(function () use ($data): User {
-            $user = User::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => $data['password'],
-            ]);
-            $user->forceFill(['role' => UserRole::from($data['role'])])->save();
-
-            return $user;
-        });
+        $user = $this->createInvitedUser($request->validated());
 
         return response()->json(['user' => $this->userPayload($user)], 201);
+    }
+
+    public function createAgencyUser(AgencyCreateUserRequest $request): JsonResponse
+    {
+        $owner = $request->user();
+        abort_unless(
+            $owner->agency_id !== null && $owner->agency?->status === 'active',
+            403,
+            'An active agency is required to invite users.'
+        );
+
+        $user = $this->createInvitedUser([
+            ...$request->validated(),
+            'role' => Role::AgencyMember->value,
+            'agency_id' => $owner->agency_id,
+        ]);
+
+        return response()->json(['user' => $this->userPayload($user)], 201);
+    }
+
+    public function agencies(): JsonResponse
+    {
+        return response()->json([
+            'agencies' => Agency::query()
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name']),
+        ]);
     }
 
     public function login(Request $request): JsonResponse
@@ -54,9 +66,20 @@ class AuthController extends Controller
             return response()->json(['message' => 'The provided credentials are incorrect.'], 422);
         }
 
+        $user = $request->user();
+        $user->loadMissing('agency');
+
+        if (! $user->is_active || ($user->agency && $user->agency->status !== 'active')) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return response()->json(['message' => 'The provided credentials are incorrect.'], 422);
+        }
+
         $request->session()->regenerate();
 
-        return response()->json(['user' => $this->userPayload($request->user())]);
+        return response()->json(['user' => $this->userPayload($user)]);
     }
 
     public function logout(Request $request): JsonResponse
@@ -119,15 +142,50 @@ class AuthController extends Controller
     }
 
     /**
-     * @return array{id: int, name: string, email: string, role: string}
+     * @param  array{name: string, email: string, role: string, agency_id?: int|null, agency_name?: string}  $data
+     */
+    private function createInvitedUser(array $data): User
+    {
+        $user = DB::transaction(function () use ($data): User {
+            $agencyId = $data['agency_id'] ?? null;
+
+            if (Role::from($data['role']) === Role::AgencyOwner) {
+                $agencyId = Agency::create(['name' => $data['agency_name']])->id;
+            }
+
+            return User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Str::random(64),
+                'role' => Role::from($data['role']),
+                'agency_id' => $agencyId,
+                'is_active' => true,
+            ]);
+        });
+
+        $status = Password::sendResetLink(['email' => $user->email]);
+
+        if ($status !== Password::RESET_LINK_SENT) {
+            throw new \RuntimeException('Unable to send the account invitation: '.$status);
+        }
+
+        return $user->loadMissing('agency');
+    }
+
+    /**
+     * @return array{id: int, name: string, email: string, role: string, agency_id: int|null, agency_name: string|null}
      */
     private function userPayload(User $user): array
     {
+        $user->loadMissing('agency');
+
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role->value,
+            'agency_id' => $user->agency_id,
+            'agency_name' => $user->agency?->name,
         ];
     }
 
