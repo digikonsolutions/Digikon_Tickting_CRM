@@ -3,6 +3,7 @@ import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-route
 import { useAuth } from './useAuth'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../components/auth/ApiErrorMessage'
+import { Badge, Button } from '../components/ui'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -49,9 +50,19 @@ const SIDEBAR_ITEMS = Object.freeze({
 
 export function AppLayout() {
   const { user, signOut } = useAuth()
+  const location = useLocation()
   const navigate = useNavigate()
   const [signOutError, setSignOutError] = useState(null)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [isNavOpen, setIsNavOpen] = useState(false)
+  const visibleItems = SIDEBAR_ITEMS[user.role] ?? []
+  const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
+    ?? ({
+      '/admin/users/new': 'Create User',
+      '/admin/settings': 'Settings',
+      '/admin/dashboard': 'Dashboard',
+      '/agency/dashboard': 'Dashboard',
+    }[location.pathname] ?? 'Workspace')
 
   async function handleSignOut() {
     setSignOutError(null)
@@ -72,25 +83,40 @@ export function AppLayout() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell${isNavOpen ? ' app-nav-open' : ''}`}>
+      {isNavOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setIsNavOpen(false)} />}
+      <aside className="sidebar" id="primary-navigation">
         <NavLink className="brand" to={ROLE_HOME[user.role]}>ClientHub</NavLink>
         <nav aria-label="Dashboard">
-          {(SIDEBAR_ITEMS[user.role] ?? []).map((item) => (
-            <NavLink key={item.to} to={item.to}>{item.label}</NavLink>
+          {visibleItems.map((item) => (
+            <NavLink key={item.to} to={item.to} onClick={() => setIsNavOpen(false)}>{item.label}</NavLink>
           ))}
         </nav>
       </aside>
       <div className="app-main">
         <header className="dashboard-header">
+          <div className="dashboard-title-area">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mobile-nav-toggle"
+              aria-expanded={isNavOpen}
+              aria-controls="primary-navigation"
+              onClick={() => setIsNavOpen((open) => !open)}
+            >
+              {isNavOpen ? 'Close menu' : 'Menu'}
+            </Button>
+            <h1>{pageTitle}</h1>
+          </div>
           <div className="user-summary">
             <strong>{user.name}</strong>
-            <span>{ROLE_LABELS[user.role]}</span>
+            <Badge variant={user.role === ROLES.ADMIN ? 'primary' : 'slate'}>{ROLE_LABELS[user.role]}</Badge>
             {user.agency_name && <span>{user.agency_name}</span>}
           </div>
-          <button className="text-button logout-button" type="button" onClick={handleSignOut} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing out…' : 'Logout'}
-          </button>
+          <Button type="button" variant="secondary" size="sm" onClick={handleSignOut} loading={isSigningOut} loadingText="Signing out…">
+            Logout
+          </Button>
         </header>
         <main className="dashboard-content">
           <ApiErrorMessage error={signOutError} />

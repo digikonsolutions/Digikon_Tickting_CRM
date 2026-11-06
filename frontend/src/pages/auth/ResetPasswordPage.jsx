@@ -5,7 +5,7 @@ import { ROLE_HOME } from '../../auth/roles'
 import { useAuth } from '../../auth/useAuth'
 import { ApiErrorMessage } from '../../components/auth/ApiErrorMessage'
 import { AuthLayout } from '../../components/auth/AuthLayout'
-import { FormField } from '../../components/auth/FormField'
+import { Alert, Button, Input } from '../../components/ui'
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
@@ -68,16 +68,16 @@ export function ResetPasswordPage() {
         : <Link to="/login">Back to sign in</Link>}
     >
       {isComplete
-        ? <p className="form-success" role="status">The invited user can now sign in with their new password.</p>
+        ? <Alert variant="success">The invited user can now sign in with their new password.</Alert>
         : (
           <form onSubmit={submit}>
-            <FormField id="email" label="Email address" name="email" type="email" defaultValue={email} autoComplete="email" maxLength="254" />
-            <FormField id="password" label="New password" name="password" type="password" minLength={12} maxLength="128" autoComplete="new-password" />
-            <FormField id="passwordConfirmation" label="Confirm new password" name="passwordConfirmation" type="password" minLength={12} maxLength="128" autoComplete="new-password" />
+            <Input id="email" label="Email address" name="email" type="email" defaultValue={email} autoComplete="email" maxLength="254" required />
+            <Input id="password" label="New password" name="password" type="password" minLength={12} maxLength={128} autoComplete="new-password" required />
+            <Input id="passwordConfirmation" label="Confirm new password" name="passwordConfirmation" type="password" minLength={12} maxLength={128} autoComplete="new-password" required />
             <ApiErrorMessage error={error} />
-            <button className="primary-button" type="submit" disabled={isLoading || !token || !email}>
-              {isLoading ? 'Updating password…' : isInvite ? 'Set password' : 'Reset password'}
-            </button>
+            <Button type="submit" size="lg" disabled={!token || !email} loading={isLoading} loadingText="Updating password…">
+              {isInvite ? 'Set password' : 'Reset password'}
+            </Button>
           </form>
         )}
     </AuthLayout>

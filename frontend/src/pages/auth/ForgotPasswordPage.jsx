@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../auth/authService'
 import { AuthLayout } from '../../components/auth/AuthLayout'
-import { FormField } from '../../components/auth/FormField'
 import { ApiErrorMessage } from '../../components/auth/ApiErrorMessage'
+import { Alert, Button, Input } from '../../components/ui'
 
 export function ForgotPasswordPage() {
   const [state, setState] = useState({ isLoading: false, message: '', error: null })
@@ -26,12 +26,10 @@ export function ForgotPasswordPage() {
   return (
     <AuthLayout title="Reset your password" description="Enter your email and we’ll send reset instructions." footer={<Link to="/login">Back to sign in</Link>}>
       <form onSubmit={submit}>
-        <FormField id="email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" />
+        <Input id="email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" required />
         <ApiErrorMessage error={state.error} />
-        {state.message && <p className="form-success" role="status">{state.message}</p>}
-        <button className="primary-button" type="submit" disabled={state.isLoading}>
-          {state.isLoading ? 'Sending…' : 'Send reset link'}
-        </button>
+        {state.message && <Alert variant="success">{state.message}</Alert>}
+        <Button type="submit" size="lg" loading={state.isLoading} loadingText="Sending…">Send reset link</Button>
       </form>
     </AuthLayout>
   )

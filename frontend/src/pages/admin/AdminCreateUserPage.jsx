@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { authService } from '../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../auth/roles'
 import { ApiErrorMessage } from '../../components/auth/ApiErrorMessage'
+import { Alert, Button, Input, PageHeader, Select } from '../../components/ui'
 
 const ROLE_OPTIONS = [
   ROLES.ADMIN,
@@ -82,57 +83,36 @@ export function AdminCreateUserPage() {
 
   return (
     <section className="page">
-      <p className="eyebrow">Administrator</p>
-      <h1>Create User</h1>
-      <p className="page-copy">Create an account and send an invitation to set a password.</p>
+      <PageHeader eyebrow="Administrator" title="Create User" subtitle="Create an account and send an invitation to set a password." />
       <form className="admin-user-form" onSubmit={submit}>
-        <label className="field" htmlFor="user-name">
-          <span>Name</span>
-          <input id="user-name" name="name" type="text" maxLength="120" autoComplete="name" required aria-invalid={Boolean(fieldError('name'))} aria-describedby={fieldError('name') ? 'user-name-error' : undefined} />
-          {fieldError('name') && <span className="field-error" id="user-name-error">{fieldError('name')}</span>}
-        </label>
-        <label className="field" htmlFor="user-email">
-          <span>Email address</span>
-          <input id="user-email" name="email" type="email" maxLength="254" autoComplete="email" required aria-invalid={Boolean(fieldError('email'))} aria-describedby={fieldError('email') ? 'user-email-error' : undefined} />
-          {fieldError('email') && <span className="field-error" id="user-email-error">{fieldError('email')}</span>}
-        </label>
-        <label className="field" htmlFor="user-role">
-          <span>Role</span>
-          <select
+        <Input id="user-name" label="Name" name="name" type="text" maxLength="120" autoComplete="name" required error={fieldError('name')} />
+        <Input id="user-email" label="Email address" name="email" type="email" maxLength="254" autoComplete="email" required error={fieldError('email')} />
+        <Select
             id="user-role"
+            label="Role"
             name="role"
             value={role}
             onChange={(event) => changeRole(event.target.value)}
             required
-            aria-invalid={Boolean(fieldError('role'))}
-            aria-describedby={fieldError('role') ? 'user-role-error' : undefined}
+            error={fieldError('role')}
           >
             {ROLE_OPTIONS.map((option) => (
               <option key={option} value={option}>{ROLE_LABELS[option]}</option>
             ))}
-          </select>
-          {fieldError('role') && <span className="field-error" id="user-role-error">{fieldError('role')}</span>}
-        </label>
+          </Select>
         {role === ROLES.AGENCY_OWNER && (
-          <label className="field" htmlFor="agency-id">
-            <span>Agency name</span>
-            <input id="agency-id" name="agency_name" type="text" maxLength="160" required aria-invalid={Boolean(fieldError('agency_name'))} aria-describedby={fieldError('agency_name') ? 'agency-id-error' : undefined} />
-            {fieldError('agency_name') && <span className="field-error" id="agency-id-error">{fieldError('agency_name')}</span>}
-            <span className="field-help">The agency will be created automatically and assigned a database ID.</span>
-          </label>
+          <Input id="agency-id" label="Agency name" name="agency_name" type="text" maxLength="160" required error={fieldError('agency_name')} helperText="The agency will be created automatically and assigned a database ID." />
         )}
         {role === ROLES.AGENCY_MEMBER && (
-          <label className="field" htmlFor="agency-id">
-            <span>Agency</span>
-            <select
+          <Select
               id="agency-id"
+              label="Agency"
               name="agency_id"
               value={agencyId}
               onChange={(event) => setAgencyId(event.target.value)}
               required
               disabled={isLoadingAgencies || agencies.length === 0}
-              aria-invalid={Boolean(fieldError('agency_id'))}
-              aria-describedby={fieldError('agency_id') ? 'agency-id-error' : undefined}
+              error={fieldError('agency_id')}
             >
               <option value="">
                 {isLoadingAgencies ? 'Loading agencies…' : agencies.length ? 'Select an agency' : 'No active agencies available'}
@@ -140,19 +120,17 @@ export function AdminCreateUserPage() {
               {agencies.map((agency) => (
                 <option key={agency.id} value={agency.id}>{agency.name}</option>
               ))}
-            </select>
-            {fieldError('agency_id') && <span className="field-error" id="agency-id-error">{fieldError('agency_id')}</span>}
-          </label>
+            </Select>
         )}
         {agencyLoadError && <ApiErrorMessage error={agencyLoadError} />}
         {role === ROLES.AGENCY_MEMBER && !isLoadingAgencies && !agencyLoadError && agencies.length === 0 && (
-          <p className="form-error" role="status">Create an agency owner first; that will create an agency you can assign here.</p>
+          <Alert variant="info">Create an agency owner first; that will create an agency you can assign here.</Alert>
         )}
         <ApiErrorMessage error={error?.status === 422 ? null : error} />
-        {success && <p className="form-success" role="status">{success}</p>}
-        <button className="primary-button" type="submit" disabled={isLoading || isLoadingAgencies || Boolean(agencyLoadError) || (role === ROLES.AGENCY_MEMBER && agencies.length === 0)}>
-          {isLoading ? 'Sending invite…' : 'Create user and send invite'}
-        </button>
+        {success && <Alert variant="success">{success}</Alert>}
+        <Button type="submit" loading={isLoading} loadingText="Sending invite…" disabled={isLoadingAgencies || Boolean(agencyLoadError) || (role === ROLES.AGENCY_MEMBER && agencies.length === 0)}>
+          Create user
+        </Button>
       </form>
     </section>
   )

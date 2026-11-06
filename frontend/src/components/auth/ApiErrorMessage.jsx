@@ -1,4 +1,5 @@
 import { getErrorMessage } from '../../auth/authService'
+import { Alert } from '../ui/Alert'
 
 export function ApiErrorMessage({ error }) {
   if (!error) return null
@@ -8,8 +9,8 @@ export function ApiErrorMessage({ error }) {
   )
 
   return (
-    <div className="form-error" role="alert">
-      <p>{getErrorMessage(error)}</p>
+    <Alert variant="error">
+      {getErrorMessage(error)}
       {fieldErrors.length > 0 && (
         <ul>
           {fieldErrors.map(({ field, message }, index) => (
@@ -19,6 +20,6 @@ export function ApiErrorMessage({ error }) {
           ))}
         </ul>
       )}
-    </div>
+    </Alert>
   )
 }
