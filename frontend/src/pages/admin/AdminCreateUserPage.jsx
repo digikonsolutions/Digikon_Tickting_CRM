@@ -11,7 +11,10 @@ const ROLE_OPTIONS = [
   ROLES.QA,
   ROLES.AGENCY_OWNER,
   ROLES.AGENCY_MEMBER,
+  ROLES.AGENCY_EMPLOYEE,
+  ROLES.AGENCY_CLIENT,
 ]
+const AGENCY_ASSIGNABLE_ROLES = [ROLES.AGENCY_MEMBER, ROLES.AGENCY_EMPLOYEE, ROLES.AGENCY_CLIENT]
 
 export function AdminCreateUserPage() {
   const [role, setRole] = useState(ROLES.EMPLOYEE)
@@ -25,7 +28,7 @@ export function AdminCreateUserPage() {
   const fieldError = (field) => error?.errors?.[field]?.[0]
 
   useEffect(() => {
-    if (role !== ROLES.AGENCY_MEMBER) return undefined
+    if (!AGENCY_ASSIGNABLE_ROLES.includes(role)) return undefined
 
     let active = true
 
@@ -59,7 +62,7 @@ export function AdminCreateUserPage() {
         name: String(data.get('name')).trim(),
         email,
         role,
-        agency_id: role === ROLES.AGENCY_MEMBER ? agencyId : undefined,
+        agency_id: AGENCY_ASSIGNABLE_ROLES.includes(role) ? agencyId : undefined,
         agency_name: role === ROLES.AGENCY_OWNER ? String(data.get('agency_name')).trim() : undefined,
       })
       setSuccess(`Invite email sent to ${email}`)
@@ -77,8 +80,8 @@ export function AdminCreateUserPage() {
     setRole(nextRole)
     setAgencyId('')
     setAgencyLoadError(null)
-    setIsLoadingAgencies(nextRole === ROLES.AGENCY_MEMBER)
-    if (nextRole !== ROLES.AGENCY_MEMBER) setAgencies([])
+    setIsLoadingAgencies(AGENCY_ASSIGNABLE_ROLES.includes(nextRole))
+    if (!AGENCY_ASSIGNABLE_ROLES.includes(nextRole)) setAgencies([])
   }
 
   return (
@@ -103,7 +106,7 @@ export function AdminCreateUserPage() {
         {role === ROLES.AGENCY_OWNER && (
           <Input id="agency-id" label="Agency name" name="agency_name" type="text" maxLength="160" required error={fieldError('agency_name')} helperText="The agency will be created automatically and assigned a database ID." />
         )}
-        {role === ROLES.AGENCY_MEMBER && (
+        {AGENCY_ASSIGNABLE_ROLES.includes(role) && (
           <Select
               id="agency-id"
               label="Agency"
@@ -123,12 +126,12 @@ export function AdminCreateUserPage() {
             </Select>
         )}
         {agencyLoadError && <ApiErrorMessage error={agencyLoadError} />}
-        {role === ROLES.AGENCY_MEMBER && !isLoadingAgencies && !agencyLoadError && agencies.length === 0 && (
+        {AGENCY_ASSIGNABLE_ROLES.includes(role) && !isLoadingAgencies && !agencyLoadError && agencies.length === 0 && (
           <Alert variant="info">Create an agency owner first; that will create an agency you can assign here.</Alert>
         )}
         <ApiErrorMessage error={error?.status === 422 ? null : error} />
         {success && <Alert variant="success">{success}</Alert>}
-        <Button type="submit" loading={isLoading} loadingText="Sending invite…" disabled={isLoadingAgencies || Boolean(agencyLoadError) || (role === ROLES.AGENCY_MEMBER && agencies.length === 0)}>
+        <Button type="submit" loading={isLoading} loadingText="Sending invite…" disabled={isLoadingAgencies || Boolean(agencyLoadError) || (AGENCY_ASSIGNABLE_ROLES.includes(role) && agencies.length === 0)}>
           Create user
         </Button>
       </form>

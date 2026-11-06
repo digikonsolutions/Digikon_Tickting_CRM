@@ -113,7 +113,7 @@ class AuthTest extends TestCase
             ->assertJsonPath('agencies.0.name', 'Northwind');
     }
 
-    public function test_agency_owner_creates_members_in_own_agency_and_cannot_override_role_or_agency(): void
+    public function test_agency_owner_creates_agency_users_in_own_agency_and_cannot_override_agency(): void
     {
         Notification::fake();
         $agency = Agency::create(['name' => 'Owner Agency']);
@@ -124,21 +124,21 @@ class AuthTest extends TestCase
         ]);
 
         $response = $this->actingAs($owner)->postJson('/api/agency/users', [
-            'name' => 'Invited Member',
-            'email' => 'MEMBER@example.com',
-            'role' => Role::Admin->value,
+            'name' => 'Invited Client',
+            'email' => 'CLIENT@example.com',
+            'role' => Role::AgencyClient->value,
             'agency_id' => $otherAgency->id,
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('user.role', Role::AgencyMember->value)
+            ->assertJsonPath('user.role', Role::AgencyClient->value)
             ->assertJsonPath('user.agency_id', $agency->id)
             ->assertJsonPath('user.agency_name', 'Owner Agency');
 
-        $member = User::where('email', 'member@example.com')->firstOrFail();
-        $this->assertSame(Role::AgencyMember, $member->role);
-        $this->assertSame($agency->id, $member->agency_id);
-        Notification::assertSentTo($member, SetPasswordNotification::class);
+        $client = User::where('email', 'client@example.com')->firstOrFail();
+        $this->assertSame(Role::AgencyClient, $client->role);
+        $this->assertSame($agency->id, $client->agency_id);
+        Notification::assertSentTo($client, SetPasswordNotification::class);
     }
 
     public function test_agency_owner_cannot_invite_without_an_active_agency(): void
@@ -152,6 +152,7 @@ class AuthTest extends TestCase
         $this->actingAs($owner)->postJson('/api/agency/users', [
             'name' => 'Member',
             'email' => 'member@example.com',
+            'role' => Role::AgencyClient->value,
         ])->assertForbidden();
 
         $this->assertDatabaseMissing('users', ['email' => 'member@example.com']);

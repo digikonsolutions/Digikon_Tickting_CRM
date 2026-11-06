@@ -5,6 +5,8 @@ export const ROLES = Object.freeze({
   QA: 'qa',
   AGENCY_OWNER: 'agency_owner',
   AGENCY_MEMBER: 'agency_member',
+  AGENCY_EMPLOYEE: 'agency_employee',
+  AGENCY_CLIENT: 'agency_client',
 })
 
 export const ROLE_LABELS = Object.freeze({
@@ -14,6 +16,8 @@ export const ROLE_LABELS = Object.freeze({
   [ROLES.QA]: 'Quality assurance',
   [ROLES.AGENCY_OWNER]: 'Agency owner',
   [ROLES.AGENCY_MEMBER]: 'Agency member',
+  [ROLES.AGENCY_EMPLOYEE]: 'Agency employee',
+  [ROLES.AGENCY_CLIENT]: 'Agency client',
 })
 
 export const ROLE_HOME = Object.freeze({
@@ -23,10 +27,17 @@ export const ROLE_HOME = Object.freeze({
   [ROLES.QA]: '/qa/queue',
   [ROLES.AGENCY_OWNER]: '/agency/dashboard',
   [ROLES.AGENCY_MEMBER]: '/agency/dashboard',
+  [ROLES.AGENCY_EMPLOYEE]: '/agency/dashboard',
+  [ROLES.AGENCY_CLIENT]: '/agency/dashboard',
 })
 
 const INTERNAL_ROLES = new Set([ROLES.ADMIN, ROLES.TEAM_LEAD, ROLES.EMPLOYEE, ROLES.QA])
-const AGENCY_ROLES = new Set([ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER])
+const AGENCY_ROLES = new Set([
+  ROLES.AGENCY_OWNER,
+  ROLES.AGENCY_MEMBER,
+  ROLES.AGENCY_EMPLOYEE,
+  ROLES.AGENCY_CLIENT,
+])
 
 export const isInternal = (role) => INTERNAL_ROLES.has(role)
 export const isAgencyRole = (role) => AGENCY_ROLES.has(role)

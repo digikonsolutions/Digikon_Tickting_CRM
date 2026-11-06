@@ -158,6 +158,45 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { agencies: [] }
     return request('/admin/agencies')
   },
+  async listAgencyUsers() {
+    if (AUTH_MODE === 'mock') return { users: [] }
+    return request('/agency/users')
+  },
+  async listAgencyDirectory() {
+    if (AUTH_MODE === 'mock') return { users: [] }
+    return request('/agency/directory')
+  },
+  async updateAgencyProfile(data) {
+    if (AUTH_MODE === 'mock') return { user: data }
+    return request('/agency/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+  async listAdminUsers({ page = 1, search = '' } = {}) {
+    if (AUTH_MODE === 'mock') return { users: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
+    const query = new URLSearchParams({ page: String(page), per_page: '25' })
+    if (search) query.set('search', search)
+    return request(`/admin/users?${query.toString()}`)
+  },
+  async createAgencyUser({ name, email, role }) {
+    if (AUTH_MODE === 'mock') return { user: { id: `${Date.now()}`, name, email, role, is_active: true } }
+    return request('/agency/users', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, role }),
+    })
+  },
+  async updateAgencyUser(id, data) {
+    if (AUTH_MODE === 'mock') return { user: { id, ...data } }
+    return request(`/agency/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+  async deleteAgencyUser(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The account was permanently deleted.' }
+    return request(`/agency/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
 }
 
 export { isKnownRole }

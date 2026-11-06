@@ -327,3 +327,26 @@ form { display: grid; gap: 1.15rem; }
   .ui-showcase-grid { grid-template-columns: 1fr; }
   .ui-demo-table-states { grid-template-columns: 1fr; }
 }
+
+.agency-users-page { display: grid; gap: 1.25rem; }
+.agency-users-page > .ui-alert { margin-top: -.5rem; }
+.agency-user-form { display: grid; gap: 1rem; }
+.agency-user-form .ui-button { width: fit-content; min-width: 9rem; }
+.agency-user-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.agency-user-actions .ui-button { min-width: 0; }
+.agency-user-form .ui-alert { margin: 0; }
+.admin-users-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .75rem; margin-bottom: 1rem; }
+.admin-users-search .ui-button { min-width: 7rem; }
+.admin-users-pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; color: #64748b; font-size: .82rem; }
+.admin-users-pagination > div { display: flex; gap: .5rem; }
+.agency-directory-page { display: grid; gap: 1.25rem; }
+.agency-profile-form { display: grid; max-width: 34rem; gap: 1rem; }
+.agency-profile-form .ui-button { width: fit-content; min-width: 9rem; }
+.admin-users-page .ui-page-header-action .ui-button { text-decoration: none; }
+
+@media (max-width: 600px) {
+  .agency-user-actions { min-width: 13rem; }
+  .agency-user-actions .ui-button { min-height: 2.5rem; }
+  .admin-users-search { grid-template-columns: 1fr; }
+  .admin-users-search .ui-button { width: fit-content; }
+}

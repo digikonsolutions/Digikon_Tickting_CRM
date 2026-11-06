@@ -39,16 +39,22 @@ Available routes:
 | GET | `/api/auth/csrf-cookie` | Establish the CSRF/session cookies |
 | POST | `/api/auth/users` | Admin-only account invitation; role and agency assignment are validated |
 | GET | `/api/admin/agencies` | Admin-only list of active agencies for agency-member assignment |
-| POST | `/api/agency/users` | Agency-owner invitation; always creates an agency member in the owner's active agency |
+| GET | `/api/admin/users` | Admin-only paginated directory of all users; supports `search`, `page`, and `per_page` |
+| GET | `/api/agency/users` | Agency-owner list of employee and client accounts in their agency |
+| POST | `/api/agency/users` | Agency-owner invitation for an employee or client in their active agency |
+| PATCH | `/api/agency/users/{user}` | Agency-owner update of a same-agency account, including activation |
+| DELETE | `/api/agency/users/{user}` | Agency-owner permanent deletion of a same-agency account |
+| GET | `/api/agency/directory` | Agency-member, employee, or client directory for their own agency |
+| PATCH | `/api/agency/profile` | Agency-member, employee, or client may update their own display name |
 | POST | `/api/auth/login` | Sign in |
 | POST | `/api/auth/logout` | End the current session |
 | GET | `/api/auth/me` | Return the authenticated user and role |
 | POST | `/api/auth/forgot-password` | Request a reset link |
 | POST | `/api/auth/reset-password` | Reset password with a time-limited token |
 
-Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, and `agency_member`. Admin-created internal users must not have an agency. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Admin-created agency members must be assigned to an existing agency. Agency owners can invite only agency members for their own active agency. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes must enforce authorization. Protect future ticket routes with `auth` and `role:admin` (or a comma-separated role list), and enforce record ownership and tenant scoping with policies as well.
+Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member` (legacy), `agency_employee`, and `agency_client`. Admin-created internal users must not have an agency. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Admin-created agency users must be assigned to an existing agency. Agency owners can invite only agency employees or clients for their own active agency. Owners can edit those accounts, deactivate/reactivate them, and permanently delete them. The API scopes every account operation to the signed-in owner's agency; clients cannot choose a role or agency assignment themselves. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes must enforce authorization. Protect future ticket routes with `auth` and `role:admin` (or a comma-separated role list), and enforce record ownership and tenant scoping with policies as well.
 
-There is not yet a user-update endpoint. When one is added, it must prevent an administrator from deactivating or demoting their own account and prevent deactivation or demotion of the last active administrator.
+There is not yet an administrator user-update endpoint. If one is added, it must prevent an administrator from deactivating or demoting their own account and prevent deactivation or demotion of the last active administrator.
 
 ### Testing with Postman
 
@@ -84,7 +90,7 @@ X-XSRF-TOKEN: <URL-decoded value of the XSRF-TOKEN cookie>
    }
    ```
 
-   Valid roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, and `agency_member`. Agency roles require an existing `agency_id`; internal roles must omit it. Agency owners invite members through `/api/agency/users`, which ignores client-supplied role and agency identifiers. An unauthenticated request returns 401; a signed-in user without the required role returns 403.
+   Valid roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member`, `agency_employee`, and `agency_client`. Agency users require an existing `agency_id`; internal roles must omit it. Agency owners invite employees or clients through `/api/agency/users`; the backend always assigns the owner's agency and accepts only those two roles. An unauthenticated request returns 401; a signed-in user without the required role returns 403.
 7. Test `POST /api/auth/forgot-password` with `{"email":"admin@example.com"}`. With `MAIL_MAILER=log`, find the reset URL in `storage/logs/laravel.log`; submit its `token` and `email` with `password` and `password_confirmation` to `POST /api/auth/reset-password`.
 8. Send `POST /api/auth/logout`, then verify `GET /api/auth/me` returns 401.
 

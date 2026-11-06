@@ -22,8 +22,21 @@ Route::middleware('web')->prefix('auth')->group(function () {
 });
 
 Route::middleware('web')->prefix('agency')->group(function () {
+    Route::get('/directory', [AuthController::class, 'agencyDirectory'])
+        ->middleware(['auth', 'role:agency_owner,agency_member,agency_employee,agency_client']);
+    Route::patch('/profile', [AuthController::class, 'updateAgencyProfile'])
+        ->middleware(['auth', 'role:agency_member,agency_employee,agency_client']);
+    Route::get('/users', [AuthController::class, 'agencyUsers'])
+        ->middleware(['auth', 'role:agency_owner']);
     Route::post('/users', [AuthController::class, 'createAgencyUser'])
         ->middleware(['auth', 'role:agency_owner', 'throttle:auth-admin-signup']);
+    Route::patch('/users/{agencyUser}', [AuthController::class, 'updateAgencyUser'])
+        ->middleware(['auth', 'role:agency_owner']);
+    Route::delete('/users/{agencyUser}', [AuthController::class, 'deleteAgencyUser'])
+        ->middleware(['auth', 'role:agency_owner']);
 });
 
-Route::middleware(['web', 'auth', 'role:admin'])->get('/admin/agencies', [AuthController::class, 'agencies']);
+Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
+    Route::get('/admin/agencies', [AuthController::class, 'agencies']);
+    Route::get('/admin/users', [AuthController::class, 'adminUsers']);
+});

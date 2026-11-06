@@ -35,8 +35,16 @@ class AdminCreateUserRequest extends FormRequest
                 'max:160',
             ],
             'agency_id' => [
-                Rule::requiredIf(fn () => Role::tryFrom((string) $this->input('role')) === Role::AgencyMember),
-                Rule::prohibitedIf(fn () => Role::tryFrom((string) $this->input('role')) !== Role::AgencyMember),
+                Rule::requiredIf(fn () => in_array(Role::tryFrom((string) $this->input('role')), [
+                    Role::AgencyMember,
+                    Role::AgencyEmployee,
+                    Role::AgencyClient,
+                ], true)),
+                Rule::prohibitedIf(fn () => ! in_array(Role::tryFrom((string) $this->input('role')), [
+                    Role::AgencyMember,
+                    Role::AgencyEmployee,
+                    Role::AgencyClient,
+                ], true)),
                 'nullable',
                 'integer',
                 'exists:agencies,id',

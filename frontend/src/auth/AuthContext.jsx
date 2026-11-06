@@ -40,6 +40,10 @@ export function AuthProvider({ children }) {
     setIsLoading(false)
   }, [])
 
+  const updateUser = useCallback((updates) => {
+    setUser((current) => current ? { ...current, ...updates } : current)
+  }, [])
+
   useEffect(() => {
     let active = true
     void fetchSession().then((session) => {
@@ -83,6 +87,7 @@ export function AuthProvider({ children }) {
     isLoading,
     authError,
     refreshSession,
+    updateUser,
     signIn: async (credentials) => {
       setIsLoading(true)
       try {
@@ -102,7 +107,7 @@ export function AuthProvider({ children }) {
         setAuthError('')
       }
     },
-  }), [user, isLoading, authError, refreshSession])
+  }), [user, isLoading, authError, refreshSession, updateUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

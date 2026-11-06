@@ -35,6 +35,7 @@ export function RoleRoute({ allowedRoles }) {
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/admin/users', label: 'All users', icon: 'users' },
     { to: '/admin/users/new', label: 'Create User', icon: 'userPlus' },
     { to: '/admin/settings', label: 'Settings', icon: 'settings' },
   ],
@@ -44,8 +45,23 @@ const SIDEBAR_ITEMS = Object.freeze({
   ],
   [ROLES.EMPLOYEE]: [{ to: '/my-tickets', label: 'My Tickets', icon: 'ticket' }],
   [ROLES.QA]: [{ to: '/qa/queue', label: 'QA Queue', icon: 'check' }],
-  [ROLES.AGENCY_OWNER]: [{ to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' }],
-  [ROLES.AGENCY_MEMBER]: [{ to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' }],
+  [ROLES.AGENCY_OWNER]: [
+    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/agency/users', label: 'Employees & clients', icon: 'users' },
+    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
+  ],
+  [ROLES.AGENCY_MEMBER]: [
+    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
+  ],
+  [ROLES.AGENCY_EMPLOYEE]: [
+    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
+  ],
+  [ROLES.AGENCY_CLIENT]: [
+    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
+  ],
 })
 
 export function AppLayout() {
@@ -59,9 +75,12 @@ export function AppLayout() {
   const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
     ?? ({
       '/admin/users/new': 'Create User',
+      '/admin/users': 'All users',
       '/admin/settings': 'Settings',
       '/admin/dashboard': 'Dashboard',
       '/agency/dashboard': 'Dashboard',
+      '/agency/users': 'Employees & clients',
+      '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace')
 
   async function handleSignOut() {
