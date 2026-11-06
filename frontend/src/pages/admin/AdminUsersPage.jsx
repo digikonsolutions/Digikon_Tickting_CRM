@@ -5,7 +5,7 @@ import { ROLE_LABELS } from '../../auth/roles'
 import { ApiErrorMessage } from '../../components/auth/ApiErrorMessage'
 import { Badge, Button, Card, Input, PageHeader, Table } from '../../components/ui'
 
-export function AdminUsersPage() {
+export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [users, setUsers] = useState([])
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 })
   const [search, setSearch] = useState('')
@@ -17,7 +17,7 @@ export function AdminUsersPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await authService.listAdminUsers({ page, search: query })
+      const response = await authService.listAdminUsers({ page, search: query, role })
       setUsers(response.users)
       setPagination(response.pagination)
     } catch (reason) {
@@ -25,11 +25,11 @@ export function AdminUsersPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [role])
 
   useEffect(() => {
     let active = true
-    authService.listAdminUsers({ page: 1, search: '' })
+    authService.listAdminUsers({ page: 1, search: '', role })
       .then((response) => {
         if (!active) return
         setUsers(response.users)
@@ -45,7 +45,7 @@ export function AdminUsersPage() {
     return () => {
       active = false
     }
-  }, [loadUsers])
+  }, [loadUsers, role])
 
   function submitSearch(event) {
     event.preventDefault()
@@ -74,11 +74,13 @@ export function AdminUsersPage() {
     <section className="page admin-users-page">
       <PageHeader
         eyebrow="Administration"
-        title="All users"
-        subtitle="View other accounts across the organization and their agency assignments. Your own administrator account is not listed."
-        action={<Link className="ui-button ui-button-primary ui-button-md" to="/admin/users/new">Create user</Link>}
+        title={title}
+        subtitle={role === 'agency_client'
+          ? 'Client accounts are listed for reference only; they cannot be created or edited here.'
+          : `View ${title.toLowerCase()} and their account status.`}
+        action={createTo && <Link className="ui-button ui-button-primary ui-button-md" to={createTo}>{createLabel}</Link>}
       />
-      <Card title="User directory" description={`${pagination.total} account${pagination.total === 1 ? '' : 's'} total.`}>
+      <Card title={title} description={`${pagination.total} account${pagination.total === 1 ? '' : 's'} total.`}>
         <form className="admin-users-search" onSubmit={submitSearch}>
           <Input
             id="admin-users-search"

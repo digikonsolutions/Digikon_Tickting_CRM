@@ -172,30 +172,49 @@ class AgencyUserManagementTest extends TestCase
         $admin = User::factory()->create(['role' => Role::Admin]);
         $agency = Agency::create(['name' => 'Northwind']);
         $member = User::factory()->create([
-            'name' => 'Agency Employee',
-            'email' => 'agency.employee@example.com',
-            'role' => Role::AgencyEmployee,
+            'name' => 'Internal Employee',
+            'email' => 'internal.employee@example.com',
+            'role' => Role::Employee,
+        ]);
+        User::factory()->create([
+            'name' => 'Agency Client',
+            'email' => 'agency.client@example.com',
+            'role' => Role::AgencyClient,
             'agency_id' => $agency->id,
         ]);
-        User::factory()->create(['name' => 'Other Person']);
+        User::factory()->create([
+            'name' => 'Agency Owner',
+            'email' => 'agency.owner@example.com',
+            'role' => Role::AgencyOwner,
+            'agency_id' => $agency->id,
+        ]);
 
         $this->actingAs($admin)
-            ->getJson('/api/admin/users?search=agency.employee')
+            ->getJson('/api/admin/users?role=employee&search=internal.employee')
             ->assertOk()
             ->assertJsonCount(1, 'users')
             ->assertJsonPath('users.0.id', $member->id)
-            ->assertJsonPath('users.0.agency_name', 'Northwind')
+            ->assertJsonPath('users.0.agency_name', null)
             ->assertJsonPath('users.0.is_active', true)
             ->assertJsonPath('pagination.total', 1);
 
-        $this->getJson('/api/admin/users')
+        $this->getJson('/api/admin/users?role=agency_client')
             ->assertOk()
-            ->assertJsonMissing(['email' => $admin->email])
-            ->assertJsonPath('pagination.total', 2);
+            ->assertJsonPath('users.0.role', Role::AgencyClient->value)
+            ->assertJsonPath('pagination.total', 1);
 
-        $this->getJson('/api/admin/users?per_page=101')
+        $this->getJson('/api/admin/users?role=agency_owner')
+            ->assertOk()
+            ->assertJsonPath('users.0.role', Role::AgencyOwner->value)
+            ->assertJsonPath('pagination.total', 1);
+
+        $this->getJson('/api/admin/users?role=employee&per_page=101')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['per_page']);
+
+        $this->getJson('/api/admin/users?role=agency_employee')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role']);
     }
 
     public function test_agency_member_directory_is_limited_to_its_agency_and_profile_edit_is_self_only(): void

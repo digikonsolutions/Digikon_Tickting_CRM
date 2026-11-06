@@ -61,7 +61,7 @@ class AuthTest extends TestCase
         Notification::assertSentTo(User::where('email', 'owner@example.com')->firstOrFail(), SetPasswordNotification::class);
     }
 
-    public function test_admin_cannot_create_agency_roles_without_an_agency_or_internal_roles_with_one(): void
+    public function test_admin_can_only_create_employees_and_agency_owners(): void
     {
         $admin = User::factory()->create(['role' => Role::Admin]);
         $agency = Agency::create(['name' => 'Northwind']);
@@ -81,15 +81,35 @@ class AuthTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
 
         $this->postJson('/api/auth/users', [
-            'name' => 'Member',
+            'name' => 'Client',
+            'email' => 'client@example.com',
+            'role' => Role::AgencyClient->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['role']);
+
+        $this->postJson('/api/auth/users', [
+            'name' => 'Team lead',
+            'email' => 'team-lead@example.com',
+            'role' => Role::TeamLead->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['role']);
+
+        $this->postJson('/api/auth/users', [
+            'name' => 'Agency member',
             'email' => 'member@example.com',
             'role' => Role::AgencyMember->value,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['role']);
 
         $this->postJson('/api/auth/users', [
             'name' => 'Employee',
             'email' => 'employee@example.com',
             'role' => Role::Employee->value,
+            'agency_id' => $agency->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
+
+        $this->postJson('/api/auth/users', [
+            'name' => 'Agency owner',
+            'email' => 'agency-owner@example.com',
+            'role' => Role::AgencyOwner->value,
+            'agency_name' => 'Northwind',
             'agency_id' => $agency->id,
         ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
     }

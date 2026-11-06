@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } from './auth/RouteGuards'
 import { ROLES } from './auth/roles'
@@ -39,8 +39,13 @@ function App() {
             <Route element={<AppLayout />}>
               <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                <Route path="/admin/users" element={<AdminUsersPage />} />
-                <Route path="/admin/users/new" element={<AdminCreateUserPage />} />
+                <Route path="/admin/employees" element={<AdminUsersPage role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
+                <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
+                <Route path="/admin/agency-owners" element={<AdminUsersPage role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
+                <Route path="/admin/agency-owners/new" element={<AdminCreateUserPage role={ROLES.AGENCY_OWNER} />} />
+                <Route path="/admin/agency-clients" element={<AdminUsersPage role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />
+                <Route path="/admin/users" element={<Navigate to="/admin/employees" replace />} />
+                <Route path="/admin/users/new" element={<Navigate to="/admin/employees/new" replace />} />
                 <Route path="/admin/settings" element={<PlaceholderPage title="Settings" />} />
               </Route>
               <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>

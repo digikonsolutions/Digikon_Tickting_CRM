@@ -8,7 +8,8 @@ export const AdminDashboard = () => (
     subtitle="Here is how your agencies, tickets and SLAs are doing today."
     ticketsLink="/team/queue"
     actions={[
-      { to: '/admin/users/new', icon: 'userPlus', label: 'Invite a user', description: 'Create staff or agency accounts' },
+      { to: '/admin/employees/new', icon: 'userPlus', label: 'Create employee', description: 'Invite an employee to the workspace' },
+      { to: '/admin/agency-owners/new', icon: 'userPlus', label: 'Create agency owner', description: 'Create an agency and invite its owner' },
       { to: '/team/queue', icon: 'queue', label: 'Team queue', description: 'Assign and prioritise work' },
       { to: '/qa/queue', icon: 'check', label: 'QA queue', description: 'Review completed work' },
       { to: '/admin/settings', icon: 'settings', label: 'Settings', description: 'Services, SLAs and statuses' },

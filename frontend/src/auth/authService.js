@@ -173,9 +173,9 @@ export const authService = {
       body: JSON.stringify(data),
     })
   },
-  async listAdminUsers({ page = 1, search = '' } = {}) {
+  async listAdminUsers({ page = 1, search = '', role } = {}) {
     if (AUTH_MODE === 'mock') return { users: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
-    const query = new URLSearchParams({ page: String(page), per_page: '25' })
+    const query = new URLSearchParams({ page: String(page), per_page: '25', role })
     if (search) query.set('search', search)
     return request(`/admin/users?${query.toString()}`)
   },

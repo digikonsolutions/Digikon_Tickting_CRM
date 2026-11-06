@@ -129,11 +129,12 @@ class AuthController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'search' => ['sometimes', 'string', 'max:120'],
+            'role' => ['required', 'in:employee,agency_owner,agency_client'],
         ]);
 
         $users = User::query()
             ->with('agency')
-            ->where('id', '!=', $request->user()->id)
+            ->where('role', $filters['role'])
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('name', 'like', '%'.$search.'%')

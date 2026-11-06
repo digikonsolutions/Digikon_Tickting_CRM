@@ -35,8 +35,9 @@ export function RoleRoute({ allowedRoles }) {
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/admin/users', label: 'All users', icon: 'users' },
-    { to: '/admin/users/new', label: 'Create User', icon: 'userPlus' },
+    { to: '/admin/employees', label: 'Employees', icon: 'users' },
+    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'users' },
+    { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users' },
     { to: '/admin/settings', label: 'Settings', icon: 'settings' },
   ],
   [ROLES.TEAM_LEAD]: [
@@ -74,8 +75,12 @@ export function AppLayout() {
   const visibleItems = SIDEBAR_ITEMS[user.role] ?? []
   const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
     ?? ({
-      '/admin/users/new': 'Create User',
-      '/admin/users': 'All users',
+      '/admin/users': 'Employees',
+      '/admin/employees': 'Employees',
+      '/admin/employees/new': 'Create Employee',
+      '/admin/agency-owners': 'Agency owners',
+      '/admin/agency-owners/new': 'Create Agency Owner',
+      '/admin/agency-clients': 'Agency clients',
       '/admin/settings': 'Settings',
       '/admin/dashboard': 'Dashboard',
       '/agency/dashboard': 'Dashboard',
