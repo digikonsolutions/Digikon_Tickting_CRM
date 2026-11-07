@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './useAuth'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
-import { ApiErrorMessage } from '../components/auth/ApiErrorMessage'
+import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon } from '../components/ui'
 
 export function ProtectedRoute() {

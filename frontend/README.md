@@ -18,6 +18,14 @@ VITE_API_URL=http://localhost:8000/api
 VITE_AUTH_MODE=api
 ```
 
+## Source structure
+
+- `src/app/` contains route configuration; `src/App.jsx` composes app-wide providers.
+- `src/features/` groups screens, feature-specific components, and services by domain (`admin`, `agency`, `auth`, `dashboard`, and `dev`).
+- `src/components/ui/` contains shared UI primitives used across features.
+- `src/auth/` contains authentication state, role definitions, and route guards.
+- `src/hooks/` contains shared hooks.
+
 Create the initial admin using the setup steps in `backend/README.md`. There is no public signup: ask an administrator to create your account. Set `VITE_AUTH_MODE=mock` only when you intentionally want the non-persistent UI demo.
 
 Currently, two official plugins are available:

@@ -1,0 +1,36 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { authService } from '../../../auth/authService'
+import { AuthLayout } from '../components/AuthLayout'
+import { ApiErrorMessage } from '../components/ApiErrorMessage'
+import { Alert, Button, Input } from '../../../components/ui'
+
+export function ForgotPasswordPage() {
+  const [state, setState] = useState({ isLoading: false, message: '', error: null })
+  async function submit(event) {
+    event.preventDefault()
+    const email = String(new FormData(event.currentTarget).get('email')).trim()
+    setState({ isLoading: true, message: '', error: null })
+    try {
+      await authService.requestPasswordReset(email)
+      setState({
+        isLoading: false,
+        message: 'If an account exists for that email, password reset instructions will be sent.',
+        error: null,
+      })
+    } catch (error) {
+      setState({ isLoading: false, message: '', error })
+    }
+  }
+
+  return (
+    <AuthLayout title="Reset your password" description="Enter your email and we’ll send reset instructions." footer={<Link to="/login">Back to sign in</Link>}>
+      <form onSubmit={submit}>
+        <Input id="email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" required />
+        <ApiErrorMessage error={state.error} />
+        {state.message && <Alert variant="success">{state.message}</Alert>}
+        <Button type="submit" size="lg" loading={state.isLoading} loadingText="Sending…">Send reset link</Button>
+      </form>
+    </AuthLayout>
+  )
+}
