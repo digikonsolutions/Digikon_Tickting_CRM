@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Http\Requests\AdminCreateUserRequest;
+use App\Http\Requests\AdminUpdateUserRequest;
 use App\Http\Requests\AgencyCreateUserRequest;
 use App\Http\Requests\AgencyUpdateProfileRequest;
 use App\Http\Requests\AgencyUpdateUserRequest;
@@ -29,12 +30,12 @@ class AuthController extends Controller
 
     public function createAgencyUser(AgencyCreateUserRequest $request): JsonResponse
     {
-        $owner = $request->user();
-        $this->ensureActiveAgencyOwner($owner);
+        $creator = $request->user();
+        $this->ensureActiveAgencyOwner($creator);
 
         $user = $this->createInvitedUser([
             ...$request->validated(),
-            'agency_id' => $owner->agency_id,
+            'agency_id' => $creator->agency_id,
         ]);
 
         return response()->json(['user' => $this->userPayload($user)], 201);
@@ -42,17 +43,26 @@ class AuthController extends Controller
 
     public function agencyUsers(Request $request): JsonResponse
     {
-        $owner = $request->user();
-        $this->ensureActiveAgencyOwner($owner);
+        $viewer = $request->user();
+        $this->ensureActiveAgencyOwner($viewer);
+        $agencyRoles = $this->agencyManagedRoles();
 
         $users = User::query()
-            ->where('agency_id', $owner->agency_id)
-            ->whereIn('role', $this->agencyManagedRoles())
+            ->where(function ($query) use ($viewer, $agencyRoles): void {
+                $query->where(function ($query) use ($viewer, $agencyRoles): void {
+                    $query->where('agency_id', $viewer->agency_id)
+                        ->whereIn('role', $agencyRoles);
+                });
+
+                $query->orWhere('role', Role::Employee->value);
+            })
             ->orderBy('name')
             ->get()
             ->map(fn (User $user): array => [
                 ...$this->userPayload($user),
                 'is_active' => $user->is_active,
+                'can_manage' => $user->agency_id === $viewer->agency_id
+                    && in_array($user->role->value, $this->agencyManagedRoles(), true),
             ]);
 
         return response()->json(['users' => $users]);
@@ -60,32 +70,14 @@ class AuthController extends Controller
 
     public function updateAgencyUser(AgencyUpdateUserRequest $request, int $agencyUser): JsonResponse
     {
-        $owner = $request->user();
-        $this->ensureActiveAgencyOwner($owner);
-        $user = $this->findManagedAgencyUser($owner, $agencyUser);
+        $manager = $request->user();
+        $this->ensureActiveAgencyOwner($manager);
+        $user = $this->findManagedAgencyUser($manager, $agencyUser);
         $oldEmail = $user->email;
         $data = $request->validated();
         $passwordSetupEmailSent = isset($data['email']) && $data['email'] !== $oldEmail;
 
-        DB::transaction(function () use ($user, $data, $oldEmail, $passwordSetupEmailSent): void {
-            $user->fill($data)->save();
-
-            if ($passwordSetupEmailSent) {
-                $status = Password::sendResetLink(['email' => $user->email]);
-                if ($status !== Password::RESET_LINK_SENT) {
-                    throw new \RuntimeException('Unable to send the account invitation: '.$status);
-                }
-
-                DB::table(config('auth.passwords.users.table'))
-                    ->where('email', $oldEmail)
-                    ->delete();
-                DB::table('sessions')->where('user_id', $user->id)->delete();
-            }
-
-            if (array_key_exists('is_active', $data) && ! $user->is_active) {
-                DB::table('sessions')->where('user_id', $user->id)->delete();
-            }
-        });
+        $this->updateManagedUser($user, $data, $oldEmail, $passwordSetupEmailSent);
 
         return response()->json([
             'user' => [
@@ -96,19 +88,39 @@ class AuthController extends Controller
         ]);
     }
 
+    public function updateAdminUser(AdminUpdateUserRequest $request, int $adminUser): JsonResponse
+    {
+        $user = $this->findAdminManagedUser($adminUser);
+        $oldEmail = $user->email;
+        $data = $request->validated();
+        $passwordSetupEmailSent = isset($data['email']) && $data['email'] !== $oldEmail;
+
+        $this->updateManagedUser($user, $data, $oldEmail, $passwordSetupEmailSent);
+
+        return response()->json([
+            'user' => [
+                ...$this->userPayload($user),
+                'is_active' => $user->is_active,
+                'password_setup_email_sent' => $passwordSetupEmailSent,
+            ],
+        ]);
+    }
+
+    public function deleteAdminUser(int $adminUser): JsonResponse
+    {
+        $user = $this->findAdminManagedUser($adminUser);
+        $this->deleteUser($user);
+
+        return response()->json(['message' => 'The account was permanently deleted.']);
+    }
+
     public function deleteAgencyUser(Request $request, int $agencyUser): JsonResponse
     {
-        $owner = $request->user();
-        $this->ensureActiveAgencyOwner($owner);
-        $user = $this->findManagedAgencyUser($owner, $agencyUser);
+        $manager = $request->user();
+        $this->ensureActiveAgencyOwner($manager);
+        $user = $this->findManagedAgencyUser($manager, $agencyUser);
 
-        DB::transaction(function () use ($user): void {
-            DB::table('sessions')->where('user_id', $user->id)->delete();
-            DB::table(config('auth.passwords.users.table'))
-                ->where('email', $user->email)
-                ->delete();
-            $user->delete();
-        });
+        $this->deleteUser($user);
 
         return response()->json(['message' => 'The account was permanently deleted.']);
     }
@@ -129,12 +141,17 @@ class AuthController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'search' => ['sometimes', 'string', 'max:120'],
-            'role' => ['required', 'in:employee,agency_owner,agency_client'],
+            'role' => ['sometimes', 'string', 'in:'.implode(',', array_map(
+                fn (Role $role): string => $role->value,
+                Role::cases()
+            ))],
         ]);
 
         $users = User::query()
             ->with('agency')
-            ->where('role', $filters['role'])
+            ->whereKeyNot($request->user()->id)
+            ->where('email', '<>', $request->user()->email)
+            ->when($filters['role'] ?? null, fn ($query, string $role) => $query->where('role', $role))
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('name', 'like', '%'.$search.'%')
@@ -149,6 +166,7 @@ class AuthController extends Controller
             'users' => collect($users->items())->map(fn (User $user): array => [
                 ...$this->userPayload($user),
                 'is_active' => $user->is_active,
+                'can_manage' => in_array($user->role->value, $this->adminManagedRoles(), true),
             ]),
             'pagination' => [
                 'current_page' => $users->currentPage(),
@@ -165,8 +183,17 @@ class AuthController extends Controller
         abort_unless($member->agency_id !== null && $member->agency?->status === 'active', 403);
 
         $users = User::query()
-            ->where('agency_id', $member->agency_id)
-            ->whereIn('role', $this->agencyDirectoryRoles())
+            ->whereKeyNot($member->id)
+            ->where('email', '<>', $member->email)
+            ->where(function ($query) use ($member): void {
+                $query->where(function ($query) use ($member): void {
+                    $query->where('agency_id', $member->agency_id)
+                        ->whereIn('role', $this->agencyDirectoryRoles());
+                })->orWhere(function ($query): void {
+                    $query->where('role', Role::Employee->value)
+                        ->whereNull('agency_id');
+                });
+            })
             ->orderBy('name')
             ->orderBy('id')
             ->get()
@@ -178,11 +205,55 @@ class AuthController extends Controller
         return response()->json(['users' => $users]);
     }
 
+    public function agencyEmployeeDirectory(Request $request): JsonResponse
+    {
+        $client = $request->user();
+        abort_unless(
+            $client->role === Role::AgencyClient
+                && $client->agency_id !== null
+                && $client->agency?->status === 'active',
+            403
+        );
+
+        $employees = User::query()
+            ->with('agency')
+            ->where(function ($query) use ($client): void {
+                $query->where(function ($query) use ($client): void {
+                    $query->where('agency_id', $client->agency_id)
+                        ->where('role', Role::AgencyEmployee->value);
+                })->orWhere(function ($query): void {
+                    $query->where('role', Role::Employee->value)
+                        ->whereNull('agency_id');
+                });
+            })
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (User $employee): array => [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'email' => $employee->email,
+                'role' => $employee->role->value,
+                'agency_name' => $employee->agency?->name ?? 'Shared employee',
+                'is_active' => $employee->is_active,
+            ]);
+
+        return response()->json(['employees' => $employees]);
+    }
+
     public function updateAgencyProfile(AgencyUpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();
         abort_unless($user->agency_id !== null && $user->agency?->status === 'active', 403);
 
+        $user->update($request->validated());
+
+        return response()->json(['user' => $this->userPayload($user)]);
+    }
+
+    public function updateProfile(AgencyUpdateProfileRequest $request): JsonResponse
+    {
+        $user = $request->user();
         $user->update($request->validated());
 
         return response()->json(['user' => $this->userPayload($user)]);
@@ -333,23 +404,67 @@ class AuthController extends Controller
         }
     }
 
-    private function ensureActiveAgencyOwner(User $owner): void
+    private function ensureActiveAgencyOwner(User $user): void
     {
         abort_unless(
-            $owner->role === Role::AgencyOwner
-                && $owner->agency_id !== null
-                && $owner->agency?->status === 'active',
+            $user->role === Role::AgencyOwner
+                && $user->agency_id !== null
+                && $user->agency?->status === 'active',
             403,
-            'An active agency is required to manage users.'
+            'An active agency owner account is required to manage agency users.'
         );
     }
 
-    private function findManagedAgencyUser(User $owner, int $userId): User
+    private function findManagedAgencyUser(User $manager, int $userId): User
     {
-        return User::query()
-            ->where('agency_id', $owner->agency_id)
-            ->whereIn('role', $this->agencyManagedRoles())
-            ->findOrFail($userId);
+        return User::query()->where('agency_id', $manager->agency_id)
+            ->whereIn('role', $this->agencyManagedRoles())->findOrFail($userId);
+    }
+
+    private function findAdminManagedUser(int $userId): User
+    {
+        return User::query()->whereIn('role', $this->adminManagedRoles())->findOrFail($userId);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function adminManagedRoles(): array
+    {
+        return [Role::Employee->value, Role::AgencyOwner->value];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function updateManagedUser(User $user, array $data, string $oldEmail, bool $passwordSetupEmailSent): void
+    {
+        DB::transaction(function () use ($user, $data, $oldEmail, $passwordSetupEmailSent): void {
+            $user->fill($data)->save();
+
+            if ($passwordSetupEmailSent) {
+                $status = Password::sendResetLink(['email' => $user->email]);
+                if ($status !== Password::RESET_LINK_SENT) {
+                    throw new \RuntimeException('Unable to send the account invitation: '.$status);
+                }
+
+                DB::table(config('auth.passwords.users.table'))->where('email', $oldEmail)->delete();
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            }
+
+            if (array_key_exists('is_active', $data) && ! $user->is_active) {
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            }
+        });
+    }
+
+    private function deleteUser(User $user): void
+    {
+        DB::transaction(function () use ($user): void {
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            DB::table(config('auth.passwords.users.table'))->where('email', $user->email)->delete();
+            $user->delete();
+        });
     }
 
     /**

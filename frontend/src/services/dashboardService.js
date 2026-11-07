@@ -1,34 +1,55 @@
-import { MOCK_ACTIVITY, MOCK_STATS, MOCK_TICKETS } from '../data/mockDashboard'
 import { ROLES } from '../auth/roles'
+import { authService } from '../auth/authService'
 
-// API-ready service layer. Each function returns a Promise, so swapping the mock for
-// `request('/v1/tickets?...')` later requires no changes in pages or components.
-// Backend note: tenant scoping (agency_id) and role filtering must be enforced server-side.
-
-const wait = (value, ms = 400) => new Promise((resolve) => setTimeout(() => resolve(value), ms))
-
-const STATS_BY_ROLE = {
-  [ROLES.ADMIN]: MOCK_STATS.admin,
-  [ROLES.TEAM_LEAD]: MOCK_STATS.team,
-  [ROLES.EMPLOYEE]: MOCK_STATS.team,
-  [ROLES.QA]: MOCK_STATS.team,
-  [ROLES.AGENCY_OWNER]: MOCK_STATS.agency,
-  [ROLES.AGENCY_MEMBER]: MOCK_STATS.agency,
+async function loadWorkItems(user) {
+  switch (user.role) {
+    case ROLES.ADMIN: {
+      const { projects } = await authService.listAdminProjects({ perPage: 100 })
+      return projects
+    }
+    case ROLES.AGENCY_OWNER:
+    case ROLES.AGENCY_CLIENT: {
+      const { projects } = await authService.listAgencyProjects()
+      return projects
+    }
+    case ROLES.EMPLOYEE:
+    case ROLES.AGENCY_EMPLOYEE: {
+      const { projects } = await authService.listMyWork()
+      return projects
+    }
+    default:
+      return null
+  }
 }
 
-const SCOPES = {
-  all: () => true,
-  queue: (ticket) => ticket.status !== 'Resolved' && ticket.status !== 'Closed',
-  mine: (ticket) => ticket.assignee === 'Aisha Khan',
-  qa: (ticket) => ticket.status === 'QA Review',
-  agency: (ticket) => ticket.agency === 'Northwind Digital',
+function getProjectStats(projects) {
+  if (!projects) return []
+
+  const count = (status) => projects.filter((project) => project.status === status).length
+
+  return [
+    { id: 'projects', label: 'Projects shown', value: projects.length, icon: 'ticket', tone: 'primary' },
+    { id: 'scheduled', label: 'Scheduled', value: count('scheduled'), icon: 'clock', tone: 'info' },
+    { id: 'in-progress', label: 'In progress', value: count('in_progress'), icon: 'queue', tone: 'warning' },
+    { id: 'completed', label: 'Completed', value: count('completed'), icon: 'check', tone: 'success' },
+  ]
 }
 
 export const dashboardService = {
-  getStats: (role) => wait(STATS_BY_ROLE[role] ?? MOCK_STATS.team),
-  getTickets: ({ scope = 'all', limit } = {}) => {
-    const filtered = MOCK_TICKETS.filter(SCOPES[scope] ?? SCOPES.all)
-    return wait(limit ? filtered.slice(0, limit) : filtered)
+  getStats: getProjectStats,
+  async getTickets({ scope = 'all', user } = {}) {
+    const projects = await loadWorkItems(user)
+    if (!projects) return []
+
+    const scoped = projects.filter((project) => {
+      if (scope === 'mine') return String(project.employee?.id) === String(user.id)
+      if (scope === 'queue') return project.status !== 'completed'
+      if (scope === 'qa') return false
+      if (scope === 'agency' && user.role === ROLES.AGENCY_EMPLOYEE) {
+        return project.agency_id === user.agency_id
+      }
+      return true
+    })
+    return scoped
   },
-  getActivity: () => wait(MOCK_ACTIVITY, 300),
 }

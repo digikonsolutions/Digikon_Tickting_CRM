@@ -35,6 +35,8 @@ export function RoleRoute({ allowedRoles }) {
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/admin/projects', label: 'All projects', icon: 'ticket' },
+    { to: '/admin/users/all', label: 'All accounts', icon: 'users' },
     { to: '/admin/employees', label: 'Employees', icon: 'users' },
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'users' },
     { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users' },
@@ -44,12 +46,12 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/team/queue', label: 'Team Queue', icon: 'queue' },
     { to: '/my-tickets', label: 'My Tickets', icon: 'ticket' },
   ],
-  [ROLES.EMPLOYEE]: [{ to: '/my-tickets', label: 'My Tickets', icon: 'ticket' }],
+  [ROLES.EMPLOYEE]: [{ to: '/my-work', label: 'My work', icon: 'ticket' }],
   [ROLES.QA]: [{ to: '/qa/queue', label: 'QA Queue', icon: 'check' }],
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
     { to: '/agency/users', label: 'Employees & clients', icon: 'users' },
-    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
   [ROLES.AGENCY_MEMBER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -57,10 +59,12 @@ const SIDEBAR_ITEMS = Object.freeze({
   ],
   [ROLES.AGENCY_EMPLOYEE]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
+    { to: '/agency/my-work', label: 'Assigned work', icon: 'ticket' },
   ],
   [ROLES.AGENCY_CLIENT]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/agency/my-projects', label: 'My projects', icon: 'ticket' },
+    { to: '/agency/employees', label: 'Employees', icon: 'users' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
 })
@@ -76,6 +80,7 @@ export function AppLayout() {
   const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
     ?? ({
       '/admin/users': 'Employees',
+      '/admin/users/all': 'All accounts',
       '/admin/employees': 'Employees',
       '/admin/employees/new': 'Create Employee',
       '/admin/agency-owners': 'Agency owners',
@@ -83,7 +88,12 @@ export function AppLayout() {
       '/admin/agency-clients': 'Agency clients',
       '/admin/settings': 'Settings',
       '/admin/dashboard': 'Dashboard',
+      '/admin/projects': 'All projects',
       '/agency/dashboard': 'Dashboard',
+      '/agency/projects': 'Projects',
+      '/agency/my-projects': 'My projects',
+      '/agency/my-work': 'Assigned work',
+      '/agency/employees': 'Employees',
       '/agency/users': 'Employees & clients',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace')
@@ -115,6 +125,7 @@ export function AppLayout() {
           {visibleItems.map((item) => (
             <NavLink key={item.to} to={item.to} onClick={() => setIsNavOpen(false)}><Icon name={item.icon} size={18} /><span>{item.label}</span></NavLink>
           ))}
+          <NavLink to="/profile" onClick={() => setIsNavOpen(false)}><Icon name="users" size={18} /><span>My profile</span></NavLink>
         </nav>
       </aside>
       <div className="app-main">

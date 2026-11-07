@@ -10,10 +10,15 @@ import { PlaceholderPage } from './pages/dashboard/PlaceholderPage'
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
+import { ProfilePage } from './pages/auth/ProfilePage'
 import { AdminCreateUserPage } from './pages/admin/AdminCreateUserPage'
 import { AgencyUsersPage } from './pages/agency/AgencyUsersPage'
 import { AgencyDirectoryPage } from './pages/agency/AgencyDirectoryPage'
+import { AgencyEmployeesPage } from './pages/agency/AgencyEmployeesPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { AdminProjectsPage } from './pages/admin/AdminProjectsPage'
+import { AgencyClientProjectsPage, AgencyOwnerProjectsPage } from './pages/agency/AgencyProjectsPage'
+import { AgencyEmployeeWorkPage, InternalEmployeeWorkPage } from './pages/dashboard/MyWorkPage'
 import { NotFoundPage, UnauthorizedPage } from './pages/dashboard/StatusPages'
 import './App.css'
 
@@ -37,8 +42,11 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route element={<AppLayout />}>
+              <Route path="/profile" element={<ProfilePage />} />
               <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/projects" element={<AdminProjectsPage />} />
+                <Route path="/admin/users/all" element={<AdminUsersPage title="All accounts" />} />
                 <Route path="/admin/employees" element={<AdminUsersPage role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
                 <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
                 <Route path="/admin/agency-owners" element={<AdminUsersPage role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
@@ -51,7 +59,10 @@ function App() {
               <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
                 <Route path="/team/queue" element={<TeamQueuePage />} />
               </Route>
-              <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE, ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
+              <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE]} />}>
+                <Route path="/my-work" element={<InternalEmployeeWorkPage />} />
+              </Route>
+              <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
                 <Route path="/my-tickets" element={<MyTicketsPage />} />
               </Route>
               <Route element={<RoleRoute allowedRoles={[ROLES.QA, ROLES.ADMIN]} />}>
@@ -63,7 +74,17 @@ function App() {
               <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
                 <Route path="/agency/users" element={<AgencyUsersPage />} />
               </Route>
-              <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_EMPLOYEE, ROLES.AGENCY_CLIENT]} />}>
+              <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
+                <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
+              </Route>
+              <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
+                <Route path="/agency/employees" element={<AgencyEmployeesPage />} />
+                <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />
+              </Route>
+              <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_EMPLOYEE]} />}>
+                <Route path="/agency/my-work" element={<AgencyEmployeeWorkPage />} />
+              </Route>
+              <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
                 <Route path="/agency/directory" element={<AgencyDirectoryPage />} />
               </Route>
             </Route>

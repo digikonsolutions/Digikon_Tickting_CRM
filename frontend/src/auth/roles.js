@@ -23,7 +23,7 @@ export const ROLE_LABELS = Object.freeze({
 export const ROLE_HOME = Object.freeze({
   [ROLES.ADMIN]: '/admin/dashboard',
   [ROLES.TEAM_LEAD]: '/team/queue',
-  [ROLES.EMPLOYEE]: '/my-tickets',
+  [ROLES.EMPLOYEE]: '/my-work',
   [ROLES.QA]: '/qa/queue',
   [ROLES.AGENCY_OWNER]: '/agency/dashboard',
   [ROLES.AGENCY_MEMBER]: '/agency/dashboard',

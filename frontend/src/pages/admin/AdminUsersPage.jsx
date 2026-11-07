@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../auth/authService'
-import { ROLE_LABELS } from '../../auth/roles'
+import { ROLE_LABELS, ROLES } from '../../auth/roles'
 import { ApiErrorMessage } from '../../components/auth/ApiErrorMessage'
-import { Badge, Button, Card, Input, PageHeader, Table } from '../../components/ui'
+import { Alert, Badge, Button, Card, Input, Modal, PageHeader, Table } from '../../components/ui'
 
 export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [users, setUsers] = useState([])
@@ -12,6 +12,12 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [searchInput, setSearchInput] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [editingUser, setEditingUser] = useState(null)
+  const [editError, setEditError] = useState(null)
+  const [action, setAction] = useState(null)
+  const [actionError, setActionError] = useState(null)
+  const [success, setSuccess] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   const loadUsers = useCallback(async (page, query) => {
     setIsLoading(true)
@@ -54,6 +60,46 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
     loadUsers(1, nextSearch)
   }
 
+  async function saveUser(event) {
+    event.preventDefault()
+    if (!editingUser || isSaving) return
+    const data = new FormData(event.currentTarget)
+    setEditError(null)
+    setIsSaving(true)
+
+    try {
+      await authService.updateAdminUser(editingUser.id, {
+        name: String(data.get('name')).trim(),
+        email: String(data.get('email')).trim(),
+      })
+      setEditingUser(null)
+      setSuccess('Account updated.')
+      await loadUsers(pagination.current_page, search)
+    } catch (reason) {
+      setEditError(reason)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function confirmAction() {
+    if (!action) return
+    setActionError(null)
+    try {
+      if (action.kind === 'delete') {
+        await authService.deleteAdminUser(action.user.id)
+        setSuccess(`${action.user.name} was permanently deleted.`)
+      } else {
+        await authService.updateAdminUser(action.user.id, { is_active: !action.user.is_active })
+        setSuccess(`${action.user.name} was ${action.user.is_active ? 'deactivated' : 'reactivated'}.`)
+      }
+      setAction(null)
+      await loadUsers(pagination.current_page, search)
+    } catch (reason) {
+      setActionError(reason)
+    }
+  }
+
   const columns = [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
@@ -68,6 +114,19 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
       label: 'Status',
       render: (isActive) => <Badge variant={isActive ? 'success' : 'slate'}>{isActive ? 'Active' : 'Inactive'}</Badge>,
     },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_value, user) => user.can_manage ? (
+        <div className="agency-user-actions">
+          <Button type="button" variant="secondary" size="sm" onClick={() => { setEditError(null); setEditingUser(user) }}>Edit</Button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setAction({ kind: 'status', user })}>
+            {user.is_active ? 'Deactivate' : 'Reactivate'}
+          </Button>
+          <Button type="button" variant="danger" size="sm" onClick={() => setAction({ kind: 'delete', user })}>Delete</Button>
+        </div>
+      ) : <span>View only</span>,
+    },
   ]
 
   return (
@@ -75,11 +134,15 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
       <PageHeader
         eyebrow="Administration"
         title={title}
-        subtitle={role === 'agency_client'
+        subtitle={role === ROLES.AGENCY_CLIENT
           ? 'Client accounts are listed for reference only; they cannot be created or edited here.'
-          : `View ${title.toLowerCase()} and their account status.`}
+          : role
+            ? `View and manage ${title.toLowerCase()} and their account status.`
+            : 'View every account and its role and status. Only employees and agency owners can be managed here.'}
         action={createTo && <Link className="ui-button ui-button-primary ui-button-md" to={createTo}>{createLabel}</Link>}
       />
+      {success && <Alert variant="success">{success}</Alert>}
+      <ApiErrorMessage error={actionError} />
       <Card title={title} description={`${pagination.total} account${pagination.total === 1 ? '' : 's'} total.`}>
         <form className="admin-users-search" onSubmit={submitSearch}>
           <Input
@@ -125,6 +188,42 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
           </div>
         </div>
       </Card>
+      <Modal
+        open={Boolean(editingUser)}
+        onClose={() => setEditingUser(null)}
+        title="Edit account"
+        footer={(
+          <>
+            <Button type="button" variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button type="submit" form="admin-user-edit-form" loading={isSaving} loadingText="Saving…">Save changes</Button>
+          </>
+        )}
+      >
+        {editingUser && (
+          <form id="admin-user-edit-form" className="admin-user-form" onSubmit={saveUser}>
+            <Input id="edit-admin-user-name" label="Name" name="name" defaultValue={editingUser.name} maxLength="120" required error={editError?.errors?.name?.[0]} />
+            <Input id="edit-admin-user-email" label="Email address" name="email" type="email" defaultValue={editingUser.email} maxLength="254" required error={editError?.errors?.email?.[0]} />
+            <ApiErrorMessage error={editError?.status === 422 ? null : editError} />
+          </form>
+        )}
+      </Modal>
+      <Modal
+        open={Boolean(action)}
+        onClose={() => setAction(null)}
+        title={action?.kind === 'delete' ? 'Permanently delete account?' : `${action?.user.is_active ? 'Deactivate' : 'Reactivate'} account?`}
+        footer={(
+          <>
+            <Button type="button" variant="secondary" onClick={() => setAction(null)}>Cancel</Button>
+            <Button type="button" variant={action?.kind === 'delete' ? 'danger' : 'primary'} onClick={confirmAction}>
+              {action?.kind === 'delete' ? 'Delete permanently' : action?.user.is_active ? 'Deactivate' : 'Reactivate'}
+            </Button>
+          </>
+        )}
+      >
+        {action?.kind === 'delete'
+          ? <p>This permanently removes {action.user.name} ({action.user.email}) and ends their active sessions. This cannot be undone.</p>
+          : <p>{action?.user.name} will {action?.user.is_active ? 'no longer be able to sign in.' : 'be able to sign in again.'}</p>}
+      </Modal>
     </section>
   )
 }

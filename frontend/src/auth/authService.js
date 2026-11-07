@@ -123,6 +123,13 @@ export const authService = {
     if (AUTH_MODE === 'mock') return null
     return request('/auth/me')
   },
+  async updateProfile(data) {
+    if (AUTH_MODE === 'mock') return { user: data }
+    return request('/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
   async signIn({ email, password }) {
     if (AUTH_MODE === 'mock') {
       if (!password) throw new Error('Enter your password to continue.')
@@ -166,6 +173,10 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { users: [] }
     return request('/agency/directory')
   },
+  async listAgencyEmployeeDirectory() {
+    if (AUTH_MODE === 'mock') return { employees: [] }
+    return request('/agency/team')
+  },
   async updateAgencyProfile(data) {
     if (AUTH_MODE === 'mock') return { user: data }
     return request('/agency/profile', {
@@ -175,9 +186,21 @@ export const authService = {
   },
   async listAdminUsers({ page = 1, search = '', role } = {}) {
     if (AUTH_MODE === 'mock') return { users: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
-    const query = new URLSearchParams({ page: String(page), per_page: '25', role })
+    const query = new URLSearchParams({ page: String(page), per_page: '25' })
+    if (role) query.set('role', role)
     if (search) query.set('search', search)
     return request(`/admin/users?${query.toString()}`)
+  },
+  async updateAdminUser(id, data) {
+    if (AUTH_MODE === 'mock') return { user: { id, ...data } }
+    return request(`/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+  async deleteAdminUser(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The account was permanently deleted.' }
+    return request(`/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
   async createAgencyUser({ name, email, role }) {
     if (AUTH_MODE === 'mock') return { user: { id: `${Date.now()}`, name, email, role, is_active: true } }
@@ -196,6 +219,36 @@ export const authService = {
   async deleteAgencyUser(id) {
     if (AUTH_MODE === 'mock') return { message: 'The account was permanently deleted.' }
     return request(`/agency/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+  async listAgencyEmployees(filters) {
+    if (AUTH_MODE === 'mock') return { employees: [] }
+    const query = new URLSearchParams(filters)
+    return request(`/agency/employees?${query.toString()}`)
+  },
+  async listAgencyProjects() {
+    if (AUTH_MODE === 'mock') return { projects: [] }
+    return request('/agency/projects')
+  },
+  async createAgencyProject(data) {
+    if (AUTH_MODE === 'mock') return { project: { id: Date.now(), ...data, status: 'scheduled', schedule: [] } }
+    return request('/agency/projects', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async listAdminProjects({ page = 1, search = '', perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { projects: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    if (search) query.set('search', search)
+    return request(`/admin/projects?${query.toString()}`)
+  },
+  async listMyWork() {
+    if (AUTH_MODE === 'mock') return { projects: [] }
+    return request('/work-items/mine')
+  },
+  async updateMyWorkStatus(id, status) {
+    if (AUTH_MODE === 'mock') return { project: { id, status } }
+    return request(`/work-items/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
   },
 }
 
