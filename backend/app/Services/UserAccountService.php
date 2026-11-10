@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\Role;
 use App\Models\Agency;
+use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Notifications\SetPasswordNotification;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Illuminate\Support\Str;
 
 class UserAccountService
 {
+    public function __construct(private AssignmentService $assignments) {}
+
     /**
      * @param  array{name: string, email: string, role: string, agency_id?: int|null, agency_name?: string}  $data
      */
@@ -116,6 +119,12 @@ class UserAccountService
                 DB::table('sessions')->where('user_id', $user->id)->delete();
 
                 if ($user->role === Role::Employee) {
+                    EmployeeAssignment::query()
+                        ->where('employee_id', $user->id)
+                        ->where('status', 'active')
+                        ->get()
+                        ->each(fn (EmployeeAssignment $assignment) => $this->assignments->end($assignment));
+
                     $workItemIds = DB::table('work_items')
                         ->where('employee_id', $user->id)
                         ->where('status', '<>', 'completed')

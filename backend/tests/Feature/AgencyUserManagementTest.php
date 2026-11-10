@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\Agency;
+use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Notifications\SetPasswordNotification;
@@ -346,6 +347,71 @@ class AgencyUserManagementTest extends TestCase
             ->where('work_item_id', $scheduled->id)
             ->whereDate('work_date', $pastDate)
             ->exists());
+    }
+
+    public function test_deactivating_an_assigned_employee_ends_the_assignment_and_releases_ticket_capacity(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $agency = Agency::create(['name' => 'Northwind']);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $nextEmployee = User::factory()->create(['role' => Role::Employee]);
+        $assignmentId = $this->actingAs($client)
+            ->postJson('/api/agency/assignments', ['employee_id' => $employee->id])
+            ->assertCreated()
+            ->json('assignment.id');
+        $workDate = now(config('app.timezone'))->addWeek()->toDateString();
+        $workItem = WorkItem::create([
+            'agency_id' => $agency->id,
+            'client_id' => $client->id,
+            'assignment_id' => $assignmentId,
+            'employee_id' => $employee->id,
+            'title' => 'Assigned work',
+            'description' => 'Must be cancelled with the assignment.',
+            'estimated_hours' => 2,
+            'start_date' => $workDate,
+            'due_date' => $workDate,
+            'status' => 'scheduled',
+        ]);
+        $workItem->allocations()->create([
+            'employee_id' => $employee->id,
+            'work_date' => $workDate,
+            'hours' => 2,
+        ]);
+        $ticket = $this->postJson('/api/agency/projects/'.$workItem->id.'/tickets', [
+            'title' => 'Assigned ticket',
+            'description' => 'Ticket capacity must be released.',
+            'estimated_hours' => 2,
+        ])->assertCreated()->json('ticket');
+        $this->assertDatabaseHas('ticket_allocations', [
+            'ticket_id' => $ticket['id'],
+            'work_date' => $workDate,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson('/api/admin/users/'.$employee->id, ['is_active' => false])
+            ->assertOk()
+            ->assertJsonPath('user.is_active', false);
+
+        $this->assertDatabaseHas('employee_assignments', [
+            'id' => $assignmentId,
+            'status' => 'ended',
+            'active_employee_id' => null,
+        ]);
+        $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('tickets', ['id' => $ticket['id'], 'status' => 'cancelled']);
+        $this->assertDatabaseMissing('ticket_allocations', [
+            'ticket_id' => $ticket['id'],
+            'work_date' => $workDate,
+        ]);
+
+        $this->actingAs($client)
+            ->postJson('/api/agency/assignments', ['employee_id' => $nextEmployee->id])
+            ->assertCreated();
+        $this->assertSame(
+            1,
+            EmployeeAssignment::query()->where('holder_id', $client->id)->where('status', 'active')->count()
+        );
     }
 
     public function test_admin_can_change_agency_status_and_suspension_revokes_only_agency_sessions(): void
