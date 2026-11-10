@@ -360,6 +360,26 @@ class AuthTest extends TestCase
             ->assertJsonPath('message', 'The requested resource was not found.');
     }
 
+    public function test_api_passes_custom_403_and_422_http_messages_but_hides_404_messages(): void
+    {
+        Route::get('/api/test-abort-403', fn () => abort(403, 'Agency access is required.'));
+        Route::get('/api/test-abort-422', fn () => abort(422, 'This ticket status transition is not allowed.'));
+        Route::get('/api/test-abort-404', fn () => abort(404, 'Sensitive model details.'));
+
+        $this->getJson('/api/test-abort-403')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Agency access is required.');
+
+        $this->getJson('/api/test-abort-422')
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'This ticket status transition is not allowed.');
+
+        $this->getJson('/api/test-abort-404')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'The requested resource was not found.')
+            ->assertDontSee('Sensitive model details.');
+    }
+
     public function test_api_unexpected_errors_do_not_expose_internal_details(): void
     {
         Route::get('/api/test-error', function () {

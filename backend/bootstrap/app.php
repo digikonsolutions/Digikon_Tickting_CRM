@@ -64,6 +64,14 @@ return Application::configure(basePath: dirname(__DIR__))
                     : 'The request could not be completed.',
             };
 
+            if (
+                $exception instanceof HttpExceptionInterface
+                && in_array($status, [403, 422], true)
+                && trim($exception->getMessage()) !== ''
+            ) {
+                $message = $exception->getMessage();
+            }
+
             $headers = $exception instanceof HttpExceptionInterface ? $exception->getHeaders() : [];
 
             return response()->json(['message' => $message], $status, $headers);
