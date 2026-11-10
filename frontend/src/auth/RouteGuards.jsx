@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './useAuth'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
@@ -34,15 +34,14 @@ export function RoleRoute({ allowedRoles }) {
 
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
-    { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/admin/projects', label: 'All projects', icon: 'ticket' },
-    { to: '/admin/tickets', label: 'All tickets', icon: 'ticket' },
-    { to: '/admin/assignments', label: 'Assignments', icon: 'users' },
-    { to: '/admin/users/all', label: 'All accounts', icon: 'users' },
-    { to: '/admin/employees', label: 'Employees', icon: 'users' },
-    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'users' },
-    { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users' },
-    { to: '/admin/settings', label: 'Settings', icon: 'settings' },
+    { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Work' },
+    { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
+    { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
+    { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
+    { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
+    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'building', section: 'People' },
+    { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users', section: 'People' },
+    { to: '/admin/settings', label: 'Settings', icon: 'settings', section: 'Admin' },
   ],
   [ROLES.TEAM_LEAD]: [
     { to: '/team/queue', label: 'Team Queue', icon: 'queue' },
@@ -75,11 +74,29 @@ export function AppLayout() {
   const [signOutError, setSignOutError] = useState(null)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isNavOpen, setIsNavOpen] = useState(false)
-  const visibleItems = SIDEBAR_ITEMS[user.role] ?? []
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem('clienthub:sidebar-collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+  const visibleItems = [
+    ...(SIDEBAR_ITEMS[user.role] ?? []),
+  ]
+  const sidebarGroups = visibleItems.reduce((groups, item) => {
+    const section = item.section ?? 'Work'
+    const group = groups.find((candidate) => candidate.label === section)
+    if (group) group.items.push(item)
+    else groups.push({ label: section, items: [item] })
+    return groups
+  }, [])
   const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
-    ?? ({
+    ?? (location.pathname.startsWith('/admin/projects/')
+      ? 'Project details'
+      : ({
+      '/profile': 'My profile',
       '/admin/users': 'Employees',
-      '/admin/users/all': 'All accounts',
       '/admin/employees': 'Employees',
       '/admin/employees/new': 'Create Employee',
       '/admin/agency-owners': 'Agency owners',
@@ -96,7 +113,7 @@ export function AppLayout() {
       '/agency/employees': 'Employees',
       '/agency/users': 'Agency accounts',
       '/agency/directory': 'Agency directory',
-    }[location.pathname] ?? 'Workspace')
+    }[location.pathname] ?? 'Workspace'))
 
   async function handleSignOut() {
     setSignOutError(null)
@@ -116,17 +133,75 @@ export function AppLayout() {
     }
   }
 
+  function toggleSidebar() {
+    const next = !isSidebarCollapsed
+    setIsSidebarCollapsed(next)
+    try {
+      window.localStorage.setItem('clienthub:sidebar-collapsed', String(next))
+    } catch {
+      return
+    }
+  }
+
+  const userInitial = user.name?.trim().charAt(0).toUpperCase() || 'U'
+  const showDashboardAction = user.role === ROLES.ADMIN && location.pathname === '/admin/dashboard'
+
   return (
-    <div className={`app-shell${isNavOpen ? ' app-nav-open' : ''}`}>
+    <div className={`app-shell${isNavOpen ? ' app-nav-open' : ''}${isSidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {isNavOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setIsNavOpen(false)} />}
       <aside className="sidebar" id="primary-navigation">
-        <NavLink className="brand" to={ROLE_HOME[user.role]}><span className="brand-mark">C</span>ClientHub</NavLink>
-        <nav aria-label="Dashboard">
-          {visibleItems.map((item) => (
-            <NavLink key={item.to} to={item.to} onClick={() => setIsNavOpen(false)}><Icon name={item.icon} size={18} /><span>{item.label}</span></NavLink>
+        <div className="sidebar-brand-row">
+          <NavLink className="brand" to={ROLE_HOME[user.role]} aria-label="ClientHub home">
+            <span className="brand-mark">C</span><span className="sidebar-brand-name">ClientHub</span>
+          </NavLink>
+          <button
+            className="sidebar-collapse-button"
+            type="button"
+            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-pressed={isSidebarCollapsed}
+            onClick={toggleSidebar}
+          >
+            <Icon name={isSidebarCollapsed ? 'expand' : 'collapse'} size={18} />
+          </button>
+        </div>
+        <nav aria-label="Main navigation">
+          {sidebarGroups.map((group) => (
+            <div className="sidebar-nav-group" key={group.label}>
+              <p className="sidebar-group-label">{group.label}</p>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  aria-label={item.label}
+                  title={item.label}
+                  onClick={() => setIsNavOpen(false)}
+                >
+                  <Icon name={item.icon} size={18} /><span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
-          <NavLink to="/profile" onClick={() => setIsNavOpen(false)}><Icon name="users" size={18} /><span>My profile</span></NavLink>
         </nav>
+        <div className="sidebar-user">
+          <Link className="sidebar-user-profile" to="/profile" title="My profile" onClick={() => setIsNavOpen(false)}>
+            <span className="sidebar-user-avatar" aria-hidden="true">{userInitial}</span>
+            <span className="sidebar-user-details">
+              <strong>{user.name}</strong>
+              <Badge variant={user.role === ROLES.ADMIN ? 'primary' : 'slate'}>{ROLE_LABELS[user.role]}</Badge>
+            </span>
+            <span className="sr-only">My profile</span>
+          </Link>
+          <button
+            className="sidebar-logout-button"
+            type="button"
+            aria-label={isSigningOut ? 'Signing out' : 'Logout'}
+            title="Logout"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+          >
+            <Icon name="logout" size={18} />
+          </button>
+        </div>
       </aside>
       <div className="app-main">
         <header className="dashboard-header">
@@ -144,14 +219,34 @@ export function AppLayout() {
             </Button>
             <h1>{pageTitle}</h1>
           </div>
-          <div className="user-summary">
-            <strong>{user.name}</strong>
-            <Badge variant={user.role === ROLES.ADMIN ? 'primary' : 'slate'}>{ROLE_LABELS[user.role]}</Badge>
-            {user.agency_name && <span>{user.agency_name}</span>}
+          <div className="dashboard-header-tools">
+            <label className="header-search">
+              <Icon name="search" size={18} />
+              <input aria-label="Search (coming soon)" placeholder="Search..." type="search" />
+            </label>
+            <button className="header-icon-button" type="button" aria-label="Notifications (coming soon)" title="Notifications coming soon">
+              <Icon name="bell" size={19} />
+            </button>
+            {showDashboardAction && (
+              <Link className="ui-button ui-button-primary header-primary-action" to="/admin/employees/new">
+                <Icon name="plus" size={17} />
+                Create employee
+              </Link>
+            )}
+            <details className="header-user-menu">
+              <summary aria-label="Open user menu" title="User menu">
+                <span className="header-menu-avatar" aria-hidden="true">{userInitial}</span>
+              </summary>
+              <div className="header-user-menu-popover">
+                <strong>{user.name}</strong>
+                <span>{ROLE_LABELS[user.role]}</span>
+                <button type="button" onClick={handleSignOut} disabled={isSigningOut}>
+                  <Icon name="logout" size={17} />
+                  {isSigningOut ? 'Signing out…' : 'Logout'}
+                </button>
+              </div>
+            </details>
           </div>
-          <Button type="button" variant="secondary" size="sm" onClick={handleSignOut} loading={isSigningOut} loadingText="Signing out…">
-            Logout
-          </Button>
         </header>
         <main className="dashboard-content">
           <ApiErrorMessage error={signOutError} />

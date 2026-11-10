@@ -4,7 +4,6 @@ import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, EmptyState, Icon, PageHeader, Spinner } from '../../../../../components/ui'
-import adminProjectAvatar from '../../../../../assets/admin-project-avatar.svg'
 
 const PROJECT_FILTERS = [
   { id: 'all', label: 'All' },
@@ -86,6 +85,15 @@ function formatDueDate(value) {
     .format(new Date(`${value}T00:00:00`))
 }
 
+function employeeInitials(name) {
+  return (name ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('')
+}
+
 function getNextWeekHours(projects, today) {
   const totals = Array.from({ length: 7 }, () => 0)
   const start = new Date(`${today}T00:00:00`)
@@ -122,12 +130,21 @@ function ProjectRow({ project, today }) {
     variant: 'slate',
   }
   const projectOwner = project.client?.name ?? project.employee?.name ?? 'Project team'
+  const employeeName = project.employee?.name
+  const initials = employeeInitials(employeeName)
 
   return (
     <li className="admin-project-row">
-      <img className="admin-project-avatar" src={adminProjectAvatar} alt="" aria-hidden="true" />
+      <span
+        className={`admin-project-avatar${initials ? '' : ' admin-project-avatar-neutral'}`}
+        role="img"
+        title={employeeName ?? 'Unassigned employee'}
+        aria-label={employeeName ? `Employee: ${employeeName}` : 'Unassigned employee'}
+      >
+        {initials || <Icon name="user" size={16} />}
+      </span>
       <span className="admin-project-main">
-        <strong>{project.title}</strong>
+        <strong><Link to={`/admin/projects/${project.id}`}>{project.title}</Link></strong>
         <span>{project.agency_name ?? 'Agency'} · {projectOwner}</span>
       </span>
       <span className="admin-project-due">{status === 'overdue' ? 'Past due' : `Due ${formatDueDate(project.due_date)}`}</span>
@@ -166,8 +183,10 @@ export const AdminDashboard = () => {
   const projects = dashboard.data?.projects ?? EMPTY_PROJECTS
   const today = dashboard.data?.today
   const projectsTotal = dashboard.data?.total ?? 0
-  const activeCount = statusCount(projects, 'scheduled') + statusCount(projects, 'in_progress')
+  const scheduledCount = statusCount(projects, 'scheduled')
+  const inProgressCount = statusCount(projects, 'in_progress')
   const completedCount = statusCount(projects, 'completed')
+  const activeCount = scheduledCount + inProgressCount
   const completionPercent = projectsTotal > 0
     ? Math.round((completedCount / projectsTotal) * 100)
     : 0
@@ -185,12 +204,6 @@ export const AdminDashboard = () => {
         eyebrow="Administration"
         title="Workspace overview"
         subtitle="Monitor projects and delivery across every agency."
-        action={(
-          <Link className="ui-button ui-button-primary admin-dashboard-cta" to="/admin/employees/new">
-            <Icon name="plus" size={18} />
-            Create employee
-          </Link>
-        )}
       />
 
       <ApiErrorMessage error={dashboard.error} />
@@ -224,7 +237,13 @@ export const AdminDashboard = () => {
                 >
                   <span style={{ width: `${completionPercent}%` }} />
                 </div>
-                <p>Completion across the workspace</p>
+                <div className="admin-hero-substats">
+                  <span><strong>{scheduledCount}</strong> scheduled</span>
+                  <span>·</span>
+                  <span><strong>{inProgressCount}</strong> in progress</span>
+                  <span>·</span>
+                  <span><strong>{completedCount}</strong> completed</span>
+                </div>
               </div>
             </div>
           )}
@@ -239,7 +258,7 @@ export const AdminDashboard = () => {
               value={activeCount}
               hint="Scheduled or in progress"
               icon="queue"
-              tone="primary"
+              tone="teal"
             />
             <StatCard
               label="Scheduled hours"
@@ -262,7 +281,7 @@ export const AdminDashboard = () => {
               value={dashboard.data?.ticketTotal ?? 0}
               hint="Across all projects"
               icon="ticket"
-              tone="violet"
+              tone="teal"
             />
           </div>
 
@@ -311,12 +330,15 @@ export const AdminDashboard = () => {
                   <div><h2>Quick actions</h2><p>Common administration tasks</p></div>
                 </div>
                 <Link className="admin-quick-action" to="/admin/agency-owners/new">
+                  <span className="admin-quick-action-icon"><Icon name="building" size={18} /></span>
                   <span><strong>Invite agency owner</strong><small>Create an agency and send an invitation.</small></span>
                 </Link>
                 <Link className="admin-quick-action" to="/admin/employees/new">
+                  <span className="admin-quick-action-icon"><Icon name="userPlus" size={18} /></span>
                   <span><strong>Add employee</strong><small>Add an employee to the shared pool.</small></span>
                 </Link>
                 <Link className="admin-quick-action" to="/admin/assignments">
+                  <span className="admin-quick-action-icon"><Icon name="calendar" size={18} /></span>
                   <span><strong>Review assignments</strong><small>See active and ended employee holds.</small></span>
                 </Link>
               </Card>
