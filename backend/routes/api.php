@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AgencyUserController;
+use App\Http\Controllers\EmployeeAssignmentController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WorkItemController;
@@ -35,7 +36,15 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner']);
     Route::delete('/users/{agencyUser}', [AgencyUserController::class, 'deleteAgencyUser'])
         ->middleware(['auth', 'role:agency_owner']);
-    Route::get('/employees', [WorkItemController::class, 'agencyEmployees'])
+    Route::get('/employees/available', [EmployeeAssignmentController::class, 'available'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::post('/assignments', [EmployeeAssignmentController::class, 'store'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::get('/assignments', [EmployeeAssignmentController::class, 'index'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::get('/assignments/{assignment}/usage', [EmployeeAssignmentController::class, 'usage'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::delete('/assignments/{assignment}', [EmployeeAssignmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/projects', [WorkItemController::class, 'agencyIndex'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
@@ -61,6 +70,8 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
+    Route::get('/admin/assignments', [EmployeeAssignmentController::class, 'adminIndex']);
+    Route::delete('/admin/assignments/{assignment}', [EmployeeAssignmentController::class, 'adminDestroy']);
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);
 });
 

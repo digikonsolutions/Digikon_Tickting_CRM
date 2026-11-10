@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\Role;
 use App\Http\Requests\StoreWorkItemRequest;
 use App\Models\Agency;
+use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
-use App\Services\TicketPlanner;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -18,53 +18,13 @@ use Illuminate\Validation\ValidationException;
 
 class WorkItemController extends Controller
 {
-    public function agencyEmployees(Request $request, WorkItemScheduler $scheduler): JsonResponse
-    {
-        $user = $request->user();
-        $agency = $this->activeAgency($user);
-        $filters = $request->validate([
-            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
-            'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-            'hours' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:'.config('scheduling.max_project_hours', 180)],
-        ]);
-        $start = CarbonImmutable::parse($filters['start_date'], config('app.timezone'));
-        $due = CarbonImmutable::parse($filters['due_date'], config('app.timezone'));
-        $this->validateDateRange($start, $due);
-        $requestedUnits = (int) round((float) $filters['hours'] * 100);
-
-        return response()->json([
-            'employees' => $scheduler->assignableEmployees()
-                ->map(function (User $employee) use ($scheduler, $start, $due, $requestedUnits): array {
-                    $plan = $scheduler->plan($employee, $start, $due, $requestedUnits);
-
-                    return [
-                        'id' => $employee->id,
-                        'name' => $employee->name,
-                        'role' => $employee->role->value,
-                        'available' => $plan !== null,
-                        'available_hours' => WorkItemScheduler::unitsToHours(
-                            $scheduler->availableUnits($employee, $start, $due)
-                        ),
-                        'schedule' => $plan === null ? [] : array_map(
-                            fn (array $allocation): array => [
-                                'work_date' => $allocation['work_date'],
-                                'hours' => WorkItemScheduler::unitsToHours($allocation['units']),
-                            ],
-                            $plan
-                        ),
-                    ];
-                })
-                ->values(),
-        ]);
-    }
-
     public function agencyIndex(Request $request): JsonResponse
     {
         $viewer = $request->user();
         $agency = $this->activeAgency($viewer);
 
         $items = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->where('agency_id', $agency->id)
             ->when(
                 $viewer->role === Role::AgencyClient,
@@ -82,13 +42,24 @@ class WorkItemController extends Controller
         $creator = $request->user();
         $agency = $this->activeAgency($creator);
         $data = $request->validated();
-        $employee = $this->findAssignableEmployee($scheduler, (int) $data['employee_id']);
+        $assignment = EmployeeAssignment::query()
+            ->whereKey($data['assignment_id'])
+            ->where('holder_id', $creator->id)
+            ->where('agency_id', $agency->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $assignment) {
+            throw ValidationException::withMessages([
+                'assignment_id' => 'Choose an active employee assignment held by your account.',
+            ]);
+        }
         $start = CarbonImmutable::parse($data['start_date'], config('app.timezone'));
         $due = CarbonImmutable::parse($data['due_date'], config('app.timezone'));
         $this->validateDateRange($start, $due);
         $requestedUnits = (int) round((float) $data['estimated_hours'] * 100);
 
-        $item = DB::transaction(function () use ($creator, $agency, $data, $employee, $start, $due, $requestedUnits, $scheduler): WorkItem {
+        $item = DB::transaction(function () use ($creator, $agency, $data, $assignment, $start, $due, $requestedUnits, $scheduler): WorkItem {
             User::query()->lockForUpdate()->findOrFail($creator->id);
 
             if (
@@ -103,19 +74,36 @@ class WorkItemController extends Controller
                 ]);
             }
 
-            $lockedEmployee = User::query()->lockForUpdate()->findOrFail($employee->id);
-            $this->assertAssignableEmployee($lockedEmployee);
+            $lockedAssignment = EmployeeAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
+            if (
+                $lockedAssignment->status !== 'active'
+                || $lockedAssignment->holder_id !== $creator->id
+                || $lockedAssignment->agency_id !== $agency->id
+            ) {
+                throw ValidationException::withMessages([
+                    'assignment_id' => 'Choose an active employee assignment held by your account.',
+                ]);
+            }
+
+            $lockedEmployee = User::query()->lockForUpdate()->findOrFail($lockedAssignment->employee_id);
+            if (! $lockedEmployee->is_active || $lockedEmployee->role !== Role::Employee) {
+                throw ValidationException::withMessages([
+                    'assignment_id' => 'The assigned employee is no longer active.',
+                ]);
+            }
+
             $plan = $scheduler->plan($lockedEmployee, $start, $due, $requestedUnits);
 
             if ($plan === null) {
                 throw ValidationException::withMessages([
-                    'employee_id' => 'This employee does not have enough capacity in the selected date range. Choose another employee or extend the dates.',
+                    'assignment_id' => 'This employee assignment does not have enough capacity in the selected date range. Extend the dates.',
                 ]);
             }
 
             $item = WorkItem::create([
                 'agency_id' => $agency->id,
                 'client_id' => $creator->id,
+                'assignment_id' => $lockedAssignment->id,
                 'employee_id' => $lockedEmployee->id,
                 'title' => $data['title'],
                 'description' => $data['description'],
@@ -138,11 +126,11 @@ class WorkItemController extends Controller
         });
 
         return response()->json([
-            'project' => $this->payload($item->load(['agency', 'client', 'employee', 'allocations'])),
+            'project' => $this->payload($item->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
         ], 201);
     }
 
-    public function cancel(Request $request, WorkItem $workItem, TicketPlanner $ticketPlanner): JsonResponse
+    public function cancel(Request $request, WorkItem $workItem): JsonResponse
     {
         $user = $request->user();
         $agency = $this->activeAgency($user);
@@ -159,18 +147,21 @@ class WorkItemController extends Controller
             'Completed or cancelled projects cannot be cancelled.'
         );
 
-        DB::transaction(function () use ($workItem, $ticketPlanner): void {
+        DB::transaction(function () use ($workItem): void {
             $workItem->update(['status' => 'cancelled']);
             DB::table('work_item_allocations')
                 ->where('work_item_id', $workItem->id)
                 ->whereDate('work_date', '>=', now(config('app.timezone'))->toDateString())
                 ->delete();
+            $ticketIds = $workItem->tickets()->pluck('id');
+            DB::table('ticket_allocations')
+                ->whereIn('ticket_id', $ticketIds)
+                ->delete();
             $workItem->tickets()->update(['status' => 'cancelled']);
-            $ticketPlanner->plan($workItem);
         });
 
         return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'allocations'])),
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
         ]);
     }
 
@@ -183,7 +174,7 @@ class WorkItemController extends Controller
         ]);
 
         $items = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('title', 'like', '%'.$search.'%')
@@ -211,7 +202,7 @@ class WorkItemController extends Controller
         $this->ensureActiveEmployeeAgency($request->user());
 
         $items = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->where('employee_id', $request->user()->id)
             ->orderBy('start_date')
             ->orderBy('id')
@@ -240,7 +231,7 @@ class WorkItemController extends Controller
         $workItem->update(['status' => $data['status']]);
 
         return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'allocations'])),
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
         ]);
     }
 
@@ -268,29 +259,6 @@ class WorkItemController extends Controller
         }
     }
 
-    private function findAssignableEmployee(WorkItemScheduler $scheduler, int $employeeId): User
-    {
-        $employee = $scheduler->assignableEmployees()->firstWhere('id', $employeeId);
-        if (! $employee) {
-            throw ValidationException::withMessages([
-                'employee_id' => 'Choose an active employee assigned to this agency or a shared employee.',
-            ]);
-        }
-
-        return $employee;
-    }
-
-    private function assertAssignableEmployee(User $employee): void
-    {
-        $isSharedEmployee = $employee->role === Role::Employee && $employee->agency_id === null;
-
-        if (! $employee->is_active || ! $isSharedEmployee) {
-            throw ValidationException::withMessages([
-                'employee_id' => 'Choose an active employee assigned to this agency or a shared employee.',
-            ]);
-        }
-    }
-
     private function validateDateRange(CarbonImmutable $start, CarbonImmutable $due): void
     {
         if ($start->diffInDays($due) > 366) {
@@ -310,6 +278,7 @@ class WorkItemController extends Controller
             'title' => $item->title,
             'description' => $item->description,
             'agency_id' => $item->agency_id,
+            'assignment_id' => $item->assignment_id,
             'agency_name' => $item->agency?->name,
             'client' => $item->client ? [
                 'id' => $item->client->id,

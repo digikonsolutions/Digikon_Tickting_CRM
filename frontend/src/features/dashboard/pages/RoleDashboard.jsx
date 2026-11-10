@@ -5,9 +5,21 @@ import { QuickActions, SectionCard, StatGrid, ProjectList, WelcomeBanner } from 
 import { Link } from 'react-router-dom'
 import { useAsync } from '../../../hooks/useAsync'
 import { dashboardService } from '../services/dashboardService'
+import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 
 // One composable dashboard; each role page just supplies scope, copy and quick actions.
-export function RoleDashboard({ scope = 'all', subtitle, actions, ticketsLink, ticketsTitle = 'Recent projects', showAgency = true }) {
+export function RoleDashboard({
+  scope = 'all',
+  subtitle,
+  actions,
+  ticketsLink,
+  ticketsTitle = 'Recent projects',
+  showAgency = true,
+  additionalStats = [],
+  additionalStatsLoading = false,
+  additionalStatsError = null,
+  onRetryAdditionalStats,
+}) {
   const { user } = useAuth()
   const tickets = useAsync(useCallback(() => dashboardService.getTickets({ scope, user }), [scope, user]))
   const stats = dashboardService.getStats(tickets.data)
@@ -18,7 +30,13 @@ export function RoleDashboard({ scope = 'all', subtitle, actions, ticketsLink, t
       <WelcomeBanner eyebrow={ROLE_LABELS[user.role]} title={`Welcome back, ${firstName}`} subtitle={subtitle}>
         {ticketsLink && <Link to={ticketsLink} className="ui-button ui-button-secondary ui-button-sm">View work</Link>}
       </WelcomeBanner>
-      {stats.length > 0 && <StatGrid stats={stats} isLoading={tickets.isLoading} />}
+      {(stats.length > 0 || additionalStats.length > 0) && (
+        <StatGrid stats={[...stats, ...additionalStats]} isLoading={tickets.isLoading || additionalStatsLoading} />
+      )}
+      <ApiErrorMessage error={additionalStatsError} />
+      {additionalStatsError && onRetryAdditionalStats && (
+        <button type="button" className="inline-link" onClick={onRetryAdditionalStats}>Retry loading employee stats</button>
+      )}
       <div className="dashboard-columns">
         <SectionCard title={ticketsTitle} description="Recently scheduled and assigned work" className="span-main">
           {tickets.error

@@ -5,3 +5,4 @@ export {
   AgencyOwnerProjectsPage,
 } from './pages/AgencyProjectsPage'
 export { AgencyUsersPage } from './pages/AgencyUsersPage'
+export { ProjectDetailPage } from './pages/ProjectDetailPage'

@@ -3,13 +3,20 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } from '../auth/RouteGuards'
 import { ROLES } from '../auth/roles'
 import { Loader } from '../components/ui'
-import { AdminCreateUserPage, AdminProjectsPage, AdminUsersPage } from '../features/admin'
+import {
+  AdminAssignmentsPage,
+  AdminCreateUserPage,
+  AdminProjectsPage,
+  AdminTicketsPage,
+  AdminUsersPage,
+} from '../features/admin'
 import {
   AgencyClientProjectsPage,
   AgencyDirectoryPage,
   AgencyEmployeesPage,
   AgencyOwnerProjectsPage,
   AgencyUsersPage,
+  ProjectDetailPage,
 } from '../features/agency'
 import {
   ForgotPasswordPage,
@@ -51,6 +58,8 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
+            <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+            <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
             <Route path="/admin/users/all" element={<AdminUsersPage key="all" title="All accounts" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
             <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
@@ -81,12 +90,14 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
+            <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />
+            <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/directory" element={<AgencyDirectoryPage />} />

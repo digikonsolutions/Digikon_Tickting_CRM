@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\Agency;
+use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Services\WorkItemScheduler;
@@ -22,6 +23,7 @@ class WorkItemSchedulingTest extends TestCase
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $anotherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $tuesday = $monday->copy()->addDay();
 
@@ -32,7 +34,7 @@ class WorkItemSchedulingTest extends TestCase
                 'estimated_hours' => 9,
                 'start_date' => $monday->toDateString(),
                 'due_date' => $tuesday->toDateString(),
-                'employee_id' => $employee->id,
+                'assignment_id' => $assignment->id,
             ])
             ->assertCreated()
             ->assertJsonPath('project.status', 'scheduled')
@@ -72,6 +74,7 @@ class WorkItemSchedulingTest extends TestCase
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $tuesday = $monday->copy()->addDay();
         $wednesday = $monday->copy()->addDays(2);
@@ -79,7 +82,7 @@ class WorkItemSchedulingTest extends TestCase
             'description' => 'Task.',
             'start_date' => $monday->toDateString(),
             'due_date' => $wednesday->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ];
 
         $this->actingAs($client)->postJson('/api/agency/projects', [
@@ -110,12 +113,13 @@ class WorkItemSchedulingTest extends TestCase
         $monday = now()->startOfWeek()->addWeek();
 
         $this->actingAs($client)
-            ->getJson('/api/agency/employees?start_date='.$monday->toDateString()
-                .'&due_date='.$monday->toDateString().'&hours=1')
+            ->getJson('/api/agency/employees/available')
             ->assertOk()
             ->assertJsonCount(2, 'employees')
-            ->assertJsonFragment(['id' => $sharedEmployee->id, 'available' => true])
-            ->assertJsonFragment(['id' => $anotherEmployee->id, 'available' => true]);
+            ->assertJsonFragment(['id' => $sharedEmployee->id])
+            ->assertJsonFragment(['id' => $anotherEmployee->id]);
+
+        $assignment = $this->createAssignment($client, $anotherEmployee);
 
         $this->postJson('/api/agency/projects', [
             'title' => 'Shared employee assignment',
@@ -123,7 +127,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 1,
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $anotherEmployee->id,
+            'assignment_id' => $assignment->id,
         ])->assertCreated()
             ->assertJsonPath('project.employee.id', $anotherEmployee->id);
     }
@@ -135,6 +139,7 @@ class WorkItemSchedulingTest extends TestCase
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $anotherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $tuesday = $monday->copy()->addDay();
         $payload = [
@@ -143,21 +148,20 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 6,
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ];
 
         $this->actingAs($client)->postJson('/api/agency/projects', $payload)->assertCreated();
         $this->assertDatabaseHas('work_item_allocations', ['employee_id' => $employee->id, 'hours' => '6.00']);
         $this->actingAs($owner)
-            ->getJson('/api/agency/employees?start_date='.$monday->toDateString()
-                .'&due_date='.$monday->toDateString().'&hours=1')
+            ->getJson('/api/agency/employees/available')
             ->assertOk()
-            ->assertJsonPath('employees.0.available', false);
+            ->assertJsonMissing(['id' => $employee->id]);
         $this->postJson('/api/agency/projects', [
             ...$payload,
             'title' => 'Second task',
             'estimated_hours' => 1,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['assignment_id']);
 
         $this->actingAs($anotherClient)->postJson('/api/agency/projects', [
             ...$payload,
@@ -165,7 +169,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 3,
             'start_date' => $tuesday->toDateString(),
             'due_date' => $tuesday->toDateString(),
-        ])->assertCreated();
+        ])->assertUnprocessable()->assertJsonValidationErrors(['assignment_id']);
 
         $this->actingAs($client)->postJson('/api/agency/projects', [
             ...$payload,
@@ -173,33 +177,34 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 4,
             'start_date' => $tuesday->toDateString(),
             'due_date' => $tuesday->toDateString(),
-        ])->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+        ])->assertCreated();
 
         $this->postJson('/api/agency/projects', [
             ...$payload,
-            'title' => 'Tuesday task within remaining capacity',
+            'title' => 'Tuesday task beyond remaining capacity',
             'estimated_hours' => 3,
             'start_date' => $tuesday->toDateString(),
             'due_date' => $tuesday->toDateString(),
-        ])->assertCreated();
+        ])->assertUnprocessable()->assertJsonValidationErrors(['assignment_id']);
 
-        $this->assertSame(3, WorkItem::query()->count());
+        $this->assertSame(2, WorkItem::query()->count());
     }
 
-    public function test_clients_in_different_agencies_compete_for_shared_employee_capacity(): void
+    public function test_clients_in_different_agencies_cannot_use_an_employee_held_by_another_agency(): void
     {
         $firstAgency = Agency::create(['name' => 'First agency']);
         $secondAgency = Agency::create(['name' => 'Second agency']);
         $firstClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $firstAgency->id]);
         $secondClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $secondAgency->id]);
         $employee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
+        $assignment = $this->createAssignment($firstClient, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $payload = [
             'title' => 'Shared capacity',
             'description' => 'The employee is shared across agencies.',
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ];
 
         $this->actingAs($firstClient)->postJson('/api/agency/projects', [
@@ -211,7 +216,7 @@ class WorkItemSchedulingTest extends TestCase
             ...$payload,
             'title' => 'Competing project',
             'estimated_hours' => 1,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+        ])->assertUnprocessable()->assertJsonValidationErrors(['assignment_id']);
 
         $this->assertSame(1, WorkItem::query()->count());
     }
@@ -223,6 +228,7 @@ class WorkItemSchedulingTest extends TestCase
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $payload = [
             'title' => 'Original project',
@@ -230,7 +236,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 6,
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ];
 
         $response = $this->actingAs($client)->postJson('/api/agency/projects', $payload)->assertCreated();
@@ -295,6 +301,7 @@ class WorkItemSchedulingTest extends TestCase
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $due = $monday->copy()->addDays(20);
 
@@ -304,7 +311,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 70,
             'start_date' => $monday->toDateString(),
             'due_date' => $due->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ])->assertCreated();
 
         $allocations = DB::table('work_item_allocations')
@@ -351,6 +358,7 @@ class WorkItemSchedulingTest extends TestCase
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $payload = [
             'title' => 'Open project',
@@ -358,7 +366,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 1,
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->copy()->addDays(2)->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ];
 
         $this->actingAs($client);
@@ -380,6 +388,7 @@ class WorkItemSchedulingTest extends TestCase
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->createAssignment($owner, $employee);
         $saturday = now()->startOfWeek()->addWeek()->addDays(5);
         $monday = $saturday->copy()->addDays(2);
         $payload = [
@@ -388,7 +397,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 7,
             'start_date' => $saturday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ];
 
         $this->actingAs($owner)->postJson('/api/agency/projects', $payload)
@@ -398,11 +407,9 @@ class WorkItemSchedulingTest extends TestCase
             ->assertJsonPath('project.schedule.1.work_date', $monday->toDateString())
             ->assertJsonPath('project.schedule.1.hours', '1.00');
 
-        $this->getJson('/api/agency/employees?start_date='.$saturday->toDateString()
-            .'&due_date='.$saturday->toDateString().'&hours=2.51')
+        $this->getJson('/api/agency/employees/available')
             ->assertOk()
-            ->assertJsonPath('employees.0.available', false)
-            ->assertJsonPath('employees.0.available_hours', '0.00');
+            ->assertJsonMissing(['id' => $employee->id]);
     }
 
     public function test_owner_can_see_agency_projects_admin_can_view_all_and_employees_can_update_assigned_status(): void
@@ -412,10 +419,12 @@ class WorkItemSchedulingTest extends TestCase
         $employee = User::factory()->create(['role' => Role::Employee]);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $admin = User::factory()->create(['role' => Role::Admin]);
+        $assignment = $this->createAssignment($client, $employee);
         $monday = now()->startOfWeek()->addWeek();
         $workItem = WorkItem::create([
             'agency_id' => $agency->id,
             'client_id' => $client->id,
+            'assignment_id' => $assignment->id,
             'employee_id' => $employee->id,
             'title' => 'Assigned work',
             'description' => 'Task.',
@@ -458,7 +467,7 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 1,
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $employee->id,
+            'assignment_id' => $assignment->id,
         ])->assertCreated();
         $this->actingAs($admin)->postJson('/api/agency/projects', [])->assertForbidden();
     }
@@ -501,5 +510,17 @@ class WorkItemSchedulingTest extends TestCase
             ->getJson('/api/agency/directory')
             ->assertOk()
             ->assertJsonFragment(['id' => $employee->id, 'role' => Role::Employee->value]);
+    }
+
+    private function createAssignment(User $holder, User $employee): EmployeeAssignment
+    {
+        return EmployeeAssignment::create([
+            'holder_id' => $holder->id,
+            'agency_id' => $holder->agency_id,
+            'employee_id' => $employee->id,
+            'status' => 'active',
+            'active_employee_id' => $employee->id,
+            'started_at' => now(),
+        ]);
     }
 }

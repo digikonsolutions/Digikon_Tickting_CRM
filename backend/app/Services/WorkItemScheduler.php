@@ -2,25 +2,13 @@
 
 namespace App\Services;
 
-use App\Enums\Role;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class WorkItemScheduler
 {
     private const DAILY_CAPACITY_UNITS = 600;
-
-    public function assignableEmployees(): Collection
-    {
-        return User::query()
-            ->where('is_active', true)
-            ->where('role', Role::Employee->value)
-            ->whereNull('agency_id')
-            ->orderBy('name')
-            ->get();
-    }
 
     /**
      * @return list<array{work_date: string, units: int}>

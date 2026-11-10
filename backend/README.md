@@ -50,9 +50,13 @@ Available routes:
 | GET | `/api/agency/directory` | Agency-owner, legacy agency-member, and agency-client directory including shared admin-created employees |
 | GET | `/api/agency/team` | Agency-owner/client roster of shared admin-created employees |
 | PATCH | `/api/agency/profile` | Agency-member or client may update their own display name |
-| GET | `/api/agency/employees` | Agency client/owner list of active shared employees with date-range capacity |
+| GET | `/api/agency/employees/available` | Agency client/owner list of active same-agency and shared employees with no active holder |
+| POST | `/api/agency/assignments` | Hold an available employee exclusively for the current client or owner |
+| GET | `/api/agency/assignments` | List the caller's active assignments and current-week usage; owners may use `?scope=agency` |
+| GET | `/api/agency/assignments/{assignment}/usage` | Read Monday-Saturday usage for a requested `?week=YYYY-MM-DD` |
+| DELETE | `/api/agency/assignments/{assignment}` | Holder ends its assignment; owners may end any assignment in their agency |
 | GET | `/api/agency/projects` | Agency clients see their own projects; owners see all agency projects and schedules |
-| POST | `/api/agency/projects` | Agency client/owner create a project and assign available agency/shared employee |
+| POST | `/api/agency/projects` | Agency client/owner create a project using their active `assignment_id` |
 | PATCH | `/api/agency/projects/{workItem}/cancel` | Owners cancel any project in their agency; clients cancel their own open projects |
 | GET | `/api/agency/projects/{workItem}/tickets` | Agency owner/client reads tickets within the same project access scope |
 | POST | `/api/agency/projects/{workItem}/tickets` | Agency owner/client creates a ticket and plans it against project capacity |
@@ -66,15 +70,19 @@ Available routes:
 | GET | `/api/work-items/mine` | Employee list of assigned projects |
 | PATCH | `/api/work-items/{workItem}/status` | Assigned employee moves their project to in-progress or completed |
 | GET | `/api/admin/projects` | Admin read-only, searchable paginated view of all projects and schedules |
+| GET | `/api/admin/assignments` | Admin read-only paginated employee-assignment directory |
+| DELETE | `/api/admin/assignments/{assignment}` | Admin ends an assignment and releases its future work allocations |
 | POST | `/api/auth/login` | Sign in |
 | POST | `/api/auth/logout` | End the current session |
 | GET | `/api/auth/me` | Return the authenticated user and role |
 | POST | `/api/auth/forgot-password` | Request a reset link |
 | POST | `/api/auth/reset-password` | Reset password with a time-limited token |
 
-Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member` (legacy), and `agency_client`. Only admins can create or manage employee accounts. Employees are shared across agencies and cannot be assigned an agency ID. Admins can also create and manage agency owners. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Agency owners can manage clients in their own agency, but employee accounts are view-only. Agency owners and clients can view employees and assign work to available employees. Agency roles and tenant IDs are assigned by the backend, never trusted from client input. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes enforce authorization and tenant scoping.
+Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member` (legacy), and `agency_client`. Only admins can create or manage employee accounts. Employee accounts may be linked to an agency or remain shared with a null agency ID. Admins can also create and manage agency owners. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Agency owners can manage clients in their own agency, but employee accounts are view-only. Agency owners and clients can hold multiple employees, but each employee can have only one active holder at a time; shared employees become unavailable to all other agencies while held. Agency roles and tenant IDs are assigned by the backend, never trusted from client input. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes enforce authorization and tenant scoping.
 
-Agency clients and owners can create projects and assign them to active admin-created employees shared across agencies. A project is limited to 180 estimated hours, and each client may have at most three open projects. The scheduler allocates earliest-first Monday through Saturday, skips Sundays and the `non_working_dates` configured in `config/scheduling.php`, and caps each employee at six hours per workday. Today's capacity is available only before `today_cutoff_hour` (default 12) in the configured application timezone. Capacity checks and reservations are enforced transactionally; cancelled projects release allocations dated today or later. Agency users can only view projects in their own agency. Employees can move assigned work from scheduled to in-progress and then completed; admins can view all projects but cannot edit them.
+Agency clients and owners create projects against an active employee assignment they hold. A project is limited to 180 estimated hours, and each client may have at most three open projects. The scheduler allocates earliest-first Monday through Saturday, skips Sundays and the `non_working_dates` configured in `config/scheduling.php`, and caps each employee at six hours per workday (36 hours per week). Today's capacity is available only before `today_cutoff_hour` (default 12) in the configured application timezone. Capacity checks and reservations are enforced transactionally; cancelled projects and ended assignments release allocations dated today or later. Agency users can only view projects in their own agency. Employees can move assigned work from scheduled to in-progress and then completed; admins can view all projects but cannot edit them.
+
+Tickets are hour slices of a project's existing schedule and inherit its employee assignment. The active assignment holder (the project client or the owner who holds it) can create, edit, reorder, and cancel tickets while the project remains open; other agency participants may view according to project access. Tickets are planned earliest-first within the project's allocated dates, and their combined hours cannot exceed the project's estimated hours. The assigned employee advances tickets through `todo` → `in_progress` → `in_review` → `done`; ticket progress updates the project status. Project cancellation cancels its tickets and removes all ticket allocations.
 
 ### Testing with Postman
 

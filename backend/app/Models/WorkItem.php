@@ -11,6 +11,7 @@ class WorkItem extends Model
     protected $fillable = [
         'agency_id',
         'client_id',
+        'assignment_id',
         'employee_id',
         'title',
         'description',
@@ -42,6 +43,11 @@ class WorkItem extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'employee_id');
+    }
+
+    public function assignment(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeAssignment::class, 'assignment_id');
     }
 
     public function allocations(): HasMany

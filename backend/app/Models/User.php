@@ -8,6 +8,7 @@ use App\Notifications\SetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -58,6 +59,16 @@ class User extends Authenticatable
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    public function heldEmployeeAssignments(): HasMany
+    {
+        return $this->hasMany(EmployeeAssignment::class, 'holder_id');
+    }
+
+    public function employeeAssignments(): HasMany
+    {
+        return $this->hasMany(EmployeeAssignment::class, 'employee_id');
     }
 
     public function sendPasswordResetNotification($token): void

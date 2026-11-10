@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\Agency;
+use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WorkItem;
@@ -20,7 +21,12 @@ class TicketManagementTest extends TestCase
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
         $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $otherProject = $this->createProject($agency, $otherClient, $employee, 8);
+        $otherProject = $this->createProject(
+            $agency,
+            $otherClient,
+            User::factory()->create(['role' => Role::Employee]),
+            8
+        );
 
         $created = $this->actingAs($client)->postJson($this->projectTicketsUrl($project), [
             'title' => 'Design login screen',
@@ -36,12 +42,16 @@ class TicketManagementTest extends TestCase
             ->assertJsonPath('ticket.schedule.0.hours', '6.00')
             ->assertJsonPath('ticket.schedule.1.hours', '1.00');
         $ticketId = $created->json('ticket.id');
+        $this->actingAs($otherClient)->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
+            ->assertNotFound();
 
         $this->actingAs($owner)->getJson($this->projectTicketsUrl($project))
             ->assertOk()->assertJsonCount(1, 'tickets')
             ->assertJsonPath('tickets.0.id', $ticketId);
         $this->actingAs($client)->getJson($this->projectTicketsUrl($otherProject))->assertNotFound();
         $this->actingAs($owner)->postJson($this->projectTicketsUrl($otherProject), $this->ticketData(2))
+            ->assertNotFound();
+        $this->actingAs($otherClient)->postJson($this->projectTicketsUrl($otherProject), $this->ticketData(2))
             ->assertCreated();
         $this->getJson($this->projectTicketsUrl($otherProject))->assertOk()->assertJsonCount(1, 'tickets');
         $this->actingAs(User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => Agency::create(['name' => 'Other tenant'])->id]))
@@ -50,6 +60,17 @@ class TicketManagementTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => Role::Admin]))
             ->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
             ->assertForbidden();
+        $this->actingAs($owner)->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
+            ->assertNotFound();
+
+        $ownerProject = $this->createProject(
+            $agency,
+            $owner,
+            User::factory()->create(['role' => Role::Employee]),
+            4
+        );
+        $this->postJson($this->projectTicketsUrl($ownerProject), $this->ticketData(2))
+            ->assertCreated();
     }
 
     public function test_ticket_hour_overflow_is_rejected_without_persisting_failed_ticket(): void
@@ -60,14 +81,17 @@ class TicketManagementTest extends TestCase
             ->assertCreated();
         $this->postJson($this->projectTicketsUrl($project), $this->ticketData(3))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['estimated_hours']);
+            ->assertJsonValidationErrors(['estimated_hours'])
+            ->assertJsonPath('errors.estimated_hours.0', "Ticket hours exceed the project's hours. Remaining: 2.00 h.");
 
         $this->assertSame(1, Ticket::query()->count());
         $this->assertSame(6.0, (float) DB::table('ticket_allocations')->sum('hours'));
 
-        $this->actingAs($owner)->patchJson('/api/agency/tickets/'.Ticket::firstOrFail()->id, [
+        $this->patchJson('/api/agency/tickets/'.Ticket::firstOrFail()->id, [
             'estimated_hours' => 9,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['estimated_hours']);
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['estimated_hours'])
+            ->assertJsonPath('errors.estimated_hours.0', "Ticket hours exceed the project's hours. Remaining: 8.00 h.");
     }
 
     public function test_ticket_update_and_reorder_rebuild_earliest_first_allocations(): void
@@ -99,7 +123,7 @@ class TicketManagementTest extends TestCase
             'ticket_ids' => [$second['id']],
         ])->assertUnprocessable()->assertJsonValidationErrors(['ticket_ids']);
 
-        $this->actingAs($owner)->patchJson('/api/agency/tickets/'.$second['id'], [
+        $this->actingAs($client)->patchJson('/api/agency/tickets/'.$second['id'], [
             'priority' => 'urgent',
         ])->assertOk()->assertJsonPath('ticket.priority', 'urgent');
     }
@@ -165,9 +189,13 @@ class TicketManagementTest extends TestCase
         $this->patchJson('/api/agency/tickets/'.$ticket['id'], ['title' => 'Admin edit'])->assertForbidden();
 
         foreach ([$admin, $owner, $client, $employee] as $participant) {
-            $this->actingAs($participant)->postJson('/api/tickets/'.$ticket['id'].'/comments', [
+            $response = $this->actingAs($participant)->postJson('/api/tickets/'.$ticket['id'].'/comments', [
                 'body' => 'A valid project comment.',
             ])->assertCreated();
+            $this->assertNotNull($response->json('comment.created_at'));
+            $this->assertNotNull(DB::table('ticket_comments')
+                ->where('id', $response->json('comment.id'))
+                ->value('updated_at'));
         }
 
         $this->actingAs($stranger)->postJson('/api/tickets/'.$ticket['id'].'/comments', [
@@ -194,6 +222,28 @@ class TicketManagementTest extends TestCase
         $this->actingAs($employee)->getJson($this->projectTicketsUrl($project))->assertForbidden();
     }
 
+    public function test_ticket_mutations_require_an_active_assignment_held_by_the_actor(): void
+    {
+        [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
+        $ticket = $this->actingAs($client)
+            ->postJson($this->projectTicketsUrl($project), $this->ticketData(2))
+            ->assertCreated()
+            ->json('ticket');
+
+        $project->assignment()->update([
+            'status' => 'ended',
+            'active_employee_id' => null,
+            'ended_at' => now(),
+        ]);
+
+        $this->patchJson('/api/agency/tickets/'.$ticket['id'], ['title' => 'Should not update'])
+            ->assertNotFound();
+        $this->deleteJson('/api/agency/tickets/'.$ticket['id'])->assertNotFound();
+        $this->patchJson($this->projectTicketsUrl($project).'/reorder', [
+            'ticket_ids' => [$ticket['id']],
+        ])->assertNotFound();
+    }
+
     /**
      * @return array{Agency, User, User, User, WorkItem}
      */
@@ -217,9 +267,18 @@ class TicketManagementTest extends TestCase
         ?CarbonImmutable $monday = null
     ): WorkItem {
         $monday ??= CarbonImmutable::now(config('app.timezone'))->startOfWeek()->addWeek();
+        $assignment = EmployeeAssignment::create([
+            'holder_id' => $client->id,
+            'agency_id' => $agency->id,
+            'employee_id' => $employee->id,
+            'status' => 'active',
+            'active_employee_id' => $employee->id,
+            'started_at' => now(),
+        ]);
         $workItem = WorkItem::create([
             'agency_id' => $agency->id,
             'client_id' => $client->id,
+            'assignment_id' => $assignment->id,
             'employee_id' => $employee->id,
             'title' => 'Project',
             'description' => 'Project description.',

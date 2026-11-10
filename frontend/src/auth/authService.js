@@ -209,10 +209,40 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { message: 'The account was permanently deleted.' }
     return request(`/agency/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
-  async listAgencyEmployees(filters) {
+  async listAvailableEmployees() {
     if (AUTH_MODE === 'mock') return { employees: [] }
-    const query = new URLSearchParams(filters)
-    return request(`/agency/employees?${query.toString()}`)
+    return request('/agency/employees/available')
+  },
+  async createEmployeeAssignment(employeeId) {
+    if (AUTH_MODE === 'mock') return { assignment: { id: Date.now(), employee: { id: employeeId }, status: 'active' } }
+    return request('/agency/assignments', {
+      method: 'POST',
+      body: JSON.stringify({ employee_id: Number(employeeId) }),
+    })
+  },
+  async listMyAssignments({ week } = {}) {
+    if (AUTH_MODE === 'mock') return { assignments: [] }
+    const query = week ? `?week=${encodeURIComponent(week)}` : ''
+    return request(`/agency/assignments${query}`)
+  },
+  async listAgencyAssignments({ week } = {}) {
+    if (AUTH_MODE === 'mock') return { assignments: [] }
+    const query = new URLSearchParams({ scope: 'agency' })
+    if (week) query.set('week', week)
+    return request(`/agency/assignments?${query.toString()}`)
+  },
+  async getAssignmentUsage(id, week) {
+    if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: '36.00', days: [] }
+    const query = week ? `?week=${encodeURIComponent(week)}` : ''
+    return request(`/agency/assignments/${encodeURIComponent(id)}/usage${query}`)
+  },
+  async endEmployeeAssignment(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The employee assignment has ended.' }
+    return request(`/agency/assignments/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+  async endAdminAssignment(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The employee assignment has ended.' }
+    return request(`/admin/assignments/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
   async listAgencyProjects() {
     if (AUTH_MODE === 'mock') return { projects: [] }
@@ -221,6 +251,67 @@ export const authService = {
   async createAgencyProject(data) {
     if (AUTH_MODE === 'mock') return { project: { id: Date.now(), ...data, status: 'scheduled', schedule: [] } }
     return request('/agency/projects', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async cancelAgencyProject(id) {
+    if (AUTH_MODE === 'mock') return { project: { id, status: 'cancelled' } }
+    return request(`/agency/projects/${encodeURIComponent(id)}/cancel`, { method: 'PATCH' })
+  },
+  async listProjectTickets(workItemId) {
+    if (AUTH_MODE === 'mock') return { tickets: [] }
+    return request(`/agency/projects/${encodeURIComponent(workItemId)}/tickets`)
+  },
+  async createProjectTicket(workItemId, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { id: Date.now(), work_item_id: workItemId, ...data, status: 'todo' } }
+    return request(`/agency/projects/${encodeURIComponent(workItemId)}/tickets`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+  async updateTicket(id, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { id, ...data } }
+    return request(`/agency/tickets/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+  async cancelTicket(id) {
+    if (AUTH_MODE === 'mock') return { ticket: { id, status: 'cancelled' } }
+    return request(`/agency/tickets/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+  async reorderProjectTickets(workItemId, ticketIds) {
+    if (AUTH_MODE === 'mock') return { tickets: [] }
+    return request(`/agency/projects/${encodeURIComponent(workItemId)}/tickets/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ticket_ids: ticketIds.map(Number) }),
+    })
+  },
+  async listMyTickets() {
+    if (AUTH_MODE === 'mock') return { tickets: [] }
+    return request('/work-items/mine/tickets')
+  },
+  async updateTicketStatus(id, status) {
+    if (AUTH_MODE === 'mock') return { ticket: { id, status } }
+    return request(`/tickets/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+  },
+  async createTicketComment(id, body) {
+    if (AUTH_MODE === 'mock') return { comment: { id: Date.now(), ticket_id: id, body } }
+    return request(`/tickets/${encodeURIComponent(id)}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    })
+  },
+  async listAdminTickets({ page = 1, perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { tickets: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    return request(`/admin/tickets?${query.toString()}`)
+  },
+  async listAdminAssignments({ page = 1, perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { assignments: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    return request(`/admin/assignments?${query.toString()}`)
   },
   async listAdminProjects({ page = 1, search = '', perPage = 25 } = {}) {
     if (AUTH_MODE === 'mock') return { projects: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }

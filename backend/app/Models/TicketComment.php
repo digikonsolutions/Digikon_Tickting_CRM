@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TicketComment extends Model
 {
-    public $timestamps = false;
-
     protected $fillable = [
         'ticket_id',
         'user_id',

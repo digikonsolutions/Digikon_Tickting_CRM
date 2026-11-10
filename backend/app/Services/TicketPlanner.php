@@ -9,9 +9,9 @@ use Illuminate\Validation\ValidationException;
 
 class TicketPlanner
 {
-    public function plan(WorkItem $workItem): void
+    public function plan(WorkItem $workItem, ?int $changedTicketId = null): void
     {
-        DB::transaction(function () use ($workItem): void {
+        DB::transaction(function () use ($workItem, $changedTicketId): void {
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $tickets = $lockedWorkItem->tickets()
                 ->orderBy('position')
@@ -40,8 +40,14 @@ class TicketPlanner
             );
 
             if ($ticketUnits > $projectUnits) {
+                $changedTicket = $changedTicketId === null
+                    ? null
+                    : $activeTickets->firstWhere('id', $changedTicketId);
+                $changedTicketUnits = (int) round((float) ($changedTicket?->estimated_hours ?? 0) * 100);
+                $remainingUnits = max(0, $projectUnits - ($ticketUnits - $changedTicketUnits));
+
                 throw ValidationException::withMessages([
-                    'estimated_hours' => 'Ticket hours cannot exceed the project estimated hours.',
+                    'estimated_hours' => "Ticket hours exceed the project's hours. Remaining: ".number_format($remainingUnits / 100, 2, '.', '').' h.',
                 ]);
             }
 

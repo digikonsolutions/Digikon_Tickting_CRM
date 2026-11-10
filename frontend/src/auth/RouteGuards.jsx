@@ -36,6 +36,8 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/admin/projects', label: 'All projects', icon: 'ticket' },
+    { to: '/admin/tickets', label: 'All tickets', icon: 'ticket' },
+    { to: '/admin/assignments', label: 'Assignments', icon: 'users' },
     { to: '/admin/users/all', label: 'All accounts', icon: 'users' },
     { to: '/admin/employees', label: 'Employees', icon: 'users' },
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'users' },
@@ -51,7 +53,7 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
-    { to: '/agency/employees', label: 'Employees', icon: 'users' },
+    { to: '/agency/employees', label: 'Employees held', icon: 'users' },
     { to: '/agency/users', label: 'Agency accounts', icon: 'users' },
   ],
   [ROLES.AGENCY_MEMBER]: [
@@ -61,7 +63,7 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.AGENCY_CLIENT]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/my-projects', label: 'My projects', icon: 'ticket' },
-    { to: '/agency/employees', label: 'Employees', icon: 'users' },
+    { to: '/agency/employees', label: 'Employees held', icon: 'users' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
 })
@@ -86,6 +88,8 @@ export function AppLayout() {
       '/admin/settings': 'Settings',
       '/admin/dashboard': 'Dashboard',
       '/admin/projects': 'All projects',
+      '/admin/tickets': 'All tickets',
+      '/admin/assignments': 'Assignments',
       '/agency/dashboard': 'Dashboard',
       '/agency/projects': 'Projects',
       '/agency/my-projects': 'My projects',
