@@ -128,6 +128,51 @@ class TicketManagementTest extends TestCase
         ])->assertOk()->assertJsonPath('ticket.priority', 'urgent');
     }
 
+    public function test_planning_preserves_done_ticket_dates_and_allocations(): void
+    {
+        [$agency, $owner, $client, $employee, $project] = $this->projectFixture(8);
+        $doneTicket = $this->actingAs($client)
+            ->postJson($this->projectTicketsUrl($project), $this->ticketData(2, 'Done ticket'))
+            ->assertCreated()
+            ->json('ticket');
+        $otherTicket = $this->postJson($this->projectTicketsUrl($project), $this->ticketData(2, 'Other ticket'))
+            ->assertCreated()
+            ->json('ticket');
+
+        $this->actingAs($employee)->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'in_progress'])->assertOk();
+        $this->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'in_review'])->assertOk();
+        $this->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'done'])->assertOk();
+
+        $doneBefore = DB::table('tickets')->where('id', $doneTicket['id'])->first(['start_date', 'due_date']);
+        $allocationsBefore = DB::table('ticket_allocations')
+            ->where('ticket_id', $doneTicket['id'])
+            ->orderBy('work_date')
+            ->get(['work_date', 'hours'])
+            ->map(fn ($allocation): array => [$allocation->work_date, $allocation->hours])
+            ->all();
+
+        $thirdTicket = $this->actingAs($client)
+            ->postJson($this->projectTicketsUrl($project), $this->ticketData(3, 'Third ticket'))
+            ->assertCreated()
+            ->json('ticket');
+
+        $this->patchJson($this->projectTicketsUrl($project).'/reorder', [
+            'ticket_ids' => [$thirdTicket['id'], $otherTicket['id'], $doneTicket['id']],
+        ])->assertOk();
+
+        $doneAfter = DB::table('tickets')->where('id', $doneTicket['id'])->first(['start_date', 'due_date']);
+        $allocationsAfter = DB::table('ticket_allocations')
+            ->where('ticket_id', $doneTicket['id'])
+            ->orderBy('work_date')
+            ->get(['work_date', 'hours'])
+            ->map(fn ($allocation): array => [$allocation->work_date, $allocation->hours])
+            ->all();
+
+        $this->assertSame($doneBefore->start_date, $doneAfter->start_date);
+        $this->assertSame($doneBefore->due_date, $doneAfter->due_date);
+        $this->assertSame($allocationsBefore, $allocationsAfter);
+    }
+
     public function test_ticket_delete_cancels_and_replans_and_project_cancel_cancels_its_tickets(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture(8);

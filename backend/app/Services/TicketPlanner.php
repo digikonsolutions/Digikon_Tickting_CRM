@@ -18,11 +18,12 @@ class TicketPlanner
                 ->orderBy('id')
                 ->get();
 
+            $replannableTickets = $tickets->where('status', '!=', 'done');
             DB::table('ticket_allocations')
-                ->whereIn('ticket_id', $tickets->pluck('id'))
+                ->whereIn('ticket_id', $replannableTickets->pluck('id'))
                 ->delete();
 
-            foreach ($tickets as $ticket) {
+            foreach ($replannableTickets as $ticket) {
                 $ticket->forceFill(['start_date' => null, 'due_date' => null])->save();
             }
 
@@ -35,7 +36,7 @@ class TicketPlanner
             }
 
             $projectUnits = (int) round((float) $lockedWorkItem->estimated_hours * 100);
-            $ticketUnits = $activeTickets->sum(
+            $ticketUnits = $tickets->where('status', '!=', 'cancelled')->sum(
                 fn (Ticket $ticket): int => (int) round((float) $ticket->estimated_hours * 100)
             );
 
@@ -60,7 +61,33 @@ class TicketPlanner
                 ])
                 ->all();
 
-            if (array_sum(array_column($pool, 'remaining')) < $ticketUnits) {
+            $poolIndexesByDate = [];
+            foreach ($pool as $index => $allocation) {
+                $poolIndexesByDate[$allocation['work_date']] = $index;
+            }
+
+            $doneAllocations = DB::table('ticket_allocations')
+                ->join('tickets', 'tickets.id', '=', 'ticket_allocations.ticket_id')
+                ->where('tickets.work_item_id', $lockedWorkItem->id)
+                ->where('tickets.status', 'done')
+                ->selectRaw('ticket_allocations.work_date, SUM(ticket_allocations.hours) AS hours')
+                ->groupBy('ticket_allocations.work_date')
+                ->get();
+
+            foreach ($doneAllocations as $doneAllocation) {
+                $date = (string) $doneAllocation->work_date;
+                if (! isset($poolIndexesByDate[$date])) {
+                    continue;
+                }
+
+                $poolIndex = $poolIndexesByDate[$date];
+                $usedUnits = (int) round((float) $doneAllocation->hours * 100);
+                $pool[$poolIndex]['remaining'] = max(0, $pool[$poolIndex]['remaining'] - $usedUnits);
+            }
+
+            if (array_sum(array_column($pool, 'remaining')) < $activeTickets->sum(
+                fn (Ticket $ticket): int => (int) round((float) $ticket->estimated_hours * 100)
+            )) {
                 throw ValidationException::withMessages([
                     'estimated_hours' => 'Ticket hours exceed the project work allocation capacity.',
                 ]);
