@@ -90,6 +90,8 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
+          </Route>
+          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
@@ -97,7 +99,6 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />
-            <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/directory" element={<AgencyDirectoryPage />} />
