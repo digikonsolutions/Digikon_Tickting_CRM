@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { PageHeader } from '../../../components/ui'
-import { SectionCard, TicketDetailModal, TicketFilters, TicketList } from '../components'
+import { SectionCard, ProjectDetailModal, TicketFilters, ProjectList } from '../components'
 import { useAsync } from '../../../hooks/useAsync'
 import { dashboardService } from '../services/dashboardService'
 import { useAuth } from '../../../auth/useAuth'
@@ -8,7 +8,7 @@ import { useAuth } from '../../../auth/useAuth'
 const STATUSES = ['Scheduled', 'In Progress', 'Completed']
 
 // Reusable ticket workspace: Team Queue, My Tickets and QA Queue differ only by props.
-export function TicketsView({ eyebrow, title, subtitle, scope, statuses = STATUSES, showAgency = true, emptyText }) {
+export function ProjectsView({ eyebrow, title, subtitle, scope, statuses = STATUSES, showAgency = true, emptyText }) {
   const { user } = useAuth()
   const loader = useCallback(() => dashboardService.getTickets({ scope, user }), [scope, user])
   const { data, isLoading, error, reload } = useAsync(loader)
@@ -30,9 +30,9 @@ export function TicketsView({ eyebrow, title, subtitle, scope, statuses = STATUS
         <TicketFilters query={query} onQueryChange={setQuery} status={status} onStatusChange={setStatus} statuses={statuses} />
         {error
           ? <p role="alert" className="form-error">Could not load assigned work. <button type="button" className="inline-link" onClick={reload}>Try again</button></p>
-          : <TicketList tickets={visible} isLoading={isLoading} showAgency={showAgency} onSelect={setSelected} emptyTitle="No matching tickets" emptyText={emptyText ?? 'Try a different search or filter.'} />}
+          : <ProjectList tickets={visible} isLoading={isLoading} showAgency={showAgency} onSelect={setSelected} emptyTitle="No matching tickets" emptyText={emptyText ?? 'Try a different search or filter.'} />}
       </SectionCard>
-      <TicketDetailModal ticket={selected} onClose={() => setSelected(null)} />
+      <ProjectDetailModal ticket={selected} onClose={() => setSelected(null)} />
     </section>
   )
 }

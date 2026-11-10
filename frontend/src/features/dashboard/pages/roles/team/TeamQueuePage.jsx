@@ -1,7 +1,7 @@
-import { TicketsView } from '../../TicketsView'
+import { ProjectsView } from '../../ProjectsView'
 
 export const TeamQueuePage = () => (
-  <TicketsView
+  <ProjectsView
     eyebrow="Team lead"
     title="Team Queue"
     subtitle="Triage, assign and keep SLAs on track."

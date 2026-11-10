@@ -1,7 +1,7 @@
-import { TicketsView } from '../../TicketsView'
+import { ProjectsView } from '../../ProjectsView'
 
 export const QaQueuePage = () => (
-  <TicketsView
+  <ProjectsView
     eyebrow="Quality assurance"
     title="QA Queue"
     subtitle="Review finished work before it goes back to the agency."

@@ -1,6 +1,6 @@
 import { Badge, EmptyState, Spinner } from '../../../components/ui'
 
-export function TicketList({ tickets, isLoading, emptyTitle = 'No assigned projects', emptyText = 'Assignments will appear here when work is scheduled for you.', showAgency = true, onSelect }) {
+export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned projects', emptyText = 'Assignments will appear here when work is scheduled for you.', showAgency = true, onSelect }) {
   if (isLoading) return <div className="ticket-loading"><Spinner size="lg" /></div>
   if (!tickets?.length) return <EmptyState title={emptyTitle}>{emptyText}</EmptyState>
   return (

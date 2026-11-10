@@ -37,10 +37,12 @@ Available routes:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/auth/csrf-cookie` | Establish the CSRF/session cookies |
+| PATCH | `/api/auth/profile` | Update the authenticated user's profile |
 | POST | `/api/auth/users` | Admin-only account invitation; role and agency assignment are validated |
 | GET | `/api/admin/users` | Admin-only paginated directory of all roles (optionally filtered by `role`); supports `search`, `page`, and `per_page` |
 | PATCH | `/api/admin/users/{user}` | Admin update of employee or agency-owner details and activation |
 | DELETE | `/api/admin/users/{user}` | Admin permanent deletion of an employee or agency owner |
+| PATCH | `/api/admin/agencies/{agency}` | Admin activates or suspends an agency; suspension revokes its users' sessions |
 | GET | `/api/agency/users` | Agency-owner list of agency accounts; employee accounts are read-only |
 | POST | `/api/agency/users` | Agency owners invite clients into their active agency |
 | PATCH | `/api/agency/users/{user}` | Owners update same-agency client details and activation |
@@ -63,8 +65,6 @@ Available routes:
 Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member` (legacy), and `agency_client`. Only admins can create or manage employee accounts. Employees are shared across agencies and cannot be assigned an agency ID. Admins can also create and manage agency owners. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Agency owners can manage clients in their own agency, but employee accounts are view-only. Agency owners and clients can view employees and assign work to available employees. Agency roles and tenant IDs are assigned by the backend, never trusted from client input. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes enforce authorization and tenant scoping.
 
 Agency clients and owners can create projects and assign them to active admin-created employees shared across agencies. A project has an estimated hour total and a start/due date range; the scheduler allocates work chronologically Monday through Saturday, skipping Sunday, with no more than six hours per employee per day. Capacity checks and reservations are enforced transactionally by the backend; completed projects release any future reservations. Agency users can only view projects in their own agency. Employees can view their assignments and update their own project status; admins can view all projects but cannot edit them.
-
-There is not yet an administrator user-update endpoint. If one is added, it must prevent an administrator from deactivating or demoting their own account and prevent deactivation or demotion of the last active administrator.
 
 ### Testing with Postman
 

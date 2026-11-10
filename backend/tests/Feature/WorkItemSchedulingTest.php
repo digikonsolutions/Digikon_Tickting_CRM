@@ -274,6 +274,34 @@ class WorkItemSchedulingTest extends TestCase
         $this->actingAs($admin)->postJson('/api/agency/projects', [])->assertForbidden();
     }
 
+    public function test_employee_routes_reject_users_linked_to_a_suspended_agency(): void
+    {
+        $agency = Agency::create(['name' => 'Suspended agency', 'status' => 'suspended']);
+        $employee = User::factory()->create([
+            'role' => Role::Employee,
+            'agency_id' => $agency->id,
+        ]);
+        $workItem = WorkItem::create([
+            'agency_id' => $agency->id,
+            'employee_id' => $employee->id,
+            'title' => 'Suspended agency work',
+            'description' => 'This work should not be accessible.',
+            'estimated_hours' => 1,
+            'start_date' => now()->toDateString(),
+            'due_date' => now()->toDateString(),
+            'status' => 'scheduled',
+        ]);
+
+        $this->actingAs($employee)
+            ->getJson('/api/work-items/mine')
+            ->assertForbidden();
+
+        $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'in_progress'])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'scheduled']);
+    }
+
     public function test_agency_directory_includes_shared_employees(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);

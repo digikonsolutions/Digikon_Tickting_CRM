@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\User;
+use App\Models\WorkItem;
 use App\Notifications\SetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -120,7 +121,12 @@ class AgencyUserManagementTest extends TestCase
         $client->refresh();
         $this->assertSame('new-client@example.com', $client->email);
         $this->assertDatabaseMissing('sessions', ['id' => 'client-session']);
-        Notification::assertSentTo($client, SetPasswordNotification::class);
+        Notification::assertSentTo(
+            $client,
+            SetPasswordNotification::class,
+            fn (SetPasswordNotification $notification): bool => $notification->invite
+                && str_contains($notification->toMail($client)->actionUrl, 'invite=1')
+        );
     }
 
     public function test_owner_can_permanently_delete_only_managed_users_in_their_agency(): void
@@ -275,6 +281,127 @@ class AgencyUserManagementTest extends TestCase
         $this->patchJson('/api/admin/users/'.$client->id, ['name' => 'Not allowed'])
             ->assertNotFound();
         $this->deleteJson('/api/admin/users/'.$owner->id)->assertOk();
+    }
+
+    public function test_deactivating_an_employee_cancels_open_work_and_releases_future_allocations(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $agency = Agency::create(['name' => 'Northwind']);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $workDate = now()->addDays(2)->toDateString();
+        $pastDate = now()->subDay()->toDateString();
+
+        $scheduled = WorkItem::create([
+            'agency_id' => $agency->id,
+            'client_id' => $client->id,
+            'employee_id' => $employee->id,
+            'title' => 'Scheduled work',
+            'description' => 'Should be cancelled.',
+            'estimated_hours' => 2,
+            'start_date' => $workDate,
+            'due_date' => $workDate,
+            'status' => 'scheduled',
+        ]);
+        $inProgress = WorkItem::create([
+            'agency_id' => $agency->id,
+            'client_id' => $client->id,
+            'employee_id' => $employee->id,
+            'title' => 'In-progress work',
+            'description' => 'Should also be cancelled.',
+            'estimated_hours' => 2,
+            'start_date' => $workDate,
+            'due_date' => $workDate,
+            'status' => 'in_progress',
+        ]);
+        $completed = WorkItem::create([
+            'agency_id' => $agency->id,
+            'client_id' => $client->id,
+            'employee_id' => $employee->id,
+            'title' => 'Completed work',
+            'description' => 'Must remain completed.',
+            'estimated_hours' => 2,
+            'start_date' => $workDate,
+            'due_date' => $workDate,
+            'status' => 'completed',
+        ]);
+        foreach ([$scheduled, $inProgress, $completed] as $workItem) {
+            $workItem->allocations()->create(['employee_id' => $employee->id, 'work_date' => $workDate, 'hours' => 2]);
+        }
+        $scheduled->allocations()->create(['employee_id' => $employee->id, 'work_date' => $pastDate, 'hours' => 1]);
+
+        $this->actingAs($admin)
+            ->patchJson('/api/admin/users/'.$employee->id, ['is_active' => false])
+            ->assertOk()
+            ->assertJsonPath('user.is_active', false);
+
+        $this->assertDatabaseHas('work_items', ['id' => $scheduled->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('work_items', ['id' => $inProgress->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('work_items', ['id' => $completed->id, 'status' => 'completed']);
+        $this->assertDatabaseMissing('work_item_allocations', [
+            'employee_id' => $employee->id,
+            'work_date' => $workDate,
+        ]);
+        $this->assertTrue(DB::table('work_item_allocations')
+            ->where('work_item_id', $scheduled->id)
+            ->whereDate('work_date', $pastDate)
+            ->exists());
+    }
+
+    public function test_admin_can_change_agency_status_and_suspension_revokes_only_agency_sessions(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $agency = Agency::create(['name' => 'Northwind']);
+        $otherAgency = Agency::create(['name' => 'Southwind']);
+        $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $otherAgency->id]);
+
+        foreach ([['owner-session', $owner], ['client-session', $client], ['other-session', $otherClient]] as [$id, $user]) {
+            DB::table('sessions')->insert([
+                'id' => $id,
+                'user_id' => $user->id,
+                'payload' => '',
+                'last_activity' => time(),
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->patchJson('/api/admin/agencies/'.$agency->id, ['status' => 'suspended'])
+            ->assertOk()
+            ->assertJsonPath('agency.id', $agency->id)
+            ->assertJsonPath('agency.name', 'Northwind')
+            ->assertJsonPath('agency.status', 'suspended');
+        $this->assertDatabaseMissing('sessions', ['id' => 'owner-session']);
+        $this->assertDatabaseMissing('sessions', ['id' => 'client-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'other-session']);
+
+        $this->patchJson('/api/admin/agencies/'.$agency->id, ['status' => 'active'])
+            ->assertOk()
+            ->assertJsonPath('agency.status', 'active');
+        $this->assertDatabaseHas('sessions', ['id' => 'other-session']);
+    }
+
+    public function test_only_admins_can_update_agency_status_and_status_is_validated(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $this->patchJson('/api/admin/agencies/'.$agency->id, ['status' => 'suspended'])
+            ->assertUnauthorized();
+
+        $owner = User::factory()->create([
+            'role' => Role::AgencyOwner,
+            'agency_id' => $agency->id,
+        ]);
+        $this->actingAs($owner)
+            ->patchJson('/api/admin/agencies/'.$agency->id, ['status' => 'suspended'])
+            ->assertForbidden();
+
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $this->actingAs($admin)
+            ->patchJson('/api/admin/agencies/'.$agency->id, ['status' => 'pending'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
+        $this->assertDatabaseHas('agencies', ['id' => $agency->id, 'status' => 'active']);
     }
 
     public function test_agency_member_directory_is_limited_to_its_agency_and_profile_edit_is_self_only(): void

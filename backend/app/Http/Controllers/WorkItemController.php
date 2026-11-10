@@ -161,6 +161,8 @@ class WorkItemController extends Controller
 
     public function mine(Request $request): JsonResponse
     {
+        $this->ensureActiveEmployeeAgency($request->user());
+
         $items = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'allocations'])
             ->where('employee_id', $request->user()->id)
@@ -174,6 +176,7 @@ class WorkItemController extends Controller
 
     public function updateStatus(Request $request, WorkItem $workItem): JsonResponse
     {
+        $this->ensureActiveEmployeeAgency($request->user());
         abort_unless($workItem->employee_id === $request->user()->id, 404);
         abort_unless(in_array($workItem->status, ['scheduled', 'in_progress'], true), 422, 'This project is already closed.');
 
@@ -198,6 +201,17 @@ class WorkItemController extends Controller
         );
 
         return $user->agency;
+    }
+
+    private function ensureActiveEmployeeAgency(User $user): void
+    {
+        if ($user->agency_id !== null) {
+            abort_unless(
+                $user->agency?->status === 'active',
+                403,
+                'An active agency is required to access employee work.'
+            );
+        }
     }
 
     private function findAssignableEmployee(WorkItemScheduler $scheduler, int $employeeId): User

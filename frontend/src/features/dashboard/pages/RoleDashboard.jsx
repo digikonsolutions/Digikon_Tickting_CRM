@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useAuth } from '../../../auth/useAuth'
 import { ROLE_LABELS } from '../../../auth/roles'
-import { QuickActions, SectionCard, StatGrid, TicketList, WelcomeBanner } from '../components'
+import { QuickActions, SectionCard, StatGrid, ProjectList, WelcomeBanner } from '../components'
 import { Link } from 'react-router-dom'
 import { useAsync } from '../../../hooks/useAsync'
 import { dashboardService } from '../services/dashboardService'
@@ -23,7 +23,7 @@ export function RoleDashboard({ scope = 'all', subtitle, actions, ticketsLink, t
         <SectionCard title={ticketsTitle} description="Recently scheduled and assigned work" className="span-main">
           {tickets.error
             ? <p role="alert" className="form-error">Could not load assigned work. <button type="button" className="inline-link" onClick={tickets.reload}>Try again</button></p>
-            : <TicketList tickets={(tickets.data ?? []).slice(0, 5)} isLoading={tickets.isLoading} showAgency={showAgency} />}
+            : <ProjectList tickets={(tickets.data ?? []).slice(0, 5)} isLoading={tickets.isLoading} showAgency={showAgency} />}
         </SectionCard>
         <div className="dashboard-side">
           <SectionCard title="Quick actions"><QuickActions actions={actions} /></SectionCard>

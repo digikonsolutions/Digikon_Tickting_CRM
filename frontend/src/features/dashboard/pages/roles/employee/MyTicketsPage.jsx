@@ -1,7 +1,7 @@
-import { TicketsView } from '../../TicketsView'
+import { ProjectsView } from '../../ProjectsView'
 
 export const MyTicketsPage = () => (
-  <TicketsView
+  <ProjectsView
     eyebrow="My work"
     title="My Tickets"
     subtitle="Everything currently assigned to you."

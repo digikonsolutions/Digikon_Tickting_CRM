@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, PageHeader, Table } from '../../../components/ui'
-import { TicketDetailModal } from '../components'
+import { ProjectDetailModal } from '../components'
 
 export function MyWorkPage() {
   const [projects, setProjects] = useState([])
@@ -92,7 +92,7 @@ export function MyWorkPage() {
       <Card title="My work">
         <Table columns={columns} rows={projects} loading={isLoading} emptyTitle="No assignments" emptyText="Projects assigned to you will appear here." />
       </Card>
-      <TicketDetailModal ticket={selectedProject} onClose={() => setSelectedProject(null)} />
+      <ProjectDetailModal ticket={selectedProject} onClose={() => setSelectedProject(null)} />
     </section>
   )
 }

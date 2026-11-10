@@ -6,11 +6,13 @@ use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\User;
 use App\Notifications\SetPasswordNotification;
+use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
+use RuntimeException;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -46,6 +48,12 @@ class AuthTest extends TestCase
         $employee = User::where('email', 'employee@example.com')->firstOrFail();
         $this->assertTrue($employee->is_active);
         Notification::assertSentTo($employee, SetPasswordNotification::class);
+        Notification::assertSentTo(
+            $employee,
+            SetPasswordNotification::class,
+            fn (SetPasswordNotification $notification): bool => $notification->invite
+                && str_contains($notification->toMail($employee)->actionUrl, 'invite=1')
+        );
 
         $ownerResponse = $this->postJson('/api/auth/users', [
             'name' => 'Agency Owner',
@@ -118,6 +126,26 @@ class AuthTest extends TestCase
             'agency_name' => 'Northwind',
             'agency_id' => $agency->id,
         ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
+    }
+
+    public function test_failed_invitation_send_rolls_back_new_user_and_agency(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $this->mock(Dispatcher::class)
+            ->shouldReceive('send')
+            ->once()
+            ->andThrow(new RuntimeException('Invitation delivery failed.'));
+
+        $this->actingAs($admin)->postJson('/api/auth/users', [
+            'name' => 'Agency Owner',
+            'email' => 'rollback-owner@example.com',
+            'role' => Role::AgencyOwner->value,
+            'agency_name' => 'Rollback Agency',
+        ])->assertInternalServerError();
+
+        $this->assertDatabaseMissing('users', ['email' => 'rollback-owner@example.com']);
+        $this->assertDatabaseMissing('agencies', ['name' => 'Rollback Agency']);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'rollback-owner@example.com']);
     }
 
     public function test_agency_owner_creates_agency_users_in_own_agency_and_cannot_override_agency(): void
@@ -289,6 +317,12 @@ class AuthTest extends TestCase
             ->assertJsonPath('message', 'If an account exists for that email, password reset instructions will be sent.');
 
         Notification::assertSentTo($user, SetPasswordNotification::class);
+        Notification::assertSentTo(
+            $user,
+            SetPasswordNotification::class,
+            fn (SetPasswordNotification $notification): bool => ! $notification->invite
+                && ! str_contains($notification->toMail($user)->actionUrl, 'invite=1')
+        );
     }
 
     public function test_password_reset_changes_the_password_and_revokes_sessions(): void
@@ -329,7 +363,7 @@ class AuthTest extends TestCase
     public function test_api_unexpected_errors_do_not_expose_internal_details(): void
     {
         Route::get('/api/test-error', function () {
-            throw new \RuntimeException('Sensitive internal exception details.');
+            throw new RuntimeException('Sensitive internal exception details.');
         });
 
         $this->getJson('/api/test-error')

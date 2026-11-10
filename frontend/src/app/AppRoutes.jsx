@@ -51,12 +51,12 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
-            <Route path="/admin/users/all" element={<AdminUsersPage title="All accounts" />} />
-            <Route path="/admin/employees" element={<AdminUsersPage role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
+            <Route path="/admin/users/all" element={<AdminUsersPage key="all" title="All accounts" />} />
+            <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
             <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
-            <Route path="/admin/agency-owners" element={<AdminUsersPage role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
+            <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
             <Route path="/admin/agency-owners/new" element={<AdminCreateUserPage role={ROLES.AGENCY_OWNER} />} />
-            <Route path="/admin/agency-clients" element={<AdminUsersPage role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />
+            <Route path="/admin/agency-clients" element={<AdminUsersPage key={ROLES.AGENCY_CLIENT} role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />
             <Route path="/admin/users" element={<Navigate to="/admin/employees" replace />} />
             <Route path="/admin/users/new" element={<Navigate to="/admin/employees/new" replace />} />
             <Route path="/admin/settings" element={<PlaceholderPage title="Settings" />} />

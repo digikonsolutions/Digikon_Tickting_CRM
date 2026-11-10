@@ -34,6 +34,8 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
   }, [role])
 
   useEffect(() => {
+    setIsLoading(true)
+    setError(null)
     let active = true
     authService.listAdminUsers({ page: 1, search: '', role })
       .then((response) => {

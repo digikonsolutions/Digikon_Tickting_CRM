@@ -1,6 +1,6 @@
 import { Badge, Modal } from '../../../components/ui'
 
-export function TicketDetailModal({ ticket, onClose }) {
+export function ProjectDetailModal({ ticket, onClose }) {
   return (
     <Modal open={Boolean(ticket)} onClose={onClose} title={ticket ? `Project #${ticket.id} · ${ticket.title}` : ''}>
       {ticket && (

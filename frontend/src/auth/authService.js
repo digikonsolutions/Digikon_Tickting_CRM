@@ -173,13 +173,6 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { employees: [] }
     return request('/agency/team')
   },
-  async updateAgencyProfile(data) {
-    if (AUTH_MODE === 'mock') return { user: data }
-    return request('/agency/profile', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    })
-  },
   async listAdminUsers({ page = 1, search = '', role } = {}) {
     if (AUTH_MODE === 'mock') return { users: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
     const query = new URLSearchParams({ page: String(page), per_page: '25' })

@@ -5,6 +5,11 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 export function Modal({ open, onClose, title, children, footer, labelledBy, className = '' }) {
   const dialogRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return undefined
@@ -16,7 +21,7 @@ export function Modal({ open, onClose, title, children, footer, labelledBy, clas
 
     function onKeyDown(event) {
       if (event.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
 
@@ -44,7 +49,7 @@ export function Modal({ open, onClose, title, children, footer, labelledBy, clas
       document.removeEventListener('keydown', onKeyDown)
       previousFocus?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 
