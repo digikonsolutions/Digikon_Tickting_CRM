@@ -27,7 +27,7 @@ export function ProjectDetailPage() {
     const [projectResponse, ticketResponse, assignmentResponse] = await Promise.all([
       authService.listAgencyProjects(),
       authService.listProjectTickets(id),
-      user.role === 'agency_owner' ? authService.listAgencyAssignments() : authService.listMyAssignments(),
+      authService.listAgencyAssignments(),
     ])
     const project = projectResponse.projects.find((item) => String(item.id) === String(id))
     if (!project) throw new Error('This project is not available in your agency.')
@@ -36,12 +36,12 @@ export function ProjectDetailPage() {
       tickets: ticketResponse.tickets,
       assignments: assignmentResponse.assignments,
     }
-  }, [id, user.role])
+  }, [id])
   const { data, error, isLoading, reload } = useAsync(loadData)
   const project = data?.project
   const tickets = useMemo(() => [...(data?.tickets ?? [])].sort((a, b) => a.position - b.position), [data?.tickets])
   const assignment = data?.assignments?.find((item) => String(item.id) === String(project?.assignment_id))
-  const canManage = Boolean(assignment?.status === 'active' && String(assignment.holder?.id) === String(user.id))
+  const canManage = assignment?.status === 'active'
   const canEdit = canManage && ['scheduled', 'in_progress'].includes(project?.status)
   const projectTicketHours = tickets
     .filter((ticket) => ticket.status !== 'cancelled')

@@ -194,6 +194,9 @@ class EmployeeAssignmentTest extends TestCase
         $this->getJson('/api/agency/assignments?scope=agency')
             ->assertOk()
             ->assertJsonCount(2, 'assignments');
+        $this->actingAs($clientA)->getJson('/api/agency/assignments?scope=agency')
+            ->assertOk()
+            ->assertJsonCount(2, 'assignments');
 
         $monday = CarbonImmutable::now(config('app.timezone'))->next(CarbonImmutable::MONDAY);
         $this->actingAs($clientA)->postJson('/api/agency/projects', [
@@ -217,7 +220,7 @@ class EmployeeAssignmentTest extends TestCase
             ->assertJsonPath('days.1.used', '1.00');
         $this->actingAs($clientB)
             ->getJson('/api/agency/assignments/'.$assignmentA.'/usage')
-            ->assertNotFound();
+            ->assertOk();
 
         $this->actingAs($admin)->getJson('/api/admin/assignments?per_page=1')
             ->assertOk()

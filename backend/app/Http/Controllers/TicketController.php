@@ -40,11 +40,11 @@ class TicketController extends Controller
     public function store(StoreTicketRequest $request, WorkItem $workItem, TicketPlanner $planner): JsonResponse
     {
         $user = $request->user();
-        $this->authorizeProject($user, $workItem, requireOpen: true, requireHolder: true);
+        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $data = $request->validated();
 
         $ticket = DB::transaction(function () use ($workItem, $user, $data, $planner): Ticket {
-            $this->lockActiveAssignmentForHolder($user, $workItem);
+            $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $position = ((int) $lockedWorkItem->tickets()->max('position')) + 1;
@@ -71,11 +71,11 @@ class TicketController extends Controller
     {
         $user = $request->user();
         $workItem = $ticket->workItem;
-        $this->authorizeProject($user, $workItem, requireOpen: true, requireHolder: true);
+        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $data = $request->validated();
 
-        DB::transaction(function () use ($ticket, $workItem, $user, $data, $planner): void {
-            $this->lockActiveAssignmentForHolder($user, $workItem);
+        DB::transaction(function () use ($ticket, $workItem, $data, $planner): void {
+            $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
@@ -92,12 +92,12 @@ class TicketController extends Controller
     {
         $workItem = $ticket->workItem;
         $user = $request->user();
-        $this->authorizeProject($user, $workItem, requireOpen: true, requireHolder: true);
+        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
 
         abort_unless(! in_array($ticket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
 
-        DB::transaction(function () use ($ticket, $workItem, $user, $planner): void {
-            $this->lockActiveAssignmentForHolder($user, $workItem);
+        DB::transaction(function () use ($ticket, $workItem, $planner): void {
+            $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
@@ -114,11 +114,11 @@ class TicketController extends Controller
     public function reorder(ReorderTicketsRequest $request, WorkItem $workItem, TicketPlanner $planner): JsonResponse
     {
         $user = $request->user();
-        $this->authorizeProject($user, $workItem, requireOpen: true, requireHolder: true);
+        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $ids = $request->validated('ticket_ids');
 
-        DB::transaction(function () use ($workItem, $user, $ids, $planner): void {
-            $this->lockActiveAssignmentForHolder($user, $workItem);
+        DB::transaction(function () use ($workItem, $ids, $planner): void {
+            $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $tickets = $lockedWorkItem->tickets()->lockForUpdate()->get();
@@ -264,7 +264,7 @@ class TicketController extends Controller
         User $user,
         WorkItem $workItem,
         bool $requireOpen = false,
-        bool $requireHolder = false
+        bool $requireActiveAssignment = false
     ): void {
         abort_unless($this->canAccessProject($user, $workItem), 404);
 
@@ -272,8 +272,8 @@ class TicketController extends Controller
             $this->ensureOpenProject($workItem);
         }
 
-        if ($requireHolder) {
-            $this->ensureAssignmentHolder($user, $workItem);
+        if ($requireActiveAssignment) {
+            $this->ensureActiveProjectAssignment($workItem);
         }
     }
 
@@ -288,27 +288,12 @@ class TicketController extends Controller
             return false;
         }
 
-        return $user->role === Role::AgencyOwner || $workItem->client_id === $user->id;
+        return true;
     }
 
     private function ensureOpenProject(WorkItem $workItem): void
     {
         abort_unless(in_array($workItem->status, ['scheduled', 'in_progress'], true), 422, 'Tickets can only be changed on open projects.');
-    }
-
-    private function ensureAssignmentHolder(User $user, WorkItem $workItem): void
-    {
-        $assignment = EmployeeAssignment::query()->find($workItem->assignment_id);
-
-        abort_unless(
-            $assignment !== null
-                && $assignment->status === 'active'
-                && $assignment->agency_id === $workItem->agency_id
-                && $assignment->employee_id === $workItem->employee_id
-                && $assignment->holder_id === $user->id,
-            404,
-            'Only the active assignment holder may manage project tickets.'
-        );
     }
 
     private function ensureActiveProjectAssignment(WorkItem $workItem): void
@@ -335,26 +320,6 @@ class TicketController extends Controller
             ->first();
 
         abort_unless($assignment !== null, 404);
-
-        return $assignment;
-    }
-
-    private function lockActiveAssignmentForHolder(User $user, WorkItem $workItem): EmployeeAssignment
-    {
-        $assignment = EmployeeAssignment::query()
-            ->whereKey($workItem->assignment_id)
-            ->lockForUpdate()
-            ->first();
-
-        abort_unless(
-            $assignment !== null
-                && $assignment->status === 'active'
-                && $assignment->agency_id === $workItem->agency_id
-                && $assignment->employee_id === $workItem->employee_id
-                && $assignment->holder_id === $user->id,
-            404,
-            'Only the active assignment holder may manage project tickets.'
-        );
 
         return $assignment;
     }

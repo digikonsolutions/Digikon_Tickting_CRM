@@ -62,7 +62,7 @@ const SIDEBAR_ITEMS = Object.freeze({
   ],
   [ROLES.AGENCY_CLIENT]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/agency/my-projects', label: 'My projects', icon: 'ticket' },
+    { to: '/agency/my-projects', label: 'Agency projects', icon: 'ticket' },
     { to: '/agency/employees', label: 'Employees held', icon: 'users' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
@@ -92,7 +92,7 @@ export function AppLayout() {
       '/admin/assignments': 'Assignments',
       '/agency/dashboard': 'Dashboard',
       '/agency/projects': 'Projects',
-      '/agency/my-projects': 'My projects',
+      '/agency/my-projects': 'Agency projects',
       '/agency/employees': 'Employees',
       '/agency/users': 'Agency accounts',
       '/agency/directory': 'Agency directory',

@@ -93,7 +93,7 @@ class EmployeeAssignmentController extends Controller
             'week' => ['sometimes', 'date_format:Y-m-d'],
         ]);
         $scopeAgency = ($filters['scope'] ?? null) === 'agency';
-        abort_if($scopeAgency && $viewer->role !== Role::AgencyOwner, 403);
+        abort_if($scopeAgency && ! in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true), 403);
 
         $assignments = EmployeeAssignment::query()
             ->with(['employee', 'agency', 'holder'])
@@ -209,7 +209,10 @@ class EmployeeAssignmentController extends Controller
     {
         abort_unless(
             $assignment->agency_id === $viewer->agency_id
-                && ($assignment->holder_id === $viewer->id || $viewer->role === Role::AgencyOwner),
+                && (
+                    $assignment->holder_id === $viewer->id
+                    || in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true)
+                ),
             404
         );
     }

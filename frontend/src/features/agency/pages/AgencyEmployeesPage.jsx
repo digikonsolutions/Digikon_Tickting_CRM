@@ -52,10 +52,10 @@ export function AgencyEmployeesPage() {
     const [available, mine, agency] = await Promise.all([
       authService.listAvailableEmployees(),
       authService.listMyAssignments({ week }),
-      isOwner ? authService.listAgencyAssignments({ week }) : Promise.resolve({ assignments: [] }),
+      authService.listAgencyAssignments({ week }),
     ])
     return { available: available.employees, mine: mine.assignments, agency: agency.assignments }
-  }, [isOwner, week])
+  }, [week])
   const { data, error, isLoading, reload } = useAsync(loadData)
   const available = data?.available ?? []
   const mine = data?.mine ?? []
@@ -86,20 +86,20 @@ export function AgencyEmployeesPage() {
     { key: 'holder', label: 'Holder', render: (holder) => holder?.name ?? 'Account removed' },
     { key: 'started_at', label: 'Started', render: (date) => date ? new Date(date).toLocaleDateString() : '—' },
     { key: 'weekly_usage', label: 'Hours this week', render: (usage) => `${usage?.used ?? '0.00'} / 36 h` },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_value, assignment) => (
-        <Button
-          type="button"
-          size="sm"
-          variant="danger"
-          onClick={() => setConfirm({ kind: 'end', assignment })}
-        >
-          End assignment
-        </Button>
-      ),
-    },
+    ...(isOwner ? [{
+        key: 'actions',
+        label: 'Actions',
+        render: (_value, assignment) => (
+          <Button
+            type="button"
+            size="sm"
+            variant="danger"
+            onClick={() => setConfirm({ kind: 'end', assignment })}
+          >
+            End assignment
+          </Button>
+        ),
+      }] : []),
   ]
 
   return (
@@ -146,14 +146,14 @@ export function AgencyEmployeesPage() {
             </div>
             : <p className="assignment-empty">No employees are assigned to you yet.</p>}
       </Card>
-      {isOwner && (
-        <Card title="Agency assignments" description="Every active employee assignment in your agency.">
+      {(isOwner || user.role === 'agency_client') && (
+        <Card title="Agency employee selections" description="Active employee assignments held by clients and owners in your agency.">
           <Table
             columns={agencyColumns}
             rows={agencyAssignments}
             loading={isLoading}
-            emptyTitle="No agency assignments"
-            emptyText="Active assignments in your agency will appear here."
+            emptyTitle="No active employee selections"
+            emptyText="Active employee assignments in your agency will appear here."
           />
         </Card>
       )}

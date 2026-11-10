@@ -106,7 +106,7 @@ export function AgencyProjectsPage({ viewAs }) {
   const columns = useMemo(() => [
     { key: 'title', label: 'Project', render: (title, project) => <Link to={`/agency/projects/${project.id}`}>{title}</Link> },
     { key: 'description', label: 'Description' },
-    ...(!isClient ? [{ key: 'client', label: 'Created by', render: (client) => client?.name ?? 'Account removed' }] : []),
+    { key: 'client', label: isClient ? 'Client' : 'Created by', render: (client) => client?.name ?? 'Account removed' },
     { key: 'employee', label: 'Assigned employee', render: (employee) => employee?.name ?? 'Unassigned' },
     { key: 'estimated_hours', label: 'Hours', render: (hours) => `${hours}h` },
     { key: 'due_date', label: 'Due date' },
@@ -118,9 +118,9 @@ export function AgencyProjectsPage({ viewAs }) {
     <section className="page agency-projects-page">
       <PageHeader
         eyebrow="Agency workspace"
-        title={isClient ? 'My projects' : 'Agency projects'}
+        title="Agency projects"
         subtitle={isClient
-          ? 'Create projects against employees you hold and track your schedules.'
+          ? 'View agency projects and statuses. Create projects using employees you hold.'
           : 'Create projects using your held employees and review agency project schedules.'}
       />
       {success && <Alert variant="success">{success}</Alert>}

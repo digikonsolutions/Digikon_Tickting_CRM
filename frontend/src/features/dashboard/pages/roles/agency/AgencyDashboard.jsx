@@ -54,7 +54,7 @@ export const AgencyDashboard = () => {
           {
             to: user.role === ROLES.AGENCY_OWNER ? '/agency/projects' : '/agency/my-projects',
             icon: 'inbox',
-            label: user.role === ROLES.AGENCY_OWNER ? 'Agency assignments' : 'My projects',
+            label: user.role === ROLES.AGENCY_OWNER ? 'Agency assignments' : 'Agency projects',
             description: user.role === ROLES.AGENCY_OWNER
               ? 'Review employee assignments and daily schedules'
               : 'Track your project assignments',

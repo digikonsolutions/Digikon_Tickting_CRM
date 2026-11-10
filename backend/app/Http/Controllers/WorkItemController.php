@@ -26,10 +26,6 @@ class WorkItemController extends Controller
         $items = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->where('agency_id', $agency->id)
-            ->when(
-                $viewer->role === Role::AgencyClient,
-                fn ($query) => $query->where('client_id', $viewer->id)
-            )
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (WorkItem $item): array => $this->payload($item));
@@ -137,7 +133,7 @@ class WorkItemController extends Controller
 
         abort_unless(
             $workItem->agency_id === $agency->id
-                && ($user->role === Role::AgencyOwner || $workItem->client_id === $user->id),
+                && in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true),
             404
         );
 

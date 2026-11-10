@@ -17,7 +17,7 @@ class TicketManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_owner_and_client_can_view_and_create_scoped_project_tickets(): void
+    public function test_same_agency_clients_and_owner_can_view_and_manage_project_tickets(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
         $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
@@ -43,17 +43,17 @@ class TicketManagementTest extends TestCase
             ->assertJsonPath('ticket.schedule.1.hours', '1.00');
         $ticketId = $created->json('ticket.id');
         $this->actingAs($otherClient)->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
-            ->assertNotFound();
+            ->assertCreated();
 
         $this->actingAs($owner)->getJson($this->projectTicketsUrl($project))
-            ->assertOk()->assertJsonCount(1, 'tickets')
+            ->assertOk()->assertJsonCount(2, 'tickets')
             ->assertJsonPath('tickets.0.id', $ticketId);
-        $this->actingAs($client)->getJson($this->projectTicketsUrl($otherProject))->assertNotFound();
+        $this->actingAs($client)->getJson($this->projectTicketsUrl($otherProject))->assertOk();
         $this->actingAs($owner)->postJson($this->projectTicketsUrl($otherProject), $this->ticketData(2))
-            ->assertNotFound();
+            ->assertCreated();
         $this->actingAs($otherClient)->postJson($this->projectTicketsUrl($otherProject), $this->ticketData(2))
             ->assertCreated();
-        $this->getJson($this->projectTicketsUrl($otherProject))->assertOk()->assertJsonCount(1, 'tickets');
+        $this->getJson($this->projectTicketsUrl($otherProject))->assertOk()->assertJsonCount(2, 'tickets');
         $this->actingAs(User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => Agency::create(['name' => 'Other tenant'])->id]))
             ->getJson($this->projectTicketsUrl($project))
             ->assertNotFound();
@@ -61,7 +61,7 @@ class TicketManagementTest extends TestCase
             ->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
             ->assertForbidden();
         $this->actingAs($owner)->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
-            ->assertNotFound();
+            ->assertCreated();
 
         $ownerProject = $this->createProject(
             $agency,
@@ -148,6 +148,46 @@ class TicketManagementTest extends TestCase
         $this->assertDatabaseMissing('ticket_allocations', ['ticket_id' => $second['id']]);
     }
 
+    public function test_agency_client_can_cancel_another_client_project_but_not_a_project_in_another_agency(): void
+    {
+        [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
+        $otherAgency = Agency::create(['name' => 'Other tenant']);
+        $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $otherAgency->id]);
+        $otherEmployee = User::factory()->create(['role' => Role::Employee]);
+        $otherProject = $this->createProject($otherAgency, $otherClient, $otherEmployee, 4);
+
+        $this->actingAs($client)
+            ->patchJson('/api/agency/projects/'.$project->id.'/cancel')
+            ->assertOk()
+            ->assertJsonPath('project.status', 'cancelled');
+        $this->patchJson('/api/agency/projects/'.$otherProject->id.'/cancel')
+            ->assertNotFound();
+    }
+
+    public function test_same_agency_client_can_update_reorder_and_cancel_another_clients_tickets(): void
+    {
+        [$agency, $owner, $client, $employee, $project] = $this->projectFixture(8);
+        $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $ticket = $this->actingAs($client)
+            ->postJson($this->projectTicketsUrl($project), $this->ticketData(3))
+            ->assertCreated()
+            ->json('ticket');
+
+        $this->actingAs($otherClient)
+            ->patchJson('/api/agency/tickets/'.$ticket['id'], ['title' => 'Updated by agency client'])
+            ->assertOk()
+            ->assertJsonPath('ticket.title', 'Updated by agency client');
+        $this->postJson($this->projectTicketsUrl($project), $this->ticketData(3, 'Second'))
+            ->assertCreated();
+        $secondId = Ticket::query()->where('title', 'Second')->value('id');
+        $this->patchJson($this->projectTicketsUrl($project).'/reorder', [
+            'ticket_ids' => [$secondId, $ticket['id']],
+        ])->assertOk()->assertJsonPath('tickets.0.id', $secondId);
+        $this->deleteJson('/api/agency/tickets/'.$ticket['id'])
+            ->assertOk()
+            ->assertJsonPath('ticket.status', 'cancelled');
+    }
+
     public function test_employee_ticket_status_flow_updates_project_and_enforces_assignment(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
@@ -200,7 +240,7 @@ class TicketManagementTest extends TestCase
 
         $this->actingAs($stranger)->postJson('/api/tickets/'.$ticket['id'].'/comments', [
             'body' => 'Cross-client comment.',
-        ])->assertForbidden();
+        ])->assertCreated();
         $this->actingAs($unrelatedEmployee)->postJson('/api/tickets/'.$ticket['id'].'/comments', [
             'body' => 'Unassigned employee comment.',
         ])->assertForbidden();
@@ -222,7 +262,7 @@ class TicketManagementTest extends TestCase
         $this->actingAs($employee)->getJson($this->projectTicketsUrl($project))->assertForbidden();
     }
 
-    public function test_ticket_mutations_require_an_active_assignment_held_by_the_actor(): void
+    public function test_ticket_mutations_require_an_active_assignment_in_the_same_agency(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
         $ticket = $this->actingAs($client)

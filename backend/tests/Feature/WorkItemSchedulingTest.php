@@ -60,9 +60,9 @@ class WorkItemSchedulingTest extends TestCase
             'due_date' => $tuesday->toDateString(),
             'status' => 'scheduled',
         ]);
-        $this->getJson('/api/agency/projects')
+        $this->actingAs($anotherClient)->getJson('/api/agency/projects')
             ->assertOk()
-            ->assertJsonCount(1, 'projects');
+            ->assertJsonCount(2, 'projects');
         $this->actingAs(User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]))
             ->getJson('/api/agency/projects')
             ->assertOk()
@@ -254,10 +254,6 @@ class WorkItemSchedulingTest extends TestCase
         ]);
 
         $this->actingAs($otherClient)
-            ->patchJson('/api/agency/projects/'.$workItemId.'/cancel')
-            ->assertNotFound();
-
-        $this->actingAs($owner)
             ->patchJson('/api/agency/projects/'.$workItemId.'/cancel')
             ->assertOk()
             ->assertJsonPath('project.status', 'cancelled')
