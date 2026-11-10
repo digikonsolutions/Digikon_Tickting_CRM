@@ -6,15 +6,17 @@ import { AuthLayout } from '../components/AuthLayout'
 import { Alert, Button, Input } from '../../../components/ui'
 
 export function LoginPage() {
-  const { signIn, isLoading } = useAuth()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [error, setError] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const notice = location.state?.message
 
   async function submit(event) {
     event.preventDefault()
     setError(null)
+    setIsSubmitting(true)
     const data = new FormData(event.currentTarget)
 
     try {
@@ -25,6 +27,8 @@ export function LoginPage() {
       navigate(ROLE_HOME[user.role], { replace: true })
     } catch (reason) {
       setError(reason)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -40,7 +44,7 @@ export function LoginPage() {
         <div className="auth-form-meta"><Link className="inline-link" to="/forgot-password">Forgot password?</Link></div>
         {notice && <Alert variant="success">{notice}</Alert>}
         {error && <Alert variant="error">{error.message}</Alert>}
-        <Button type="submit" size="lg" loading={isLoading} loadingText="Signing in…">Sign in</Button>
+        <Button type="submit" size="lg" loading={isSubmitting} loadingText="Signing in…">Sign in</Button>
       </form>
     </AuthLayout>
   )

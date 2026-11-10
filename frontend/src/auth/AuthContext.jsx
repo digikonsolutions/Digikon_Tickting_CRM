@@ -89,15 +89,10 @@ export function AuthProvider({ children }) {
     refreshSession,
     updateUser,
     signIn: async (credentials) => {
-      setIsLoading(true)
-      try {
-        const response = await authService.signIn(credentials)
-        const nextUser = response?.user ?? response
-        establishSession(nextUser)
-        return nextUser
-      } finally {
-        setIsLoading(false)
-      }
+      const response = await authService.signIn(credentials)
+      const nextUser = response?.user ?? response
+      establishSession(nextUser)
+      return nextUser
     },
     signOut: async () => {
       try {
