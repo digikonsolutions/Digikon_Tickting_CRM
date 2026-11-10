@@ -3,9 +3,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Badge, Button, Card, Input, Modal, PageHeader, Select, Table } from '../../../components/ui'
-
-const AGENCY_USER_ROLES = [ROLES.AGENCY_EMPLOYEE, ROLES.AGENCY_CLIENT]
+import { Alert, Badge, Button, Card, Input, Modal, PageHeader, Table } from '../../../components/ui'
 
 export function AgencyUsersPage() {
   const { user } = useAuth()
@@ -16,7 +14,6 @@ export function AgencyUsersPage() {
   const [createError, setCreateError] = useState(null)
   const [createSuccess, setCreateSuccess] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const [createRole, setCreateRole] = useState(isAgencyOwner ? ROLES.AGENCY_EMPLOYEE : ROLES.AGENCY_CLIENT)
   const [editingUser, setEditingUser] = useState(null)
   const [editError, setEditError] = useState(null)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
@@ -70,11 +67,10 @@ export function AgencyUsersPage() {
       await authService.createAgencyUser({
         name: String(data.get('name')).trim(),
         email,
-        role: createRole,
+        role: ROLES.AGENCY_CLIENT,
       })
       setCreateSuccess(`Invitation sent to ${email}.`)
       form.reset()
-      setCreateRole(isAgencyOwner ? ROLES.AGENCY_EMPLOYEE : ROLES.AGENCY_CLIENT)
       await loadUsers()
     } catch (error) {
       setCreateError(error)
@@ -94,7 +90,6 @@ export function AgencyUsersPage() {
       const { user } = await authService.updateAgencyUser(editingUser.id, {
         name: String(data.get('name')).trim(),
         email: String(data.get('email')).trim(),
-        ...(isAgencyOwner ? { role: String(data.get('role')) } : {}),
       })
       setEditingUser(null)
       setCreateSuccess(user.password_setup_email_sent
@@ -149,7 +144,7 @@ export function AgencyUsersPage() {
     {
       key: 'role',
       label: 'Account type',
-      render: (role) => <Badge variant={role === ROLES.AGENCY_EMPLOYEE ? 'primary' : 'info'}>{ROLE_LABELS[role] ?? 'Agency member'}</Badge>,
+      render: (role) => <Badge variant="info">{ROLE_LABELS[role] ?? 'Agency member'}</Badge>,
     },
     {
       key: 'is_active',
@@ -171,36 +166,31 @@ export function AgencyUsersPage() {
     },
   ]
 
-  const editingRole = editingUser?.role === ROLES.AGENCY_CLIENT ? ROLES.AGENCY_CLIENT : ROLES.AGENCY_EMPLOYEE
   const fieldError = (error, field) => error?.errors?.[field]?.[0]
 
   return (
     <section className="page agency-users-page">
       <PageHeader
         eyebrow="Agency workspace"
-        title={isAgencyOwner ? 'Employees & clients' : 'Agency clients'}
+        title="Agency accounts"
         subtitle={isAgencyOwner
-          ? 'Manage your agency employees and clients. Admin-created employees are visible but read-only.'
+          ? 'Manage client accounts in your agency. Employee accounts are created by an administrator.'
           : 'Manage client accounts in your agency.'}
       />
       {createSuccess && <Alert variant="success">{createSuccess}</Alert>}
       <ApiErrorMessage error={actionError} />
 
-      <Card title={isAgencyOwner ? 'Invite someone' : 'Invite a client'} description="They’ll receive an email to set their password.">
+      <Card title="Invite a client" description="They’ll receive an email to set their password.">
         <form className="agency-user-form" onSubmit={createUser}>
           <Input id="agency-user-name" label="Name" name="name" autoComplete="name" maxLength="120" required error={fieldError(createError, 'name')} />
           <Input id="agency-user-email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" required error={fieldError(createError, 'email')} />
-          {isAgencyOwner
-            ? <Select id="agency-user-role" label="Account type" name="role" value={createRole} onChange={(event) => setCreateRole(event.target.value)} required error={fieldError(createError, 'role')}>
-              {AGENCY_USER_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
-            </Select>
-            : <input type="hidden" name="role" value={ROLES.AGENCY_CLIENT} />}
+          <input type="hidden" name="role" value={ROLES.AGENCY_CLIENT} />
           <ApiErrorMessage error={createError?.status === 422 ? null : createError} />
-          <Button type="submit" loading={isCreating} loadingText="Sending invitation…">Invite user</Button>
+          <Button type="submit" loading={isCreating} loadingText="Sending invitation…">Invite client</Button>
         </form>
       </Card>
 
-      <Card title={isAgencyOwner ? 'Agency accounts' : 'Agency clients'} description={isAgencyOwner ? 'Agency employees and clients are listed here; admin-created employees are read-only.' : 'Only clients belonging to your agency are shown.'}>
+      <Card title="Agency accounts" description="Employees are read-only; client accounts can be managed here.">
         <ApiErrorMessage error={usersError} />
         {usersError && <Button type="button" variant="secondary" size="sm" onClick={loadUsers}>Try again</Button>}
         <Table
@@ -208,7 +198,7 @@ export function AgencyUsersPage() {
           rows={users}
           loading={isLoadingUsers}
           emptyTitle="No agency accounts yet"
-          emptyText={isAgencyOwner ? 'Invite an employee or client to get started.' : 'Invite a client to get started.'}
+          emptyText="Agency accounts will appear here when created."
         />
       </Card>
 
@@ -227,9 +217,6 @@ export function AgencyUsersPage() {
           <form id="agency-user-edit-form" className="agency-user-form" onSubmit={saveUser}>
             <Input id="edit-agency-user-name" label="Name" name="name" defaultValue={editingUser.name} maxLength="120" required error={fieldError(editError, 'name')} />
             <Input id="edit-agency-user-email" label="Email address" name="email" type="email" defaultValue={editingUser.email} maxLength="254" required error={fieldError(editError, 'email')} />
-            {isAgencyOwner && <Select id="edit-agency-user-role" label="Account type" name="role" defaultValue={editingRole} required error={fieldError(editError, 'role')}>
-              {AGENCY_USER_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
-            </Select>}
             <ApiErrorMessage error={editError?.status === 422 ? null : editError} />
           </form>
         )}

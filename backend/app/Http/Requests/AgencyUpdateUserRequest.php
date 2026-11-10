@@ -36,7 +36,7 @@ class AgencyUpdateUserRequest extends FormRequest
                 'max:254',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
-            'role' => ['sometimes', 'required', Rule::in([Role::AgencyEmployee->value, Role::AgencyClient->value])],
+            'role' => ['sometimes', 'required', Rule::in([Role::AgencyClient->value])],
             'is_active' => ['sometimes', 'boolean'],
             'agency_id' => ['prohibited'],
         ];

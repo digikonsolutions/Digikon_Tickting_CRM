@@ -12,7 +12,7 @@ export function AgencyEmployeesPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await authService.listAgencyEmployeeDirectory()
+      const response = await authService.listAgencyTeam()
       setEmployees(response.employees)
     } catch (reason) {
       setError(reason)
@@ -23,7 +23,7 @@ export function AgencyEmployeesPage() {
 
   useEffect(() => {
     let active = true
-    authService.listAgencyEmployeeDirectory()
+    authService.listAgencyTeam()
       .then(({ employees: agencyEmployees }) => {
         if (active) setEmployees(agencyEmployees)
       })
@@ -55,9 +55,9 @@ export function AgencyEmployeesPage() {
       <PageHeader
         eyebrow="Agency workspace"
         title="Employees"
-        subtitle="Employees in your agency and shared employees available for assignments."
+        subtitle="Employees added by an administrator and available for assignments."
       />
-      <Card title="Agency employees" description="View the employees who may be assigned to your projects.">
+      <Card title="Employees" description="View admin-added employees available for project assignments.">
         <ApiErrorMessage error={error} />
         {error && <Button type="button" variant="secondary" onClick={loadEmployees}>Try again</Button>}
         <Table
@@ -65,7 +65,7 @@ export function AgencyEmployeesPage() {
           rows={employees}
           loading={isLoading}
           emptyTitle="No employees found"
-          emptyText="Employees will appear here when they are added to your agency."
+          emptyText="Employees will appear here when an administrator adds them."
         />
       </Card>
     </section>

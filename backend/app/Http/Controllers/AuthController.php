@@ -54,7 +54,10 @@ class AuthController extends Controller
                         ->whereIn('role', $agencyRoles);
                 });
 
-                $query->orWhere('role', Role::Employee->value);
+                $query->orWhere(function ($query): void {
+                    $query->where('role', Role::Employee->value)
+                        ->whereNull('agency_id');
+                });
             })
             ->orderBy('name')
             ->get()
@@ -123,16 +126,6 @@ class AuthController extends Controller
         $this->deleteUser($user);
 
         return response()->json(['message' => 'The account was permanently deleted.']);
-    }
-
-    public function agencies(): JsonResponse
-    {
-        return response()->json([
-            'agencies' => Agency::query()
-                ->where('status', 'active')
-                ->orderBy('name')
-                ->get(['id', 'name']),
-        ]);
     }
 
     public function adminUsers(Request $request): JsonResponse
@@ -205,22 +198,23 @@ class AuthController extends Controller
         return response()->json(['users' => $users]);
     }
 
-    public function agencyEmployeeDirectory(Request $request): JsonResponse
+    public function agencyTeam(Request $request): JsonResponse
     {
-        $client = $request->user();
+        $viewer = $request->user();
         abort_unless(
-            $client->role === Role::AgencyClient
-                && $client->agency_id !== null
-                && $client->agency?->status === 'active',
+            in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true)
+                && $viewer->agency_id !== null
+                && $viewer->agency?->status === 'active',
             403
         );
 
         $employees = User::query()
             ->with('agency')
-            ->where(function ($query) use ($client): void {
-                $query->where(function ($query) use ($client): void {
-                    $query->where('agency_id', $client->agency_id)
-                        ->where('role', Role::AgencyEmployee->value);
+            ->where(function ($query) use ($viewer): void {
+                $query->where(function ($query) use ($viewer): void {
+                    $query->where('agency_id', $viewer->agency_id)
+                        ->where('role', Role::Employee->value)
+                        ->whereNull('agency_id');
                 })->orWhere(function ($query): void {
                     $query->where('role', Role::Employee->value)
                         ->whereNull('agency_id');
@@ -431,7 +425,10 @@ class AuthController extends Controller
      */
     private function adminManagedRoles(): array
     {
-        return [Role::Employee->value, Role::AgencyOwner->value];
+        return [
+            Role::Employee->value,
+            Role::AgencyOwner->value,
+        ];
     }
 
     /**
@@ -474,7 +471,6 @@ class AuthController extends Controller
     {
         return [
             Role::AgencyMember->value,
-            Role::AgencyEmployee->value,
             Role::AgencyClient->value,
         ];
     }

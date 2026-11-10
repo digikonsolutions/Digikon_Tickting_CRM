@@ -24,12 +24,12 @@ Route::middleware('web')->prefix('auth')->group(function () {
 });
 
 Route::middleware('web')->prefix('agency')->group(function () {
-    Route::get('/team', [AuthController::class, 'agencyEmployeeDirectory'])
-        ->middleware(['auth', 'role:agency_client']);
+    Route::get('/team', [AuthController::class, 'agencyTeam'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/directory', [AuthController::class, 'agencyDirectory'])
         ->middleware(['auth', 'role:agency_owner,agency_member,agency_client']);
     Route::patch('/profile', [AuthController::class, 'updateAgencyProfile'])
-        ->middleware(['auth', 'role:agency_member,agency_employee,agency_client']);
+        ->middleware(['auth', 'role:agency_member,agency_client']);
     Route::get('/users', [AuthController::class, 'agencyUsers'])
         ->middleware(['auth', 'role:agency_owner']);
     Route::post('/users', [AuthController::class, 'createAgencyUser'])
@@ -47,14 +47,13 @@ Route::middleware('web')->prefix('agency')->group(function () {
 });
 
 Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
-    Route::get('/admin/agencies', [AuthController::class, 'agencies']);
     Route::get('/admin/users', [AuthController::class, 'adminUsers']);
     Route::patch('/admin/users/{adminUser}', [AuthController::class, 'updateAdminUser']);
     Route::delete('/admin/users/{adminUser}', [AuthController::class, 'deleteAdminUser']);
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
 });
 
-Route::middleware(['web', 'auth', 'role:employee,agency_employee'])->group(function () {
+Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
     Route::patch('/work-items/{workItem}/status', [WorkItemController::class, 'updateStatus']);
 });

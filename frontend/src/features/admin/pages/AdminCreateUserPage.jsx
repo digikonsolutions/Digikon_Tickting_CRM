@@ -51,7 +51,7 @@ export function AdminCreateUserPage({ role = ROLES.EMPLOYEE }) {
         <ApiErrorMessage error={error?.status === 422 ? null : error} />
         {success && <Alert variant="success">{success}</Alert>}
         <Button type="submit" loading={isLoading} loadingText="Sending invite…">
-          Create {role === ROLES.EMPLOYEE ? 'employee' : 'agency owner'}
+          Create {ROLE_LABELS[role]?.toLowerCase() ?? 'user'}
         </Button>
       </form>
     </section>

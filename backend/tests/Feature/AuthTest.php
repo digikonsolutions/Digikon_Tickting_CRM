@@ -61,7 +61,7 @@ class AuthTest extends TestCase
         Notification::assertSentTo(User::where('email', 'owner@example.com')->firstOrFail(), SetPasswordNotification::class);
     }
 
-    public function test_admin_can_only_create_employees_and_agency_owners(): void
+    public function test_admin_creation_rejects_unsupported_roles_and_invalid_agency_ids(): void
     {
         $admin = User::factory()->create(['role' => Role::Admin]);
         $agency = Agency::create(['name' => 'Northwind']);
@@ -106,31 +106,18 @@ class AuthTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
 
         $this->postJson('/api/auth/users', [
+            'name' => 'Agency employee',
+            'email' => 'agency-employee@example.com',
+            'role' => 'agency_employee',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['role']);
+
+        $this->postJson('/api/auth/users', [
             'name' => 'Agency owner',
             'email' => 'agency-owner@example.com',
             'role' => Role::AgencyOwner->value,
             'agency_name' => 'Northwind',
             'agency_id' => $agency->id,
         ])->assertUnprocessable()->assertJsonValidationErrors(['agency_id']);
-    }
-
-    public function test_admin_can_list_active_agencies_for_member_assignment(): void
-    {
-        $admin = User::factory()->create(['role' => Role::Admin]);
-        Agency::create(['name' => 'Northwind']);
-        Agency::create(['name' => 'Suspended', 'status' => 'suspended']);
-
-        $this->getJson('/api/admin/agencies')->assertUnauthorized();
-
-        $this->actingAs(User::factory()->create(['role' => Role::Employee]))
-            ->getJson('/api/admin/agencies')
-            ->assertForbidden();
-
-        $this->actingAs($admin)
-            ->getJson('/api/admin/agencies')
-            ->assertOk()
-            ->assertJsonCount(1, 'agencies')
-            ->assertJsonPath('agencies.0.name', 'Northwind');
     }
 
     public function test_agency_owner_creates_agency_users_in_own_agency_and_cannot_override_agency(): void

@@ -38,18 +38,17 @@ Available routes:
 |---|---|---|
 | GET | `/api/auth/csrf-cookie` | Establish the CSRF/session cookies |
 | POST | `/api/auth/users` | Admin-only account invitation; role and agency assignment are validated |
-| GET | `/api/admin/agencies` | Admin-only list of active agencies for agency-member assignment |
 | GET | `/api/admin/users` | Admin-only paginated directory of all roles (optionally filtered by `role`); supports `search`, `page`, and `per_page` |
 | PATCH | `/api/admin/users/{user}` | Admin update of employee or agency-owner details and activation |
 | DELETE | `/api/admin/users/{user}` | Admin permanent deletion of an employee or agency owner |
-| GET | `/api/agency/users` | Agency-owner list of their employees and clients, plus admin-created internal employees as read-only |
-| POST | `/api/agency/users` | Agency owners invite employees or clients, always in their active agency |
-| PATCH | `/api/agency/users/{user}` | Owners update same-agency employees or clients, including activation |
-| DELETE | `/api/agency/users/{user}` | Owners delete same-agency employees or clients |
+| GET | `/api/agency/users` | Agency-owner list of agency accounts; employee accounts are read-only |
+| POST | `/api/agency/users` | Agency owners invite clients into their active agency |
+| PATCH | `/api/agency/users/{user}` | Owners update same-agency client details and activation |
+| DELETE | `/api/agency/users/{user}` | Owners delete same-agency clients |
 | GET | `/api/agency/directory` | Agency-owner, legacy agency-member, and agency-client directory including shared admin-created employees |
-| GET | `/api/agency/team` | Agency-client employee roster for agency employees and shared internal employees |
-| PATCH | `/api/agency/profile` | Agency-member, employee, or client may update their own display name |
-| GET | `/api/agency/employees` | Agency client/owner list of active same-agency employees and shared admin-created employees with date-range capacity |
+| GET | `/api/agency/team` | Agency-owner/client roster of shared admin-created employees |
+| PATCH | `/api/agency/profile` | Agency-member or client may update their own display name |
+| GET | `/api/agency/employees` | Agency client/owner list of active shared employees with date-range capacity |
 | GET | `/api/agency/projects` | Agency clients see their own projects; owners see all agency projects and schedules |
 | POST | `/api/agency/projects` | Agency client/owner create a project and assign available agency/shared employee |
 | GET | `/api/work-items/mine` | Employee list of assigned projects |
@@ -61,9 +60,9 @@ Available routes:
 | POST | `/api/auth/forgot-password` | Request a reset link |
 | POST | `/api/auth/reset-password` | Reset password with a time-limited token |
 
-Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member` (legacy), `agency_employee`, and `agency_client`. Admins can create employees and agency owners, and can edit or delete those account types. They can view every role, including clients, but cannot modify or delete other roles. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Agency owners alone can manage employees and clients in their own agency; admin-created internal employees appear in the owner account list as read-only. Agency employees cannot access account-management or agency-directory endpoints; they can only view their assigned projects and update the status of their own assignments. Agency roles and tenant IDs are assigned by the backend, never trusted from client input. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes enforce authorization and tenant scoping.
+Roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member` (legacy), and `agency_client`. Only admins can create or manage employee accounts. Employees are shared across agencies and cannot be assigned an agency ID. Admins can also create and manage agency owners. When an admin creates an agency owner, the request includes the agency name and the backend creates the agency and owner together; the database generates the agency ID. Agency owners can manage clients in their own agency, but employee accounts are view-only. Agency owners and clients can view employees and assign work to available employees. Agency roles and tenant IDs are assigned by the backend, never trusted from client input. Invited users receive a password setup email and set their own password through the existing password-reset flow. The `agency_id` and role returned by `/api/auth/me` are for frontend menus only; backend routes enforce authorization and tenant scoping.
 
-Agency clients and owners can create projects and assign them to active employees in their agency or shared admin-created employee accounts. A project has an estimated hour total and a start/due date range; the scheduler allocates work chronologically Monday through Saturday, skipping Sunday, with no more than six hours per employee per day. Capacity checks and reservations are enforced transactionally by the backend; completed projects release any future reservations. Agency users can only view projects in their own agency. Employees can view their assignments and update their own project status; admins can view all projects but cannot edit them.
+Agency clients and owners can create projects and assign them to active admin-created employees shared across agencies. A project has an estimated hour total and a start/due date range; the scheduler allocates work chronologically Monday through Saturday, skipping Sunday, with no more than six hours per employee per day. Capacity checks and reservations are enforced transactionally by the backend; completed projects release any future reservations. Agency users can only view projects in their own agency. Employees can view their assignments and update their own project status; admins can view all projects but cannot edit them.
 
 There is not yet an administrator user-update endpoint. If one is added, it must prevent an administrator from deactivating or demoting their own account and prevent deactivation or demotion of the last active administrator.
 
@@ -101,7 +100,7 @@ X-XSRF-TOKEN: <URL-decoded value of the XSRF-TOKEN cookie>
    }
    ```
 
-   Valid roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member`, `agency_employee`, and `agency_client`. Agency users require an existing `agency_id`; internal roles must omit it. Agency owners invite employees or clients through `/api/agency/users`; the backend always assigns the owner's agency and accepts only those two roles. An unauthenticated request returns 401; a signed-in user without the required role returns 403.
+   Valid roles are `admin`, `team_lead`, `employee`, `qa`, `agency_owner`, `agency_member`, and `agency_client`. Employee accounts are created by admins and are shared across agencies. Agency owners can invite clients through `/api/agency/users`; the backend always assigns the owner's agency. An unauthenticated request returns 401; a signed-in user without the required role returns 403.
 7. Test `POST /api/auth/forgot-password` with `{"email":"admin@example.com"}`. With `MAIL_MAILER=log`, find the reset URL in `storage/logs/laravel.log`; submit its `token` and `email` with `password` and `password_confirmation` to `POST /api/auth/reset-password`.
 8. Send `POST /api/auth/logout`, then verify `GET /api/auth/me` returns 401.
 

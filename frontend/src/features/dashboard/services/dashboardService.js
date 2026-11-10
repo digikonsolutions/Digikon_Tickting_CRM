@@ -12,8 +12,7 @@ async function loadWorkItems(user) {
       const { projects } = await authService.listAgencyProjects()
       return projects
     }
-    case ROLES.EMPLOYEE:
-    case ROLES.AGENCY_EMPLOYEE: {
+    case ROLES.EMPLOYEE: {
       const { projects } = await authService.listMyWork()
       return projects
     }
@@ -45,9 +44,6 @@ export const dashboardService = {
       if (scope === 'mine') return String(project.employee?.id) === String(user.id)
       if (scope === 'queue') return project.status !== 'completed'
       if (scope === 'qa') return false
-      if (scope === 'agency' && user.role === ROLES.AGENCY_EMPLOYEE) {
-        return project.agency_id === user.agency_id
-      }
       return true
     })
     return scoped

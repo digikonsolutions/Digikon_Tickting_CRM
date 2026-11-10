@@ -15,12 +15,12 @@ class AgencyUserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_owner_can_list_only_users_in_their_agency(): void
+    public function test_owner_can_list_clients_in_their_agency_and_shared_employees(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $otherAgency = Agency::create(['name' => 'Other Agency']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
         User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $otherAgency->id]);
 
         $this->actingAs($owner)
@@ -28,27 +28,26 @@ class AgencyUserManagementTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'users')
             ->assertJsonPath('users.0.id', $employee->id)
-            ->assertJsonPath('users.0.role', Role::AgencyEmployee->value)
+            ->assertJsonPath('users.0.role', Role::Employee->value)
             ->assertJsonPath('users.0.is_active', true);
     }
 
-    public function test_owner_can_invite_employees_and_clients_but_not_another_role(): void
+    public function test_owner_can_invite_clients_but_cannot_invite_employees(): void
     {
         Notification::fake();
         $agency = Agency::create(['name' => 'Northwind']);
-        $otherAgency = Agency::create(['name' => 'Other Agency']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
 
         $this->actingAs($owner)
             ->postJson('/api/agency/users', [
                 'name' => 'New employee',
                 'email' => 'employee@example.com',
-                'role' => Role::AgencyEmployee->value,
-                'agency_id' => $otherAgency->id,
+                'role' => 'agency_employee',
             ])
-            ->assertCreated()
-            ->assertJsonPath('user.role', Role::AgencyEmployee->value)
-            ->assertJsonPath('user.agency_id', $agency->id);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'employee@example.com']);
 
         $this->postJson('/api/agency/users', [
             'name' => 'New client',
@@ -67,13 +66,13 @@ class AgencyUserManagementTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'admin@example.com']);
     }
 
-    public function test_owner_can_edit_and_deactivate_an_agency_user_and_role_is_limited(): void
+    public function test_owner_cannot_edit_or_deactivate_an_employee(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $employee = User::factory()->create([
-            'role' => Role::AgencyEmployee,
-            'agency_id' => $agency->id,
+            'role' => Role::Employee,
+            'agency_id' => null,
         ]);
         DB::table('sessions')->insert([
             'id' => 'employee-session',
@@ -85,19 +84,13 @@ class AgencyUserManagementTest extends TestCase
         $this->actingAs($owner)
             ->patchJson('/api/agency/users/'.$employee->id, [
                 'name' => 'Updated name',
-                'role' => Role::AgencyClient->value,
                 'is_active' => false,
             ])
-            ->assertOk()
-            ->assertJsonPath('user.name', 'Updated name')
-            ->assertJsonPath('user.role', Role::AgencyClient->value)
-            ->assertJsonPath('user.is_active', false);
+            ->assertNotFound();
 
-        $this->assertDatabaseMissing('sessions', ['id' => 'employee-session']);
-
-        $this->patchJson('/api/agency/users/'.$employee->id, [
-            'role' => Role::Admin->value,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['role']);
+        $this->assertDatabaseHas('users', ['id' => $employee->id, 'name' => $employee->name, 'is_active' => true]);
+        $this->assertDatabaseHas('sessions', ['id' => 'employee-session']);
+        $this->deleteJson('/api/agency/users/'.$employee->id)->assertNotFound();
     }
 
     public function test_email_change_sends_password_setup_email_and_revokes_existing_sessions(): void
@@ -170,7 +163,7 @@ class AgencyUserManagementTest extends TestCase
 
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
 
         $this->actingAs($client)->getJson('/api/agency/users')->assertForbidden();
         $this->postJson('/api/agency/users', [])->assertForbidden();
@@ -229,12 +222,6 @@ class AgencyUserManagementTest extends TestCase
             'role' => Role::AgencyOwner,
             'agency_id' => $agency->id,
         ]);
-        User::factory()->create([
-            'name' => 'Agency Employee',
-            'email' => 'agency.employee@example.com',
-            'role' => Role::AgencyEmployee,
-            'agency_id' => $agency->id,
-        ]);
 
         $this->actingAs($admin)
             ->getJson('/api/admin/users?role=employee&search=internal.employee')
@@ -260,27 +247,24 @@ class AgencyUserManagementTest extends TestCase
             ->assertJsonValidationErrors(['per_page']);
 
         $this->getJson('/api/admin/users?role=agency_employee')
-            ->assertOk()
-            ->assertJsonFragment(['role' => Role::AgencyEmployee->value]);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['role']);
     }
 
-    public function test_admin_can_view_all_roles_but_only_manage_employees_and_agency_owners(): void
+    public function test_admin_can_view_all_roles_and_manage_every_employee_and_agency_owner(): void
     {
         $admin = User::factory()->create(['role' => Role::Admin]);
         $employee = User::factory()->create(['role' => Role::Employee]);
         $owner = User::factory()->create(['role' => Role::AgencyOwner]);
         $client = User::factory()->create(['role' => Role::AgencyClient]);
-        $agencyEmployee = User::factory()->create(['role' => Role::AgencyEmployee]);
-
         $this->actingAs($admin)
             ->getJson('/api/admin/users')
             ->assertOk()
-            ->assertJsonPath('pagination.total', 4)
+            ->assertJsonPath('pagination.total', 3)
             ->assertJsonMissing(['id' => $admin->id])
             ->assertJsonFragment(['id' => $employee->id, 'can_manage' => true])
             ->assertJsonFragment(['id' => $owner->id, 'can_manage' => true])
-            ->assertJsonFragment(['id' => $client->id, 'can_manage' => false])
-            ->assertJsonFragment(['id' => $agencyEmployee->id, 'can_manage' => false]);
+            ->assertJsonFragment(['id' => $client->id, 'can_manage' => false]);
 
         $this->patchJson('/api/admin/users/'.$employee->id, ['name' => 'Edited employee'])
             ->assertOk()
@@ -291,7 +275,6 @@ class AgencyUserManagementTest extends TestCase
         $this->patchJson('/api/admin/users/'.$client->id, ['name' => 'Not allowed'])
             ->assertNotFound();
         $this->deleteJson('/api/admin/users/'.$owner->id)->assertOk();
-        $this->deleteJson('/api/admin/users/'.$agencyEmployee->id)->assertNotFound();
     }
 
     public function test_agency_member_directory_is_limited_to_its_agency_and_profile_edit_is_self_only(): void
@@ -363,32 +346,20 @@ class AgencyUserManagementTest extends TestCase
                 ->assertJsonMissing(['id' => $user->id]);
         }
 
-        $employee = User::factory()->create([
-            'role' => Role::AgencyEmployee,
-            'agency_id' => $agency->id,
-        ]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
         $this->actingAs($employee)->getJson('/api/agency/directory')->assertForbidden();
     }
 
-    public function test_agency_client_can_view_only_agency_and_shared_employees_on_the_team_screen(): void
+    public function test_agency_owner_and_client_can_view_shared_employees_on_the_team_screen(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
-        $otherAgency = Agency::create(['name' => 'Other Agency']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $agencyEmployee = User::factory()->create([
-            'name' => 'Agency employee',
-            'role' => Role::AgencyEmployee,
-            'agency_id' => $agency->id,
-        ]);
         $sharedEmployee = User::factory()->create([
             'name' => 'Shared employee',
             'role' => Role::Employee,
             'agency_id' => null,
         ]);
-        $otherAgencyEmployee = User::factory()->create([
-            'role' => Role::AgencyEmployee,
-            'agency_id' => $otherAgency->id,
-        ]);
+        $anotherSharedEmployee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
         User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
 
@@ -396,17 +367,18 @@ class AgencyUserManagementTest extends TestCase
             ->getJson('/api/agency/team')
             ->assertOk()
             ->assertJsonCount(2, 'employees')
-            ->assertJsonFragment(['id' => $agencyEmployee->id, 'role' => Role::AgencyEmployee->value])
             ->assertJsonFragment(['id' => $sharedEmployee->id, 'role' => Role::Employee->value])
-            ->assertJsonMissing(['id' => $otherAgencyEmployee->id])
+            ->assertJsonFragment(['id' => $anotherSharedEmployee->id, 'role' => Role::Employee->value])
             ->assertJsonMissing(['id' => $owner->id]);
 
-        $this->actingAs($owner)->getJson('/api/agency/team')->assertForbidden();
-        $agencyEmployeeUser = User::factory()->create([
-            'role' => Role::AgencyEmployee,
-            'agency_id' => $agency->id,
-        ]);
-        $this->actingAs($agencyEmployeeUser)->getJson('/api/agency/team')->assertForbidden();
+        $this->actingAs($owner)
+            ->getJson('/api/agency/team')
+            ->assertOk()
+            ->assertJsonCount(2, 'employees')
+            ->assertJsonFragment(['id' => $sharedEmployee->id, 'role' => Role::Employee->value]);
+
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $this->actingAs($employee)->getJson('/api/agency/team')->assertForbidden();
     }
 
     public function test_all_authenticated_roles_can_update_only_their_own_profile(): void

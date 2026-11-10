@@ -1,8 +1,5 @@
 export { DashboardHome } from './pages/DashboardHome'
-export {
-  AgencyEmployeeWorkPage,
-  InternalEmployeeWorkPage,
-} from './pages/MyWorkPage'
+export { InternalEmployeeWorkPage } from './pages/MyWorkPage'
 export { PlaceholderPage } from './pages/PlaceholderPage'
 export { NotFoundPage, UnauthorizedPage } from './pages/StatusPages'
 export {

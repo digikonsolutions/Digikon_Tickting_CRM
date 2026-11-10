@@ -12,19 +12,12 @@ class WorkItemScheduler
 {
     private const DAILY_CAPACITY_UNITS = 600;
 
-    public function assignableEmployees(int $agencyId): Collection
+    public function assignableEmployees(): Collection
     {
         return User::query()
             ->where('is_active', true)
-            ->where(function ($query) use ($agencyId): void {
-                $query->where(function ($query) use ($agencyId): void {
-                    $query->where('role', Role::AgencyEmployee->value)
-                        ->where('agency_id', $agencyId);
-                })->orWhere(function ($query): void {
-                    $query->where('role', Role::Employee->value)
-                        ->whereNull('agency_id');
-                });
-            })
+            ->where('role', Role::Employee->value)
+            ->whereNull('agency_id')
             ->orderBy('name')
             ->get();
     }

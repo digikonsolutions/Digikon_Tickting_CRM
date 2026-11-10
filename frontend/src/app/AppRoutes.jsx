@@ -20,7 +20,6 @@ import {
 import {
   AdminDashboard,
   AgencyDashboard,
-  AgencyEmployeeWorkPage,
   InternalEmployeeWorkPage,
   MyTicketsPage,
   NotFoundPage,
@@ -74,7 +73,7 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.QA, ROLES.ADMIN]} />}>
             <Route path="/qa/queue" element={<QaQueuePage />} />
           </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_EMPLOYEE, ROLES.AGENCY_CLIENT]} />}>
+          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/dashboard" element={<AgencyDashboard />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
@@ -83,12 +82,11 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
           </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
+          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />
-            <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />
           </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_EMPLOYEE]} />}>
-            <Route path="/agency/my-work" element={<AgencyEmployeeWorkPage />} />
+          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
+            <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/directory" element={<AgencyDirectoryPage />} />

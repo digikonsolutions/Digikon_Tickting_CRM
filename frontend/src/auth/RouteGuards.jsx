@@ -51,15 +51,12 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
-    { to: '/agency/users', label: 'Employees & clients', icon: 'users' },
+    { to: '/agency/employees', label: 'Employees', icon: 'users' },
+    { to: '/agency/users', label: 'Agency accounts', icon: 'users' },
   ],
   [ROLES.AGENCY_MEMBER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
-  ],
-  [ROLES.AGENCY_EMPLOYEE]: [
-    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/agency/my-work', label: 'Assigned work', icon: 'ticket' },
   ],
   [ROLES.AGENCY_CLIENT]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -92,9 +89,8 @@ export function AppLayout() {
       '/agency/dashboard': 'Dashboard',
       '/agency/projects': 'Projects',
       '/agency/my-projects': 'My projects',
-      '/agency/my-work': 'Assigned work',
       '/agency/employees': 'Employees',
-      '/agency/users': 'Employees & clients',
+      '/agency/users': 'Agency accounts',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace')
 

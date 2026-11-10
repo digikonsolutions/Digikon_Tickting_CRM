@@ -18,7 +18,7 @@ class WorkItemSchedulingTest extends TestCase
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $anotherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
         $monday = now()->startOfWeek()->addWeek();
         $tuesday = $monday->copy()->addDay();
 
@@ -68,7 +68,7 @@ class WorkItemSchedulingTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
         $monday = now()->startOfWeek()->addWeek();
         $tuesday = $monday->copy()->addDay();
         $wednesday = $monday->copy()->addDays(2);
@@ -104,14 +104,12 @@ class WorkItemSchedulingTest extends TestCase
             ->assertJsonPath('project.schedule.2.hours', '2.00');
     }
 
-    public function test_clients_can_see_agency_and_shared_employees_but_cannot_assign_across_tenants(): void
+    public function test_clients_can_view_and_assign_admin_created_employees_across_agencies(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
-        $otherAgency = Agency::create(['name' => 'Other Agency']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $agencyEmployee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
         $sharedEmployee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
-        $otherEmployee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $otherAgency->id]);
+        $anotherEmployee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
         $monday = now()->startOfWeek()->addWeek();
 
         $this->actingAs($client)
@@ -119,18 +117,18 @@ class WorkItemSchedulingTest extends TestCase
                 .'&due_date='.$monday->toDateString().'&hours=1')
             ->assertOk()
             ->assertJsonCount(2, 'employees')
-            ->assertJsonFragment(['id' => $agencyEmployee->id, 'available' => true])
             ->assertJsonFragment(['id' => $sharedEmployee->id, 'available' => true])
-            ->assertJsonMissing(['id' => $otherEmployee->id]);
+            ->assertJsonFragment(['id' => $anotherEmployee->id, 'available' => true]);
 
         $this->postJson('/api/agency/projects', [
-            'title' => 'Wrong agency',
-            'description' => 'Should not be assigned across tenants.',
+            'title' => 'Shared employee assignment',
+            'description' => 'Admin-created employees can be assigned across agencies.',
             'estimated_hours' => 1,
             'start_date' => $monday->toDateString(),
             'due_date' => $monday->toDateString(),
-            'employee_id' => $otherEmployee->id,
-        ])->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+            'employee_id' => $anotherEmployee->id,
+        ])->assertCreated()
+            ->assertJsonPath('project.employee.id', $anotherEmployee->id);
     }
 
     public function test_assignment_rejects_daily_overbooking_but_allows_multiple_tasks_within_capacity(): void
@@ -139,7 +137,7 @@ class WorkItemSchedulingTest extends TestCase
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $anotherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
         $monday = now()->startOfWeek()->addWeek();
         $tuesday = $monday->copy()->addDay();
         $payload = [
@@ -195,7 +193,7 @@ class WorkItemSchedulingTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
         $saturday = now()->startOfWeek()->addWeek()->addDays(5);
         $monday = $saturday->copy()->addDays(2);
         $payload = [
@@ -225,7 +223,7 @@ class WorkItemSchedulingTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
-        $employee = User::factory()->create(['role' => Role::AgencyEmployee, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $admin = User::factory()->create(['role' => Role::Admin]);
         $monday = now()->startOfWeek()->addWeek();

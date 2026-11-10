@@ -32,7 +32,7 @@ class WorkItemController extends Controller
         $requestedUnits = (int) round((float) $filters['hours'] * 100);
 
         return response()->json([
-            'employees' => $scheduler->assignableEmployees($agency->id)
+            'employees' => $scheduler->assignableEmployees()
                 ->map(function (User $employee) use ($scheduler, $start, $due, $requestedUnits): array {
                     $plan = $scheduler->plan($employee, $start, $due, $requestedUnits);
 
@@ -81,7 +81,7 @@ class WorkItemController extends Controller
         $creator = $request->user();
         $agency = $this->activeAgency($creator);
         $data = $request->validated();
-        $employee = $this->findAssignableEmployee($scheduler, $agency->id, (int) $data['employee_id']);
+        $employee = $this->findAssignableEmployee($scheduler, (int) $data['employee_id']);
         $start = CarbonImmutable::parse($data['start_date']);
         $due = CarbonImmutable::parse($data['due_date']);
         $this->validateDateRange($start, $due);
@@ -89,7 +89,7 @@ class WorkItemController extends Controller
 
         $item = DB::transaction(function () use ($creator, $agency, $data, $employee, $start, $due, $requestedUnits, $scheduler): WorkItem {
             $lockedEmployee = User::query()->lockForUpdate()->findOrFail($employee->id);
-            $this->assertAssignableEmployee($lockedEmployee, $agency->id);
+            $this->assertAssignableEmployee($lockedEmployee);
             $plan = $scheduler->plan($lockedEmployee, $start, $due, $requestedUnits);
 
             if ($plan === null) {
@@ -200,9 +200,9 @@ class WorkItemController extends Controller
         return $user->agency;
     }
 
-    private function findAssignableEmployee(WorkItemScheduler $scheduler, int $agencyId, int $employeeId): User
+    private function findAssignableEmployee(WorkItemScheduler $scheduler, int $employeeId): User
     {
-        $employee = $scheduler->assignableEmployees($agencyId)->firstWhere('id', $employeeId);
+        $employee = $scheduler->assignableEmployees()->firstWhere('id', $employeeId);
         if (! $employee) {
             throw ValidationException::withMessages([
                 'employee_id' => 'Choose an active employee assigned to this agency or a shared employee.',
@@ -212,12 +212,11 @@ class WorkItemController extends Controller
         return $employee;
     }
 
-    private function assertAssignableEmployee(User $employee, int $agencyId): void
+    private function assertAssignableEmployee(User $employee): void
     {
-        $isAgencyEmployee = $employee->role === Role::AgencyEmployee && $employee->agency_id === $agencyId;
         $isSharedEmployee = $employee->role === Role::Employee && $employee->agency_id === null;
 
-        if (! $employee->is_active || (! $isAgencyEmployee && ! $isSharedEmployee)) {
+        if (! $employee->is_active || ! $isSharedEmployee) {
             throw ValidationException::withMessages([
                 'employee_id' => 'Choose an active employee assigned to this agency or a shared employee.',
             ]);

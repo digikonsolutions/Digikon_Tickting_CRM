@@ -10,7 +10,6 @@ enum Role: string
     case Qa = 'qa';
     case AgencyOwner = 'agency_owner';
     case AgencyMember = 'agency_member';
-    case AgencyEmployee = 'agency_employee';
     case AgencyClient = 'agency_client';
 
     public function isInternal(): bool
@@ -23,7 +22,6 @@ enum Role: string
         return in_array($this, [
             self::AgencyOwner,
             self::AgencyMember,
-            self::AgencyEmployee,
             self::AgencyClient,
         ], true);
     }

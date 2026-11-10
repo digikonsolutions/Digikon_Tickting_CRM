@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '../../../auth/useAuth'
-import { ROLES } from '../../../auth/roles'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, PageHeader, Table } from '../../../components/ui'
 import { TicketDetailModal } from '../components'
 
 export function MyWorkPage() {
-  const { user } = useAuth()
-  const isAgencyEmployee = user.role === ROLES.AGENCY_EMPLOYEE
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -87,15 +83,13 @@ export function MyWorkPage() {
   return (
     <section className="page">
       <PageHeader
-        eyebrow={isAgencyEmployee ? 'Agency employee' : 'Employee'}
-        title={isAgencyEmployee ? 'Agency assignments' : 'My assignments'}
-        subtitle={isAgencyEmployee
-          ? 'Projects assigned to you by your agency owner or its clients. Update progress as you work.'
-          : 'Projects assigned to you across agencies. Update progress as you work.'}
+        eyebrow="Employee"
+        title="My assignments"
+        subtitle="Projects assigned to you across agencies. Update progress as you work."
       />
       <ApiErrorMessage error={error} />
       {error && <Button type="button" variant="secondary" onClick={() => { setError(null); loadProjects() }}>Try again</Button>}
-      <Card title={isAgencyEmployee ? 'My agency work' : 'My work'}>
+      <Card title="My work">
         <Table columns={columns} rows={projects} loading={isLoading} emptyTitle="No assignments" emptyText="Projects assigned to you will appear here." />
       </Card>
       <TicketDetailModal ticket={selectedProject} onClose={() => setSelectedProject(null)} />
@@ -104,9 +98,5 @@ export function MyWorkPage() {
 }
 
 export function InternalEmployeeWorkPage() {
-  return <MyWorkPage />
-}
-
-export function AgencyEmployeeWorkPage() {
   return <MyWorkPage />
 }

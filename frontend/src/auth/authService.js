@@ -161,10 +161,6 @@ export const authService = {
       }),
     })
   },
-  async listAgencies() {
-    if (AUTH_MODE === 'mock') return { agencies: [] }
-    return request('/admin/agencies')
-  },
   async listAgencyUsers() {
     if (AUTH_MODE === 'mock') return { users: [] }
     return request('/agency/users')
@@ -173,7 +169,7 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { users: [] }
     return request('/agency/directory')
   },
-  async listAgencyEmployeeDirectory() {
+  async listAgencyTeam() {
     if (AUTH_MODE === 'mock') return { employees: [] }
     return request('/agency/team')
   },

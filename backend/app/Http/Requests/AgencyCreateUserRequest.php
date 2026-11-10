@@ -27,7 +27,7 @@ class AgencyCreateUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:254', 'unique:users,email'],
-            'role' => ['required', Rule::in([Role::AgencyEmployee->value, Role::AgencyClient->value])],
+            'role' => ['required', Rule::in([Role::AgencyClient->value])],
         ];
     }
 }
