@@ -48,4 +48,9 @@ class WorkItem extends Model
     {
         return $this->hasMany(WorkItemAllocation::class);
     }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
 }

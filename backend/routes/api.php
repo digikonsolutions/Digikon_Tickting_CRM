@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AgencyUserController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WorkItemController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,18 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::post('/projects', [WorkItemController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'throttle:project-create']);
+    Route::patch('/projects/{workItem}/cancel', [WorkItemController::class, 'cancel'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::post('/projects/{workItem}/tickets', [TicketController::class, 'store'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::get('/projects/{workItem}/tickets', [TicketController::class, 'index'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::patch('/projects/{workItem}/tickets/reorder', [TicketController::class, 'reorder'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::patch('/tickets/{ticket}', [TicketController::class, 'update'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
 });
 
 Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
@@ -48,9 +61,18 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
+    Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);
+});
+
+Route::middleware('web')->group(function () {
+    Route::post('/tickets/{ticket}/comments', [TicketController::class, 'comment'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::patch('/tickets/{ticket}/status', [TicketController::class, 'updateStatus'])
+        ->middleware(['auth', 'role:employee']);
 });
 
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
     Route::patch('/work-items/{workItem}/status', [WorkItemController::class, 'updateStatus']);
+    Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
 });

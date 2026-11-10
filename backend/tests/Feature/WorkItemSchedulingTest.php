@@ -6,14 +6,17 @@ use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Services\WorkItemScheduler;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class WorkItemSchedulingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_client_can_create_projects_and_scheduler_spreads_hours_across_workdays(): void
+    public function test_client_can_create_projects_and_scheduler_allocates_earliest_first(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
@@ -35,9 +38,9 @@ class WorkItemSchedulingTest extends TestCase
             ->assertJsonPath('project.status', 'scheduled')
             ->assertJsonPath('project.estimated_hours', '9.00')
             ->assertJsonPath('project.schedule.0.work_date', $monday->toDateString())
-            ->assertJsonPath('project.schedule.0.hours', '4.50')
+            ->assertJsonPath('project.schedule.0.hours', '6.00')
             ->assertJsonPath('project.schedule.1.work_date', $tuesday->toDateString())
-            ->assertJsonPath('project.schedule.1.hours', '4.50');
+            ->assertJsonPath('project.schedule.1.hours', '3.00');
 
         $this->actingAs($client)->getJson('/api/agency/projects')
             ->assertOk()
@@ -64,7 +67,7 @@ class WorkItemSchedulingTest extends TestCase
             ->assertJsonCount(2, 'projects');
     }
 
-    public function test_schedule_balances_project_hours_across_days_and_accounts_for_same_clients_existing_work(): void
+    public function test_schedule_allocates_earliest_first_and_accounts_for_existing_work(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
@@ -85,23 +88,17 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 12,
         ])->assertCreated()
             ->assertJsonPath('project.schedule.0.work_date', $monday->toDateString())
-            ->assertJsonPath('project.schedule.0.hours', '4.00')
+            ->assertJsonPath('project.schedule.0.hours', '6.00')
             ->assertJsonPath('project.schedule.1.work_date', $tuesday->toDateString())
-            ->assertJsonPath('project.schedule.1.hours', '4.00')
-            ->assertJsonPath('project.schedule.2.work_date', $wednesday->toDateString())
-            ->assertJsonPath('project.schedule.2.hours', '4.00');
+            ->assertJsonPath('project.schedule.1.hours', '6.00');
 
         $this->postJson('/api/agency/projects', [
             ...$payload,
             'title' => 'Second project',
             'estimated_hours' => 6,
         ])->assertCreated()
-            ->assertJsonPath('project.schedule.0.work_date', $monday->toDateString())
-            ->assertJsonPath('project.schedule.0.hours', '2.00')
-            ->assertJsonPath('project.schedule.1.work_date', $tuesday->toDateString())
-            ->assertJsonPath('project.schedule.1.hours', '2.00')
-            ->assertJsonPath('project.schedule.2.work_date', $wednesday->toDateString())
-            ->assertJsonPath('project.schedule.2.hours', '2.00');
+            ->assertJsonPath('project.schedule.0.work_date', $wednesday->toDateString())
+            ->assertJsonPath('project.schedule.0.hours', '6.00');
     }
 
     public function test_clients_can_view_and_assign_admin_created_employees_across_agencies(): void
@@ -189,7 +186,196 @@ class WorkItemSchedulingTest extends TestCase
         $this->assertSame(3, WorkItem::query()->count());
     }
 
-    public function test_scheduler_skips_sunday_and_checks_capacity_after_balancing_work_days(): void
+    public function test_clients_in_different_agencies_compete_for_shared_employee_capacity(): void
+    {
+        $firstAgency = Agency::create(['name' => 'First agency']);
+        $secondAgency = Agency::create(['name' => 'Second agency']);
+        $firstClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $firstAgency->id]);
+        $secondClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $secondAgency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
+        $monday = now()->startOfWeek()->addWeek();
+        $payload = [
+            'title' => 'Shared capacity',
+            'description' => 'The employee is shared across agencies.',
+            'start_date' => $monday->toDateString(),
+            'due_date' => $monday->toDateString(),
+            'employee_id' => $employee->id,
+        ];
+
+        $this->actingAs($firstClient)->postJson('/api/agency/projects', [
+            ...$payload,
+            'estimated_hours' => 6,
+        ])->assertCreated();
+
+        $this->actingAs($secondClient)->postJson('/api/agency/projects', [
+            ...$payload,
+            'title' => 'Competing project',
+            'estimated_hours' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['employee_id']);
+
+        $this->assertSame(1, WorkItem::query()->count());
+    }
+
+    public function test_cancelled_project_releases_future_capacity(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $otherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $monday = now()->startOfWeek()->addWeek();
+        $payload = [
+            'title' => 'Original project',
+            'description' => 'This project will be cancelled.',
+            'estimated_hours' => 6,
+            'start_date' => $monday->toDateString(),
+            'due_date' => $monday->toDateString(),
+            'employee_id' => $employee->id,
+        ];
+
+        $response = $this->actingAs($client)->postJson('/api/agency/projects', $payload)->assertCreated();
+        $workItemId = $response->json('project.id');
+        $workItem = WorkItem::findOrFail($workItemId);
+        $workItem->allocations()->create([
+            'employee_id' => $employee->id,
+            'work_date' => now()->subDay()->toDateString(),
+            'hours' => 1,
+        ]);
+        $workItem->allocations()->create([
+            'employee_id' => $employee->id,
+            'work_date' => now()->toDateString(),
+            'hours' => 1,
+        ]);
+
+        $this->actingAs($otherClient)
+            ->patchJson('/api/agency/projects/'.$workItemId.'/cancel')
+            ->assertNotFound();
+
+        $this->actingAs($owner)
+            ->patchJson('/api/agency/projects/'.$workItemId.'/cancel')
+            ->assertOk()
+            ->assertJsonPath('project.status', 'cancelled')
+            ->assertJsonCount(1, 'project.schedule');
+
+        $this->assertDatabaseMissing('work_item_allocations', [
+            'work_item_id' => $workItemId,
+            'work_date' => $monday->toDateString(),
+        ]);
+        $this->assertDatabaseMissing('work_item_allocations', [
+            'work_item_id' => $workItemId,
+            'work_date' => now()->toDateString(),
+        ]);
+        $this->assertTrue(DB::table('work_item_allocations')
+            ->where('work_item_id', $workItemId)
+            ->whereDate('work_date', now()->subDay()->toDateString())
+            ->exists());
+        $this->patchJson('/api/agency/projects/'.$workItemId.'/cancel')->assertUnprocessable();
+
+        $completed = WorkItem::create([
+            'agency_id' => $agency->id,
+            'client_id' => $client->id,
+            'employee_id' => $employee->id,
+            'title' => 'Completed project',
+            'description' => 'Completed projects cannot be cancelled.',
+            'estimated_hours' => 1,
+            'start_date' => $monday->toDateString(),
+            'due_date' => $monday->toDateString(),
+            'status' => 'completed',
+        ]);
+        $this->patchJson('/api/agency/projects/'.$completed->id.'/cancel')->assertUnprocessable();
+
+        $this->actingAs($client)->postJson('/api/agency/projects', [
+            ...$payload,
+            'title' => 'Replacement project',
+        ])->assertCreated();
+    }
+
+    public function test_seventy_hour_project_never_exceeds_thirty_six_hours_in_a_monday_to_saturday_week(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $monday = now()->startOfWeek()->addWeek();
+        $due = $monday->copy()->addDays(20);
+
+        $this->actingAs($client)->postJson('/api/agency/projects', [
+            'title' => 'Long project',
+            'description' => 'Spread across a three-week date range.',
+            'estimated_hours' => 70,
+            'start_date' => $monday->toDateString(),
+            'due_date' => $due->toDateString(),
+            'employee_id' => $employee->id,
+        ])->assertCreated();
+
+        $allocations = DB::table('work_item_allocations')
+            ->where('employee_id', $employee->id)
+            ->get()
+            ->groupBy(fn ($allocation): string => CarbonImmutable::parse($allocation->work_date)->startOfWeek()->toDateString());
+
+        $this->assertSame(70.0, round((float) DB::table('work_item_allocations')->sum('hours'), 2));
+        foreach (range(0, 2) as $weekOffset) {
+            $weekStart = $monday->copy()->addWeeks($weekOffset)->toDateString();
+            $this->assertLessThanOrEqual(36.0, (float) ($allocations->get($weekStart)?->sum('hours') ?? 0));
+        }
+    }
+
+    public function test_non_working_dates_and_today_cutoff_are_excluded_from_capacity(): void
+    {
+        config([
+            'app.timezone' => 'Asia/Karachi',
+            'scheduling.non_working_dates' => ['2026-11-11'],
+            'scheduling.today_cutoff_hour' => 12,
+        ]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $today = CarbonImmutable::parse('2026-11-10', 'Asia/Karachi');
+        $scheduler = app(WorkItemScheduler::class);
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-10 11:59:00', 'Asia/Karachi'));
+        $this->assertSame(
+            [['work_date' => '2026-11-10', 'units' => 100]],
+            $scheduler->plan($employee, $today, $today, 100)
+        );
+        $this->assertSame(600, $scheduler->availableUnits($employee, $today, $today));
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-10 12:00:00', 'Asia/Karachi'));
+        $this->assertNull($scheduler->plan($employee, $today, $today, 100));
+        $this->assertSame(0, $scheduler->availableUnits($employee, $today, $today));
+
+        $holiday = $today->addDay();
+        $this->assertNull($scheduler->plan($employee, $holiday, $holiday, 100));
+        $this->assertSame(0, $scheduler->availableUnits($employee, $holiday, $holiday));
+    }
+
+    public function test_client_is_limited_to_three_open_projects_and_configured_project_hours(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $monday = now()->startOfWeek()->addWeek();
+        $payload = [
+            'title' => 'Open project',
+            'description' => 'Open projects are capped for each client.',
+            'estimated_hours' => 1,
+            'start_date' => $monday->toDateString(),
+            'due_date' => $monday->copy()->addDays(2)->toDateString(),
+            'employee_id' => $employee->id,
+        ];
+
+        $this->actingAs($client);
+        foreach (range(1, 3) as $number) {
+            $this->postJson('/api/agency/projects', [...$payload, 'title' => 'Project '.$number])->assertCreated();
+        }
+
+        $this->postJson('/api/agency/projects', [...$payload, 'title' => 'Fourth project'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['projects']);
+
+        $this->postJson('/api/agency/projects', [...$payload, 'estimated_hours' => 180.01])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['estimated_hours']);
+    }
+
+    public function test_scheduler_skips_sunday_and_checks_capacity_after_earliest_first_allocation(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
@@ -208,15 +394,15 @@ class WorkItemSchedulingTest extends TestCase
         $this->actingAs($owner)->postJson('/api/agency/projects', $payload)
             ->assertCreated()
             ->assertJsonPath('project.schedule.0.work_date', $saturday->toDateString())
-            ->assertJsonPath('project.schedule.0.hours', '3.50')
+            ->assertJsonPath('project.schedule.0.hours', '6.00')
             ->assertJsonPath('project.schedule.1.work_date', $monday->toDateString())
-            ->assertJsonPath('project.schedule.1.hours', '3.50');
+            ->assertJsonPath('project.schedule.1.hours', '1.00');
 
         $this->getJson('/api/agency/employees?start_date='.$saturday->toDateString()
             .'&due_date='.$saturday->toDateString().'&hours=2.51')
             ->assertOk()
             ->assertJsonPath('employees.0.available', false)
-            ->assertJsonPath('employees.0.available_hours', '2.50');
+            ->assertJsonPath('employees.0.available_hours', '0.00');
     }
 
     public function test_owner_can_see_agency_projects_admin_can_view_all_and_employees_can_update_assigned_status(): void
@@ -257,6 +443,9 @@ class WorkItemSchedulingTest extends TestCase
         $this->actingAs($employee)->getJson('/api/work-items/mine')
             ->assertOk()
             ->assertJsonCount(1, 'projects');
+        $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'completed'])
+            ->assertUnprocessable();
+        $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'scheduled']);
         $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'in_progress'])
             ->assertOk()
             ->assertJsonPath('project.status', 'in_progress');

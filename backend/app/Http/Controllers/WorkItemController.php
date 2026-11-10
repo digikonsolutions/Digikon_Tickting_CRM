@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
+use App\Services\TicketPlanner;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -24,10 +25,10 @@ class WorkItemController extends Controller
         $filters = $request->validate([
             'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-            'hours' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:1890'],
+            'hours' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:'.config('scheduling.max_project_hours', 180)],
         ]);
-        $start = CarbonImmutable::parse($filters['start_date']);
-        $due = CarbonImmutable::parse($filters['due_date']);
+        $start = CarbonImmutable::parse($filters['start_date'], config('app.timezone'));
+        $due = CarbonImmutable::parse($filters['due_date'], config('app.timezone'));
         $this->validateDateRange($start, $due);
         $requestedUnits = (int) round((float) $filters['hours'] * 100);
 
@@ -82,12 +83,26 @@ class WorkItemController extends Controller
         $agency = $this->activeAgency($creator);
         $data = $request->validated();
         $employee = $this->findAssignableEmployee($scheduler, (int) $data['employee_id']);
-        $start = CarbonImmutable::parse($data['start_date']);
-        $due = CarbonImmutable::parse($data['due_date']);
+        $start = CarbonImmutable::parse($data['start_date'], config('app.timezone'));
+        $due = CarbonImmutable::parse($data['due_date'], config('app.timezone'));
         $this->validateDateRange($start, $due);
         $requestedUnits = (int) round((float) $data['estimated_hours'] * 100);
 
         $item = DB::transaction(function () use ($creator, $agency, $data, $employee, $start, $due, $requestedUnits, $scheduler): WorkItem {
+            User::query()->lockForUpdate()->findOrFail($creator->id);
+
+            if (
+                $creator->role === Role::AgencyClient
+                && WorkItem::query()
+                    ->where('client_id', $creator->id)
+                    ->whereIn('status', ['scheduled', 'in_progress'])
+                    ->count() >= (int) config('scheduling.max_open_projects_per_client', 3)
+            ) {
+                throw ValidationException::withMessages([
+                    'projects' => 'You cannot have more than '.config('scheduling.max_open_projects_per_client', 3).' open projects.',
+                ]);
+            }
+
             $lockedEmployee = User::query()->lockForUpdate()->findOrFail($employee->id);
             $this->assertAssignableEmployee($lockedEmployee);
             $plan = $scheduler->plan($lockedEmployee, $start, $due, $requestedUnits);
@@ -125,6 +140,38 @@ class WorkItemController extends Controller
         return response()->json([
             'project' => $this->payload($item->load(['agency', 'client', 'employee', 'allocations'])),
         ], 201);
+    }
+
+    public function cancel(Request $request, WorkItem $workItem, TicketPlanner $ticketPlanner): JsonResponse
+    {
+        $user = $request->user();
+        $agency = $this->activeAgency($user);
+
+        abort_unless(
+            $workItem->agency_id === $agency->id
+                && ($user->role === Role::AgencyOwner || $workItem->client_id === $user->id),
+            404
+        );
+
+        abort_unless(
+            ! in_array($workItem->status, ['completed', 'cancelled'], true),
+            422,
+            'Completed or cancelled projects cannot be cancelled.'
+        );
+
+        DB::transaction(function () use ($workItem, $ticketPlanner): void {
+            $workItem->update(['status' => 'cancelled']);
+            DB::table('work_item_allocations')
+                ->where('work_item_id', $workItem->id)
+                ->whereDate('work_date', '>=', now(config('app.timezone'))->toDateString())
+                ->delete();
+            $workItem->tickets()->update(['status' => 'cancelled']);
+            $ticketPlanner->plan($workItem);
+        });
+
+        return response()->json([
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'allocations'])),
+        ]);
     }
 
     public function adminIndex(Request $request): JsonResponse
@@ -183,6 +230,13 @@ class WorkItemController extends Controller
         $data = $request->validate([
             'status' => ['required', 'in:in_progress,completed'],
         ]);
+        abort_unless(
+            ($workItem->status === 'scheduled' && $data['status'] === 'in_progress')
+                || ($workItem->status === 'in_progress' && $data['status'] === 'completed'),
+            422,
+            'Work must move from scheduled to in-progress before it can be completed.'
+        );
+
         $workItem->update(['status' => $data['status']]);
 
         return response()->json([
