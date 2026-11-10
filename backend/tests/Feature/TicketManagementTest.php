@@ -148,6 +148,44 @@ class TicketManagementTest extends TestCase
         $this->assertDatabaseMissing('ticket_allocations', ['ticket_id' => $second['id']]);
     }
 
+    public function test_project_cancel_preserves_done_tickets_and_past_ticket_allocations(): void
+    {
+        [$agency, $owner, $client, $employee, $project] = $this->projectFixture(8);
+        $doneTicket = $this->actingAs($client)
+            ->postJson($this->projectTicketsUrl($project), $this->ticketData(2, 'Done ticket'))
+            ->assertCreated()
+            ->json('ticket');
+        $openTicket = $this->postJson($this->projectTicketsUrl($project), $this->ticketData(2, 'Open ticket'))
+            ->assertCreated()
+            ->json('ticket');
+
+        $pastDate = now(config('app.timezone'))->subDay()->toDateString();
+        DB::table('tickets')->where('id', $doneTicket['id'])->update(['status' => 'done']);
+        DB::table('ticket_allocations')->where('ticket_id', $doneTicket['id'])->update(['work_date' => $pastDate]);
+        DB::table('ticket_allocations')->insert([
+            'ticket_id' => $openTicket['id'],
+            'work_date' => $pastDate,
+            'hours' => '1.00',
+        ]);
+
+        $this->patchJson('/api/agency/projects/'.$project->id.'/cancel')->assertOk();
+
+        $this->assertDatabaseHas('tickets', ['id' => $doneTicket['id'], 'status' => 'done']);
+        $this->assertDatabaseHas('ticket_allocations', [
+            'ticket_id' => $doneTicket['id'],
+            'work_date' => $pastDate,
+        ]);
+        $this->assertDatabaseHas('tickets', ['id' => $openTicket['id'], 'status' => 'cancelled']);
+        $this->assertDatabaseHas('ticket_allocations', [
+            'ticket_id' => $openTicket['id'],
+            'work_date' => $pastDate,
+        ]);
+        $this->assertDatabaseMissing('ticket_allocations', [
+            'ticket_id' => $openTicket['id'],
+            'work_date' => $project->start_date->toDateString(),
+        ]);
+    }
+
     public function test_agency_client_can_cancel_another_client_project_but_not_a_project_in_another_agency(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture();

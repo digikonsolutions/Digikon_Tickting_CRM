@@ -145,15 +145,19 @@ class WorkItemController extends Controller
 
         DB::transaction(function () use ($workItem): void {
             $workItem->update(['status' => 'cancelled']);
+            $today = now(config('app.timezone'))->toDateString();
             DB::table('work_item_allocations')
                 ->where('work_item_id', $workItem->id)
-                ->whereDate('work_date', '>=', now(config('app.timezone'))->toDateString())
+                ->whereDate('work_date', '>=', $today)
                 ->delete();
-            $ticketIds = $workItem->tickets()->pluck('id');
+
+            $openTickets = $workItem->tickets()->whereNotIn('status', ['done', 'cancelled']);
+            $ticketIds = (clone $openTickets)->pluck('id');
             DB::table('ticket_allocations')
                 ->whereIn('ticket_id', $ticketIds)
+                ->whereDate('work_date', '>=', $today)
                 ->delete();
-            $workItem->tickets()->update(['status' => 'cancelled']);
+            $openTickets->update(['status' => 'cancelled']);
         });
 
         return response()->json([
