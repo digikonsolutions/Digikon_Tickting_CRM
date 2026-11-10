@@ -1,21 +1,67 @@
 import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
-import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, PageHeader, Textarea } from '../../../components/ui'
+import {
+  Alert, Badge, Button, Card, CapacityBar, Drawer, EmptyState,
+  KpiCard, PageHeader, Skeleton, Tabs, Textarea,
+} from '../../../components/ui'
+
+/* ── helpers ─────────────────────────────────────────────────── */
 
 function nextAction(status) {
   if (status === 'todo') return ['in_progress', 'Start']
   if (status === 'in_progress') return ['in_review', 'Send to review']
-  if (status === 'in_review') return ['done', 'Done']
+  if (status === 'in_review') return ['done', 'Mark done']
   return null
 }
+
+const PRIORITY_DOT = { urgent: '#dc2626', high: '#f59e0b', normal: '#0d9488', low: '#94a3b8' }
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function localToday() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function mondayOfWeek(dateStr) {
+  const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date()
+  const dayOfWeek = d.getDay() || 7
+  d.setDate(d.getDate() - dayOfWeek + 1)
+  return d
+}
+
+function weekDates() {
+  const mon = mondayOfWeek()
+  return Array.from({ length: 6 }, (_, i) => {
+    const day = new Date(mon)
+    day.setDate(mon.getDate() + i)
+    const y = day.getFullYear()
+    const m = String(day.getMonth() + 1).padStart(2, '0')
+    const dd = String(day.getDate()).padStart(2, '0')
+    return { date: `${y}-${m}-${dd}`, label: WEEKDAY_LABELS[i], dayNum: dd }
+  })
+}
+
+function formatDateShort(dateStr) {
+  if (!dateStr) return ''
+  const [, m, d] = dateStr.split('-')
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[Number(m) - 1]} ${Number(d)}`
+}
+
+/* ── component ───────────────────────────────────────────────── */
 
 export function MyWorkPage() {
   const [actionError, setActionError] = useState(null)
   const [busyTicket, setBusyTicket] = useState(null)
   const [comments, setComments] = useState({})
   const [commentMessages, setCommentMessages] = useState({})
+  const [activeTab, setActiveTab] = useState('today')
+  const [drawerTicket, setDrawerTicket] = useState(null)
+
   const loadData = useCallback(async () => {
     const [projects, tickets] = await Promise.all([
       authService.listMyWork(),
@@ -23,9 +69,30 @@ export function MyWorkPage() {
     ])
     return { projects: projects.projects, tickets: tickets.tickets }
   }, [])
+
   const { data, error, isLoading, reload } = useAsync(loadData)
   const projects = data?.projects ?? []
   const tickets = data?.tickets ?? []
+
+  /* ── derived data ──────────────────────────────────────────── */
+  const today = localToday()
+  const week = weekDates()
+  const weekDateSet = new Set(week.map((d) => d.date))
+
+  const statusCounts = { todo: 0, in_progress: 0, in_review: 0, done: 0 }
+  let weekHours = 0
+
+  for (const t of tickets) {
+    if (statusCounts[t.status] !== undefined) statusCounts[t.status]++
+    for (const s of t.schedule ?? []) {
+      if (weekDateSet.has(s.work_date)) weekHours += Number(s.hours) || 0
+    }
+  }
+
+  const todayTickets = tickets.filter((t) =>
+    (t.schedule ?? []).some((s) => s.work_date === today),
+  )
+
   const ticketsByProject = tickets.reduce((groups, ticket) => {
     const key = String(ticket.work_item_id)
     groups[key] ??= []
@@ -33,11 +100,13 @@ export function MyWorkPage() {
     return groups
   }, {})
 
+  /* ── actions ───────────────────────────────────────────────── */
   async function changeStatus(ticket, status) {
     setBusyTicket(ticket.id)
     setActionError(null)
     try {
       await authService.updateTicketStatus(ticket.id, status)
+      if (drawerTicket?.id === ticket.id) setDrawerTicket(null)
       await reload()
     } catch (reason) {
       setActionError(reason)
@@ -63,74 +132,316 @@ export function MyWorkPage() {
     }
   }
 
+  /* ── sub-views ─────────────────────────────────────────────── */
+  function renderTicketCard(ticket, project) {
+    const action = nextAction(ticket.status)
+    const canAct = project && project.status !== 'cancelled' && project.status !== 'completed'
+    return (
+      <article
+        className="mw-ticket-card"
+        key={ticket.id}
+        onClick={() => setDrawerTicket(ticket)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && setDrawerTicket(ticket)}
+      >
+        <div className="mw-ticket-left">
+          <div className="mw-ticket-title-row">
+            <span
+              className="mw-priority-dot"
+              style={{ background: PRIORITY_DOT[ticket.priority] || PRIORITY_DOT.normal }}
+              title={ticket.priority}
+              aria-label={`Priority: ${ticket.priority}`}
+            />
+            <h3 className="mw-ticket-title">{ticket.title}</h3>
+          </div>
+          {ticket.description && ticket.description !== ticket.title && (
+            <p className="mw-ticket-desc">{ticket.description}</p>
+          )}
+          <div className="mw-ticket-meta">
+            <span>{formatDateShort(ticket.start_date)}{ticket.due_date ? ` – ${formatDateShort(ticket.due_date)}` : ''}</span>
+            <span>{ticket.estimated_hours} h</span>
+            <Badge status={ticket.status} />
+            <Badge status={ticket.priority} />
+          </div>
+        </div>
+        <div className="mw-ticket-actions" onClick={(e) => e.stopPropagation()}>
+          {action && canAct && (
+            <Button
+              type="button"
+              size="sm"
+              loading={busyTicket === ticket.id}
+              onClick={() => changeStatus(ticket, action[0])}
+            >
+              {action[1]}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDrawerTicket(ticket)}
+          >
+            Comment
+          </Button>
+        </div>
+      </article>
+    )
+  }
+
+  function renderToday() {
+    if (!todayTickets.length) {
+      return (
+        <EmptyState
+          title="Nothing scheduled today"
+          action={<Button variant="secondary" onClick={() => setActiveTab('all')}>View all tickets</Button>}
+        >
+          Your schedule is clear for today.
+        </EmptyState>
+      )
+    }
+    return (
+      <div className="mw-ticket-list">
+        {todayTickets.map((t) => {
+          const proj = projects.find((p) => p.id === t.work_item_id)
+          return renderTicketCard(t, proj)
+        })}
+      </div>
+    )
+  }
+
+  function renderWeek() {
+    return (
+      <div className="mw-week-grid">
+        {week.map((day) => {
+          const dayTickets = tickets.filter((t) =>
+            (t.schedule ?? []).some((s) => s.work_date === day.date),
+          )
+          const dayHours = dayTickets.reduce((sum, t) => {
+            const alloc = (t.schedule ?? []).find((s) => s.work_date === day.date)
+            return sum + (Number(alloc?.hours) || 0)
+          }, 0)
+          const isToday = day.date === today
+
+          return (
+            <div className={`mw-week-col${isToday ? ' is-today' : ''}`} key={day.date}>
+              <div className="mw-week-col-header">
+                <span className="mw-week-day-label">{day.label}</span>
+                <span className="mw-week-day-num">{day.dayNum}</span>
+              </div>
+              <CapacityBar used={dayHours} budget={6} showRemaining={false} />
+              <div className="mw-week-blocks">
+                {dayTickets.length ? dayTickets.map((t) => {
+                  const alloc = (t.schedule ?? []).find((s) => s.work_date === day.date)
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className="mw-week-block"
+                      onClick={() => setDrawerTicket(t)}
+                    >
+                      <span className="mw-week-block-title">{t.title}</span>
+                      <span className="mw-week-block-hours">{alloc?.hours ?? 0} h</span>
+                    </button>
+                  )
+                }) : <span className="mw-week-empty">—</span>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  function renderAllTickets() {
+    if (!projects.length) {
+      return (
+        <EmptyState title="No projects yet">
+          Projects assigned to you will appear here.
+        </EmptyState>
+      )
+    }
+    return projects.map((project) => {
+      const projectTickets = ticketsByProject[String(project.id)] ?? []
+      return (
+        <Card
+          key={project.id}
+          header={
+            <div className="mw-project-header">
+              <div>
+                <h2 className="mw-project-title">{project.title}</h2>
+                <p className="mw-project-meta">
+                  {project.agency_name ?? 'Agency'} · {formatDateShort(project.start_date)} – {formatDateShort(project.due_date)}
+                </p>
+              </div>
+              <Badge status={project.status} />
+            </div>
+          }
+          className="mw-project-card"
+        >
+          {projectTickets.length ? (
+            <div className="mw-ticket-list">
+              {projectTickets.map((ticket) => renderTicketCard(ticket, project))}
+            </div>
+          ) : (
+            <p className="mw-no-tickets">No tickets for this project.</p>
+          )}
+        </Card>
+      )
+    })
+  }
+
+  /* ── drawer ────────────────────────────────────────────────── */
+  function renderDrawer() {
+    if (!drawerTicket) return null
+    const t = drawerTicket
+    const proj = projects.find((p) => p.id === t.work_item_id)
+    const action = nextAction(t.status)
+    const canAct = proj && proj.status !== 'cancelled' && proj.status !== 'completed'
+
+    return (
+      <Drawer
+        open
+        onClose={() => setDrawerTicket(null)}
+        title={t.title}
+        description={proj ? `${proj.title} · ${proj.agency_name ?? 'Agency'}` : undefined}
+      >
+        <div className="mw-drawer-badges">
+          <Badge status={t.status} />
+          <Badge status={t.priority} />
+        </div>
+
+        {t.description && (
+          <div className="mw-drawer-section">
+            <h4>Description</h4>
+            <p>{t.description}</p>
+          </div>
+        )}
+
+        <div className="mw-drawer-section">
+          <h4>Schedule</h4>
+          {(t.schedule ?? []).length ? (
+            <div className="mw-drawer-schedule">
+              {(t.schedule ?? []).map((s) => (
+                <div key={s.work_date} className="mw-drawer-schedule-row">
+                  <span>{formatDateShort(s.work_date)}</span>
+                  <span>{s.hours} h</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mw-drawer-empty">No schedule allocated.</p>
+          )}
+        </div>
+
+        <div className="mw-drawer-section">
+          <h4>Meta</h4>
+          <p>{formatDateShort(t.start_date)}{t.due_date ? ` – ${formatDateShort(t.due_date)}` : ''} · {t.estimated_hours} h estimated</p>
+        </div>
+
+        {action && canAct && (
+          <Button
+            type="button"
+            loading={busyTicket === t.id}
+            onClick={() => changeStatus(t, action[0])}
+          >
+            {action[1]}
+          </Button>
+        )}
+
+        {t.status !== 'cancelled' && (
+          <form className="mw-drawer-comment" onSubmit={(e) => addComment(e, t)}>
+            <Textarea
+              label="Add a comment"
+              rows="3"
+              value={comments[t.id] ?? ''}
+              onChange={(e) => setComments((c) => ({ ...c, [t.id]: e.target.value }))}
+              maxLength="10000"
+            />
+            {commentMessages[t.id] && (
+              <Alert variant="success">{commentMessages[t.id]}</Alert>
+            )}
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={!(comments[t.id] ?? '').trim()}
+              loading={busyTicket === t.id}
+            >
+              Post comment
+            </Button>
+          </form>
+        )}
+      </Drawer>
+    )
+  }
+
+  /* ── main render ───────────────────────────────────────────── */
+  const tabItems = [
+    { id: 'today', label: 'Today', count: todayTickets.length },
+    { id: 'week', label: 'This week' },
+    { id: 'all', label: 'All tickets', count: tickets.length },
+  ]
+
   return (
-    <section className="page employee-work-page">
-      <PageHeader eyebrow="Employee" title="My work" subtitle="Tickets assigned to you across projects. Update each ticket as you work." />
-      <ApiErrorMessage error={actionError ?? error} />
-      {(actionError || error) && <Button type="button" variant="secondary" onClick={() => { setActionError(null); reload() }}>Try again</Button>}
-      {isLoading
-        ? <p role="status">Loading your work…</p>
-        : projects.length
-          ? projects.map((project) => {
-            const projectTickets = ticketsByProject[String(project.id)] ?? []
-            return (
-              <Card
-                key={project.id}
-                title={project.title}
-                description={`${project.agency_name ?? 'Agency'} · ${project.start_date} – ${project.due_date} · ${project.status.replace('_', ' ')}`}
-                className="employee-project-card"
-              >
-                <p>{project.description}</p>
-                {projectTickets.length
-                  ? <div className="employee-ticket-list">
-                    {projectTickets.map((ticket) => {
-                      const action = nextAction(ticket.status)
-                      return (
-                        <article className="employee-ticket-card" key={ticket.id}>
-                          <div className="employee-ticket-heading">
-                            <div><h3>{ticket.title}</h3><p>{ticket.description}</p></div>
-                            <div className="project-ticket-badges">
-                              <Badge variant={ticket.status === 'done' ? 'success' : ticket.status === 'cancelled' ? 'slate' : 'primary'}>{ticket.status.replace('_', ' ')}</Badge>
-                              <Badge preset={ticket.priority}>{ticket.priority}</Badge>
-                            </div>
-                          </div>
-                          <p className="project-ticket-dates">
-                            {ticket.start_date ?? 'Not scheduled'}{ticket.due_date ? ` – ${ticket.due_date}` : ''} · {ticket.estimated_hours} h
-                          </p>
-                          {action && project.status !== 'cancelled' && project.status !== 'completed' && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              loading={busyTicket === ticket.id}
-                              onClick={() => changeStatus(ticket, action[0])}
-                            >
-                              {action[1]}
-                            </Button>
-                          )}
-                          {ticket.status !== 'cancelled' && (
-                            <form className="employee-ticket-comment" onSubmit={(event) => addComment(event, ticket)}>
-                              <Textarea
-                                label="Add a comment"
-                                rows="2"
-                                value={comments[ticket.id] ?? ''}
-                                onChange={(event) => setComments((current) => ({ ...current, [ticket.id]: event.target.value }))}
-                                maxLength="10000"
-                              />
-                              {commentMessages[ticket.id] && <p className="form-success" role="status">{commentMessages[ticket.id]}</p>}
-                              <Button type="submit" variant="secondary" size="sm" disabled={!(comments[ticket.id] ?? '').trim()} loading={busyTicket === ticket.id}>
-                                Add comment
-                              </Button>
-                            </form>
-                          )}
-                        </article>
-                      )
-                    })}
-                  </div>
-                  : <p className="assignment-empty">There are no tickets for this project.</p>}
-              </Card>
-            )
-          })
-          : <Card title="My work"><p className="assignment-empty">Projects assigned to you will appear here.</p></Card>}
+    <section className="page mw-page">
+      <PageHeader
+        eyebrow="Employee"
+        title="My work"
+        subtitle="Tickets assigned to you across projects. Update each ticket as you work."
+      />
+
+      {/* error banner */}
+      <div aria-live="polite">
+        {(actionError || error) && (
+          <Alert variant="error" title="Something went wrong">
+            {String(actionError?.message ?? error?.message ?? actionError ?? error)}
+            <div style={{ marginTop: 8 }}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => { setActionError(null); reload() }}>
+                Try again
+              </Button>
+            </div>
+          </Alert>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="mw-skeleton-grid">
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+          <Skeleton variant="card" />
+        </div>
+      ) : (
+        <>
+          {/* KPI row */}
+          <div className="mw-kpi-row">
+            <KpiCard
+              hero
+              title="Hours this week"
+              value={`${weekHours.toFixed(weekHours % 1 === 0 ? 0 : 1)} h`}
+              subtext={`of 36 h budget`}
+              icon="clock"
+              progress={<CapacityBar used={weekHours} budget={36} showRemaining={false} />}
+            />
+            <KpiCard icon="arrow" title="In progress" value={statusCounts.in_progress} tone="teal" />
+            <KpiCard icon="clock" title="In review" value={statusCounts.in_review} tone="teal" />
+            <KpiCard icon="inbox" title="To do" value={statusCounts.todo} tone="teal" />
+            <KpiCard icon="check" title="Done" value={statusCounts.done} tone="teal" />
+          </div>
+
+          {/* Tabs */}
+          <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} />
+
+          <div className="mw-tab-panel" role="tabpanel">
+            {activeTab === 'today' && renderToday()}
+            {activeTab === 'week' && renderWeek()}
+            {activeTab === 'all' && renderAllTickets()}
+          </div>
+        </>
+      )}
+
+      {renderDrawer()}
     </section>
   )
 }

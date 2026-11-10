@@ -2,6 +2,17 @@ const PRESETS = {
   new: ['New', 'info'],
   assigned: ['Assigned', 'primary'],
   'in progress': ['In Progress', 'primary'],
+  in_progress: ['In Progress', 'primary'],
+  todo: ['To do', 'slate'],
+  'to do': ['To do', 'slate'],
+  in_review: ['In Review', 'warning'],
+  'in review': ['In Review', 'warning'],
+  done: ['Done', 'success'],
+  scheduled: ['Scheduled', 'info'],
+  completed: ['Completed', 'success'],
+  cancelled: ['Cancelled', 'slate'],
+  active: ['Active', 'success'],
+  inactive: ['Inactive', 'slate'],
   'waiting for agency': ['Waiting for Agency', 'warning'],
   blocked: ['Blocked', 'danger'],
   'qa review': ['QA Review', 'violet'],
@@ -18,11 +29,13 @@ const PRESETS = {
   paused: ['Paused', 'slate'],
 }
 
-export function Badge({ variant = 'slate', preset, children, className = '', ...props }) {
-  const [label, presetVariant] = PRESETS[String(preset ?? '').toLowerCase()] ?? []
+export function Badge({ variant = 'slate', preset, status, children, className = '', ...props }) {
+  const key = String(status ?? preset ?? '').toLowerCase().trim()
+  const [presetLabel, presetVariant] = PRESETS[key] ?? []
+  const resolvedLabel = children ?? presetLabel ?? (key ? key.replace(/_/g, ' ') : null)
   return (
     <span className={`ui-badge ui-badge-${presetVariant ?? variant} ${className}`.trim()} {...props}>
-      {label ?? children}
+      {resolvedLabel}
     </span>
   )
 }
