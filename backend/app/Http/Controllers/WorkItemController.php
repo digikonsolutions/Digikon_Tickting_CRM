@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Http\Requests\StoreWorkItemRequest;
 use App\Models\Agency;
 use App\Models\EmployeeAssignment;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
@@ -194,6 +195,41 @@ class WorkItemController extends Controller
                 'per_page' => $items->perPage(),
                 'total' => $items->total(),
             ],
+        ]);
+    }
+
+    public function adminShow(WorkItem $workItem): JsonResponse
+    {
+        $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']);
+
+        $tickets = $workItem->tickets()
+            ->with('allocations')
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Ticket $ticket): array => [
+                'id' => $ticket->id,
+                'work_item_id' => $ticket->work_item_id,
+                'created_by' => $ticket->created_by,
+                'title' => $ticket->title,
+                'description' => $ticket->description,
+                'estimated_hours' => $ticket->estimated_hours,
+                'priority' => $ticket->priority,
+                'status' => $ticket->status,
+                'position' => $ticket->position,
+                'start_date' => $ticket->start_date?->toDateString(),
+                'due_date' => $ticket->due_date?->toDateString(),
+                'schedule' => $ticket->allocations
+                    ->sortBy('work_date')
+                    ->map(fn ($allocation): array => [
+                        'work_date' => $allocation->work_date->toDateString(),
+                        'hours' => $allocation->hours,
+                    ])->values(),
+            ])->values();
+
+        return response()->json([
+            'project' => $this->payload($workItem),
+            'tickets' => $tickets,
         ]);
     }
 

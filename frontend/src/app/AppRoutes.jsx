@@ -6,6 +6,7 @@ import { Loader } from '../components/ui'
 import {
   AdminAssignmentsPage,
   AdminCreateUserPage,
+  AdminProjectDetailPage,
   AdminProjectsPage,
   AdminTicketsPage,
   AdminUsersPage,
@@ -57,10 +58,10 @@ export function AppRoutes() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/projects/:id" element={<AdminProjectDetailPage />} />
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
             <Route path="/admin/tickets" element={<AdminTicketsPage />} />
             <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
-            <Route path="/admin/users/all" element={<AdminUsersPage key="all" title="All accounts" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
             <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />

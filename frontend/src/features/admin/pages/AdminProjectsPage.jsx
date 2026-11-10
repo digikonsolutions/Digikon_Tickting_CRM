@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, Input, PageHeader, Table } from '../../../components/ui'
@@ -55,7 +56,7 @@ export function AdminProjectsPage() {
   }
 
   const columns = [
-    { key: 'title', label: 'Project' },
+    { key: 'title', label: 'Project', render: (title, project) => <Link className="admin-project-detail-link" to={`/admin/projects/${project.id}`}>{title}</Link> },
     { key: 'description', label: 'Description' },
     { key: 'agency_name', label: 'Agency' },
     { key: 'client', label: 'Client', render: (client) => client?.name ?? 'Account removed' },

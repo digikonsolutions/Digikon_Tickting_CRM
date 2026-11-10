@@ -937,3 +937,240 @@
 }
 .mw-drawer-empty { color: var(--color-muted); font-size: 0.82rem; margin: 0; }
 .mw-drawer-comment { display: flex; flex-direction: column; gap: 0.65rem; }
+
+
+/* ==========================================================================
+   Agency Employees Page
+   ========================================================================== */
+
+.ae-page { padding-bottom: 3rem; }
+.ae-alerts { margin-bottom: 1rem; }
+.ae-alerts .ui-alert { position: relative; }
+.ae-alert-dismiss {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.82rem;
+  display: grid;
+  place-items: center;
+  opacity: 0.6;
+}
+.ae-alert-dismiss:hover { opacity: 1; }
+
+/* Week picker */
+.ae-week-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.ae-week-arrow {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-heading);
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.ae-week-arrow:hover { background: var(--color-surface-hover); }
+.ae-week-label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.ae-week-label strong { color: var(--color-heading); font-weight: 700; }
+.ae-week-date {
+  width: auto;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  font-size: 0.82rem;
+  color: var(--color-text);
+  background: var(--color-card);
+}
+
+/* Team grid */
+.ae-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Team card */
+.ae-team-card .ui-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.ae-team-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.ae-team-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.ae-team-card-info h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ae-team-card-info p {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ae-team-capacity { width: 100%; }
+
+/* Vertical day bars */
+.ae-day-bars {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding: 0.25rem 0;
+}
+.ae-day-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 1;
+}
+.ae-day-track {
+  width: 100%;
+  max-width: 2rem;
+  height: 3.5rem;
+  border-radius: 0.3rem;
+  background: var(--color-border);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+.ae-day-fill {
+  display: block;
+  width: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-600);
+  transition: height 200ms ease;
+}
+.ae-day-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ae-day-hours {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+/* Danger outline button (ghost + red text/border) */
+.ae-danger-outline {
+  color: var(--color-danger-700) !important;
+  border: 1px solid var(--color-danger-200) !important;
+}
+.ae-danger-outline:hover {
+  background: var(--color-danger-50) !important;
+}
+
+/* Agency table */
+.ae-agency-table { margin-top: 1.5rem; }
+
+/* Footnote */
+.ae-footnote {
+  margin: 1.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+.ae-footnote a { color: var(--color-accent-600); font-weight: 600; }
+.ae-footnote a:hover { text-decoration: underline; }
+
+/* Impact message in modal */
+.ae-impact {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-control);
+  background: var(--color-warning-50);
+  border: 1px solid var(--color-warning-200);
+  font-size: 0.86rem;
+  color: var(--color-warning-700);
+}
+
+/* Drawer */
+.ae-drawer-search {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  font-size: 0.88rem;
+  background: var(--color-card);
+  color: var(--color-text);
+}
+.ae-drawer-search:focus {
+  outline: none;
+  border-color: var(--color-accent-600);
+  box-shadow: 0 0 0 3px var(--color-accent-ring);
+}
+.ae-drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ae-drawer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+.ae-drawer-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ae-drawer-row-info strong {
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--color-heading);
+}
+.ae-drawer-row-info span {
+  font-size: 0.76rem;
+  color: var(--color-muted);
+}
+.ae-drawer-empty {
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  padding: 2rem 0;
+}
+
+@media (max-width: 480px) {
+  .ae-team-grid { grid-template-columns: 1fr; }
+  .ae-week-picker { justify-content: center; }
+}

@@ -319,6 +319,10 @@ export const authService = {
     if (search) query.set('search', search)
     return request(`/admin/projects?${query.toString()}`)
   },
+  async getAdminProject(id) {
+    if (AUTH_MODE === 'mock') return { project: null, tickets: [] }
+    return request(`/admin/projects/${encodeURIComponent(id)}`)
+  },
   async listMyWork() {
     if (AUTH_MODE === 'mock') return { projects: [] }
     return request('/work-items/mine')

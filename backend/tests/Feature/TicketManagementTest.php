@@ -73,6 +73,30 @@ class TicketManagementTest extends TestCase
             ->assertCreated();
     }
 
+    public function test_admin_can_view_a_project_with_its_assigned_tickets_read_only(): void
+    {
+        [$agency, $owner, $client, $employee, $project] = $this->projectFixture(8);
+        $ticket = $this->actingAs($client)
+            ->postJson($this->projectTicketsUrl($project), $this->ticketData(3, 'Read-only ticket'))
+            ->assertCreated()
+            ->json('ticket');
+        $admin = User::factory()->create(['role' => Role::Admin]);
+
+        $this->actingAs($admin)
+            ->getJson('/api/admin/projects/'.$project->id)
+            ->assertOk()
+            ->assertJsonPath('project.id', $project->id)
+            ->assertJsonPath('project.agency_name', $agency->name)
+            ->assertJsonPath('project.employee.name', $employee->name)
+            ->assertJsonPath('tickets.0.id', $ticket['id'])
+            ->assertJsonPath('tickets.0.title', 'Read-only ticket')
+            ->assertJsonPath('tickets.0.schedule.0.work_date', $project->start_date->toDateString());
+
+        $this->actingAs($owner)
+            ->getJson('/api/admin/projects/'.$project->id)
+            ->assertForbidden();
+    }
+
     public function test_ticket_hour_overflow_is_rejected_without_persisting_failed_ticket(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture(8);

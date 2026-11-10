@@ -70,6 +70,7 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
+    Route::get('/admin/projects/{workItem}', [WorkItemController::class, 'adminShow']);
     Route::get('/admin/assignments', [EmployeeAssignmentController::class, 'adminIndex']);
     Route::delete('/admin/assignments/{assignment}', [EmployeeAssignmentController::class, 'adminDestroy']);
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);

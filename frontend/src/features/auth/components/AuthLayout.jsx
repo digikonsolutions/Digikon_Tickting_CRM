@@ -3,37 +3,97 @@ import { Link } from 'react-router-dom'
 export function AuthLayout({ eyebrow, title, description, children, footer }) {
   return (
     <main className="auth-page">
-      <section className="auth-shell" aria-label="ClientHub account access">
+      <div className="auth-shell" aria-label="ClientHub account access">
         <aside className="auth-showcase">
-          <Link className="brand brand-light" to="/login"><span className="brand-mark" aria-hidden="true">C</span>ClientHub</Link>
-          <div className="showcase-copy">
-            <p className="showcase-kicker">ONE PLACE FOR THE WORK THAT MATTERS</p>
-            <h2>Make every handoff feel effortless.</h2>
-            <p>Give your team a calmer way to handle client requests, keep work visible, and move every ticket forward.</p>
+          <Link className="brand" to="/login">
+            <span className="brand-mark" aria-hidden="true">C</span>
+            <span className="brand-name">ClientHub</span>
+          </Link>
+
+          <div className="showcase-content">
+            <h2 className="showcase-title">Every request, in the right hands.</h2>
+            <p className="showcase-subtitle">
+              Plan capacity, manage client requests, and deliver tickets without the friction.
+            </p>
+
+            <div className="auth-preview-card" aria-hidden="true">
+              <div className="preview-card-header">
+                <span className="preview-card-title">This week</span>
+                <span className="preview-card-hours">
+                  <strong>24</strong> / 36 h
+                </span>
+              </div>
+              <div className="preview-progress-track">
+                <div className="preview-progress-fill" style={{ width: '67%' }} />
+              </div>
+              <div className="preview-ticket-list">
+                <div className="preview-ticket-row">
+                  <span className="preview-ticket-name">Client portal onboarding</span>
+                  <span className="preview-badge preview-badge-in-progress">In progress</span>
+                </div>
+                <div className="preview-ticket-row">
+                  <span className="preview-ticket-name">Stripe billing webhooks</span>
+                  <span className="preview-badge preview-badge-in-review">In review</span>
+                </div>
+                <div className="preview-ticket-row">
+                  <span className="preview-ticket-name">SSO authentication flow</span>
+                  <span className="preview-badge preview-badge-done">Done</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="showcase-card" aria-hidden="true">
-            <span className="showcase-card-label">WORKSPACE PULSE</span>
-            <div className="pulse-row"><span className="pulse-dot" /> Everything in its right place</div>
-            <div className="pulse-bars"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div>
-            <div className="pulse-footer"><span>Clear ownership</span><span>Less follow-up</span></div>
-          </div>
-          <p className="showcase-caption">A shared workspace for your whole team.</p>
+
+          <p className="showcase-caption">A calm, shared workspace for your entire team.</p>
         </aside>
+
         <div className="auth-main">
           <section className="auth-card">
-            <Link className="brand brand-mobile" to="/login"><span className="brand-mark" aria-hidden="true">C</span>ClientHub</Link>
+            <Link className="brand brand-mobile" to="/login">
+              <span className="brand-mark" aria-hidden="true">C</span>
+              <span className="brand-name">ClientHub</span>
+            </Link>
+
             <div className="auth-heading">
-              <span className="auth-eyebrow"><span className="status-dot" /> {eyebrow ?? 'SECURE WORKSPACE'}</span>
+              {eyebrow && (
+                <span className="auth-eyebrow">
+                  <span className="auth-status-dot" aria-hidden="true" />
+                  {eyebrow}
+                </span>
+              )}
               <h1>{title}</h1>
-              <p>{description}</p>
+              {description && <p>{description}</p>}
             </div>
+
             {children}
+
             {footer && <p className="auth-footer">{footer}</p>}
-            <p className="auth-privacy"><span aria-hidden="true">●</span> Your workspace is private and protected</p>
+
+            <div className="auth-form-footer">
+              <p className="auth-privacy">
+                <svg
+                  className="auth-lock-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                Your workspace is private and protected
+              </p>
+              <p className="auth-copyright">
+                © 2026 ClientHub <span aria-hidden="true">·</span> Built for better teamwork
+              </p>
+            </div>
           </section>
-          <p className="auth-copyright">© 2026 ClientHub <span>·</span> Built for better teamwork</p>
         </div>
-      </section>
+      </div>
     </main>
   )
 }

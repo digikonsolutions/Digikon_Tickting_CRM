@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { ROLE_HOME } from '../../../auth/roles'
@@ -12,6 +12,12 @@ export function LoginPage() {
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const notice = location.state?.message
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 900px)').matches) {
+      document.getElementById('email')?.focus()
+    }
+  }, [])
 
   async function submit(event) {
     event.preventDefault()
@@ -39,12 +45,38 @@ export function LoginPage() {
       description="Keep every conversation, client, and ticket moving forward."
     >
       <form onSubmit={submit}>
-        <Input id="email" label="Work email" name="email" type="email" placeholder="you@company.com" autoComplete="email" maxLength="254" required />
-        <Input id="password" label="Password" name="password" type="password" placeholder="Enter your password" autoComplete="current-password" maxLength="128" required />
-        <div className="auth-form-meta"><Link className="inline-link" to="/forgot-password">Forgot password?</Link></div>
-        {notice && <Alert variant="success">{notice}</Alert>}
-        {error && <Alert variant="error">{error.message}</Alert>}
-        <Button type="submit" size="lg" loading={isSubmitting} loadingText="Signing in…">Sign in</Button>
+        <Input
+          id="email"
+          label="Work email"
+          name="email"
+          type="email"
+          placeholder="you@company.com"
+          autoComplete="email"
+          maxLength="254"
+          required
+          disabled={isSubmitting}
+        />
+        <Input
+          id="password"
+          label="Password"
+          name="password"
+          type="password"
+          placeholder="Enter your password"
+          autoComplete="current-password"
+          maxLength="128"
+          required
+          disabled={isSubmitting}
+        />
+        <div className="auth-form-meta">
+          <Link className="inline-link" to="/forgot-password">Forgot password?</Link>
+        </div>
+        <div className="auth-alert-area" aria-live="polite">
+          {notice && <Alert variant="success">{notice}</Alert>}
+          {error && <Alert variant="error">{error.message || 'The provided credentials are incorrect.'}</Alert>}
+        </div>
+        <Button type="submit" size="lg" loading={isSubmitting} loadingText="Signing in…">
+          Sign in
+        </Button>
       </form>
     </AuthLayout>
   )
