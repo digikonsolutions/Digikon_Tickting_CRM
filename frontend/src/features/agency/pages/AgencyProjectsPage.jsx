@@ -5,7 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Textarea } from '../../../components/ui'
-import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
+import { DEFAULT_CAPACITY } from '../../../lib/constants'
 import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
 
 const CAPACITY_DEBOUNCE_MS = 300
@@ -52,6 +52,8 @@ export function AgencyProjectsPage({ viewAs }) {
   const projects = projectsState.data?.projects ?? []
   const pagination = projectsState.data?.pagination ?? { current_page: page, last_page: 1, total: 0 }
   const assignments = assignmentsState.data?.assignments ?? []
+  const selectedHold = assignments.find((assignment) => String(assignment.id) === String(selectedAssignment)) ?? assignments[0]
+  const holdCapacity = selectedHold?.capacity ?? DEFAULT_CAPACITY
   // Capacity comes from the server (same rules as the scheduler). Debounced, and
   // responses for an outdated assignment/date selection are ignored.
   const capacityKey = selectedAssignment && formValues.start_date && formValues.due_date
@@ -144,7 +146,7 @@ export function AgencyProjectsPage({ viewAs }) {
       />
       {success && <Alert variant="success">{success}</Alert>}
       <ApiErrorMessage error={error ?? (createError?.status === 422 ? null : createError)} />
-      <Card title="Create a project" description={`Your assignment has a shared weekly budget of ${WEEKLY_HOURS_BUDGET} hours, with at most ${DAILY_HOURS_CAP} hours scheduled each working day.`}>
+      <Card title="Create a project" description={`Your assignment has a shared weekly budget of ${holdCapacity.weekly_hours} hours, with at most ${holdCapacity.daily_hours} hours scheduled each working day.`}>
         {!isLoading && assignments.length === 0 && (
           <Alert variant="info">
             You need to hold an employee before creating a project. <Link to="/agency/employees">Go to My employees</Link>.
@@ -211,7 +213,7 @@ export function AgencyProjectsPage({ viewAs }) {
           )}
           {selectedAssignment && remaining !== null && (
             <p className={Number(formValues.estimated_hours) > remaining ? 'form-error' : 'assignment-range-capacity'} role="status">
-              {remaining.toFixed(2)} h remain for this employee between the selected dates.
+              {formatHours(remaining)} available for {selectedHold?.employee?.name ?? 'this employee'} between these dates.
             </p>
           )}
           {createError?.status === 422 && createError.message && <p className="form-error" role="alert">{createError.message}</p>}

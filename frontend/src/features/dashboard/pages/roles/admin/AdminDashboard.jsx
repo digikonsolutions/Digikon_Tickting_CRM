@@ -4,7 +4,7 @@ import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
 import { Button, Card, DueText, EmptyState, Icon, PageHeader, Spinner, StatusBadge } from '../../../../../components/ui'
-import { getDueInfo, todayStr } from '../../../../../lib/format'
+import { getDueInfo } from '../../../../../lib/format'
 
 const PROJECT_FILTERS = [
   { id: 'all', label: 'All' },
@@ -12,42 +12,13 @@ const PROJECT_FILTERS = [
   { id: 'scheduled', label: 'Scheduled' },
   { id: 'completed', label: 'Completed' },
 ]
-const EMPTY_PROJECTS = []
 const EMPTY_WEEK_HOURS = Array.from({ length: 7 }, () => 0)
+const EMPTY_COUNTS = { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 }
 
-async function loadAllAdminProjects() {
-  const firstPage = await authService.listAdminProjects({ page: 1, perPage: 100 })
-  const pages = Array.from(
-    { length: Math.max(0, firstPage.pagination.last_page - 1) },
-    (_, index) => index + 2,
-  )
-  const remaining = []
-
-  for (let index = 0; index < pages.length; index += 4) {
-    const batch = await Promise.all(pages.slice(index, index + 4).map((page) => (
-      authService.listAdminProjects({ page, perPage: 100 })
-    )))
-    remaining.push(...batch.flatMap((response) => response.projects))
-  }
-
-  return {
-    projects: [...firstPage.projects, ...remaining],
-    total: firstPage.pagination.total,
-  }
+// One request feeds the whole dashboard: counts, ticket total, scheduled hours and the recent projects.
+function loadDashboard() {
+  return authService.getAdminDashboard()
 }
-
-async function loadDashboard() {
-  const [projectData, ticketResponse] = await Promise.all([
-    loadAllAdminProjects(),
-    authService.listAdminTickets({ perPage: 1 }),
-  ])
-  return {
-    ...projectData,
-    ticketTotal: ticketResponse.pagination.total,
-    today: todayStr(),
-  }
-}
-
 function projectStatus(project) {
   if (project.status === 'scheduled' || project.status === 'in_progress') {
     if (!project.due_date) return project.status
@@ -58,10 +29,6 @@ function projectStatus(project) {
   return project.status
 }
 
-function statusCount(projects, status) {
-  return projects.filter((project) => project.status === status).length
-}
-
 function employeeInitials(name) {
   return (name ?? '')
     .split(/\s+/)
@@ -69,22 +36,6 @@ function employeeInitials(name) {
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())
     .join('')
-}
-
-function getNextWeekHours(projects, today) {
-  const totals = Array.from({ length: 7 }, () => 0)
-  const start = new Date(`${today}T00:00:00`)
-
-  projects
-    .filter((project) => !['cancelled', 'completed'].includes(project.status))
-    .flatMap((project) => project.schedule ?? [])
-    .forEach((allocation) => {
-      const date = new Date(`${allocation.work_date}T00:00:00`)
-      const offset = Math.floor((date - start) / 86400000)
-      if (offset >= 0 && offset < totals.length) totals[offset] += Number(allocation.hours)
-    })
-
-  return totals
 }
 
 function sparklinePath(values, width = 168, height = 40) {
@@ -152,25 +103,32 @@ function StatCard({ label, value, hint, icon, tone, sparkline, sparklineLabel })
 
 export const AdminDashboard = () => {
   const [activeFilter, setActiveFilter] = useState('all')
-  const dashboard = useAsync(useCallback(() => loadDashboard(), []))
-  const projects = dashboard.data?.projects ?? EMPTY_PROJECTS
-  const today = dashboard.data?.today
-  const projectsTotal = dashboard.data?.total ?? 0
-  const scheduledCount = statusCount(projects, 'scheduled')
-  const inProgressCount = statusCount(projects, 'in_progress')
-  const completedCount = statusCount(projects, 'completed')
+  const dashboard = useAsync(loadDashboard)
+  // The status chips re-request only the recent projects (one extra call per non-"All" chip).
+  const loadFiltered = useCallback(
+    () => (activeFilter === 'all' ? Promise.resolve(null) : authService.getAdminDashboard({ status: activeFilter })),
+    [activeFilter],
+  )
+  const filtered = useAsync(loadFiltered)
+  const counts = dashboard.data?.projects ?? EMPTY_COUNTS
+  const projectsTotal = counts.total
+  const scheduledCount = counts.scheduled
+  const inProgressCount = counts.in_progress
+  const completedCount = counts.completed
   const activeCount = scheduledCount + inProgressCount
   const completionPercent = projectsTotal > 0
     ? Math.round((completedCount / projectsTotal) * 100)
     : 0
-  const scheduledHours = dashboard.data ? getNextWeekHours(projects, today) : EMPTY_WEEK_HOURS
+  const scheduledHours = dashboard.data
+    ? dashboard.data.scheduled_hours.map((day) => Number(day.hours))
+    : EMPTY_WEEK_HOURS
   const totalScheduledHours = scheduledHours.reduce((sum, hours) => sum + hours, 0)
   const scheduledHoursPath = sparklinePath(scheduledHours)
-  const filteredProjects = activeFilter === 'all'
-    ? projects
-    : projects.filter((project) => project.status === activeFilter)
-  const visibleProjects = filteredProjects.slice(0, 4)
-
+  const isFilterLoading = activeFilter !== 'all' && (filtered.isLoading || !filtered.data)
+  const visibleProjects = activeFilter === 'all'
+    ? (dashboard.data?.recent_projects ?? [])
+    : (filtered.data?.recent_projects ?? [])
+  const filteredTotal = activeFilter === 'all' ? projectsTotal : counts[activeFilter] ?? 0
   return (
     <section className="page dashboard admin-dashboard">
       <PageHeader
@@ -179,7 +137,7 @@ export const AdminDashboard = () => {
         subtitle="Monitor projects and delivery across every agency."
       />
 
-      <ApiErrorMessage error={dashboard.error} />
+      <ApiErrorMessage error={dashboard.error ?? filtered.error} />
       {dashboard.error && (
         <Button type="button" variant="secondary" onClick={dashboard.reload}>Try again</Button>
       )}
@@ -251,7 +209,7 @@ export const AdminDashboard = () => {
             />
             <StatCard
               label="Tickets"
-              value={dashboard.data?.ticketTotal ?? 0}
+              value={dashboard.data?.tickets.total ?? 0}
               hint="Across all projects"
               icon="ticket"
               tone="teal"
@@ -276,19 +234,21 @@ export const AdminDashboard = () => {
                     aria-pressed={activeFilter === filter.id}
                     onClick={() => setActiveFilter(filter.id)}
                   >
-                    {filter.label} {filter.id === 'all' ? projectsTotal : statusCount(projects, filter.id)}
+                    {filter.label} {filter.id === 'all' ? projectsTotal : counts[filter.id] ?? 0}
                   </button>
                 ))}
               </nav>
-              {filteredProjects.length
+              {isFilterLoading
+                ? <div className="admin-dashboard-loading" role="status"><Spinner /> Loading projects…</div>
+                : filteredTotal
                 ? (
                   <>
                     <ul className="admin-project-list">
                       {visibleProjects.map((project) => <ProjectRow key={project.id} project={project} />)}
                     </ul>
-                    {filteredProjects.length > visibleProjects.length && (
+                    {filteredTotal > visibleProjects.length && (
                       <Link className="admin-list-more" to="/admin/projects">
-                        View {filteredProjects.length - visibleProjects.length} more projects
+                        View {filteredTotal - visibleProjects.length} more projects
                         <Icon name="arrow" size={16} />
                       </Link>
                     )}

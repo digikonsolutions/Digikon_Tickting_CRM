@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
+import { DEFAULT_CAPACITY } from '../../../lib/constants'
 
 export function AuthLayout({ eyebrow, title, description, children, footer }) {
   return (
@@ -21,7 +21,7 @@ export function AuthLayout({ eyebrow, title, description, children, footer }) {
               <div className="preview-card-header">
                 <span className="preview-card-title">This week</span>
                 <span className="preview-card-hours">
-                  <strong>24</strong> / {WEEKLY_HOURS_BUDGET} h
+                  <strong>24</strong> / {DEFAULT_CAPACITY.weekly_hours} h
                 </span>
               </div>
               <div className="preview-progress-track">

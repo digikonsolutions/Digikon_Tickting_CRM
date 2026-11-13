@@ -1,5 +1,5 @@
 import { ROLES, isKnownRole } from './roles'
-import { WEEKLY_HOURS_BUDGET } from '../lib/constants'
+import { DEFAULT_CAPACITY } from '../lib/constants'
 
 const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api').replace(/\/$/, '')
 const AUTH_MODE = import.meta.env.VITE_AUTH_MODE ?? 'api'
@@ -227,7 +227,7 @@ export const authService = {
     return request(`/agency/assignments${query}`)
   },
   async getAssignmentUsage(id, week) {
-    if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: WEEKLY_HOURS_BUDGET.toFixed(2), days: [] }
+    if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: DEFAULT_CAPACITY.weekly_hours.toFixed(2), days: [] }
     const query = week ? `?week=${encodeURIComponent(week)}` : ''
     return request(`/agency/assignments/${encodeURIComponent(id)}/usage${query}`)
   },
@@ -258,6 +258,20 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { assignment_id: assignmentId, from, to, total_available_hours: '0.00', days: [] }
     const query = new URLSearchParams({ assignment_id: String(assignmentId), from, to })
     return request(`/agency/capacity?${query.toString()}`)
+  },
+  // One-call admin dashboard summary: { today, projects (counts), tickets, scheduled_hours, recent_projects }.
+  async getAdminDashboard({ status } = {}) {
+    if (AUTH_MODE === 'mock') {
+      return {
+        today: '',
+        projects: { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 },
+        tickets: { total: 0 },
+        scheduled_hours: Array.from({ length: 7 }, () => ({ date: '', hours: '0.00' })),
+        recent_projects: [],
+      }
+    }
+    const query = status ? `?status=${encodeURIComponent(status)}` : ''
+    return request(`/admin/dashboard${query}`)
   },
   async getAgencyProject(id) {
     if (AUTH_MODE === 'mock') return { project: null }
@@ -344,7 +358,7 @@ export const authService = {
     return request(`/admin/projects/${encodeURIComponent(id)}`)
   },
   async listMyWork() {
-    if (AUTH_MODE === 'mock') return { projects: [] }
+    if (AUTH_MODE === 'mock') return { projects: [], capacity: DEFAULT_CAPACITY }
     return request('/work-items/mine')
   },
 }

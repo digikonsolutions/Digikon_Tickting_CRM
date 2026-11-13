@@ -6,7 +6,7 @@ import {
   KpiCard, PageHeader, PriorityBadge, Skeleton, StatusBadge, Tabs,
 } from '../../../components/ui'
 import { TicketComments } from '../../comments'
-import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
+import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
 /* ── helpers ─────────────────────────────────────────────────── */
@@ -42,12 +42,13 @@ export function MyWorkPage() {
       authService.listMyWork(),
       authService.listMyTickets(),
     ])
-    return { projects: projects.projects, tickets: tickets.tickets }
+    return { projects: projects.projects, tickets: tickets.tickets, capacity: projects.capacity }
   }, [])
 
   const { data, error, isLoading, reload } = useAsync(loadData)
   const projects = data?.projects ?? []
   const tickets = data?.tickets ?? []
+  const capacity = data?.capacity ?? DEFAULT_CAPACITY
 
   /* ── derived data ──────────────────────────────────────────── */
   const today = todayStr()
@@ -196,7 +197,7 @@ export function MyWorkPage() {
                 <span className="mw-week-day-label">{day.label}</span>
                 <span className="mw-week-day-num">{day.dayNum}</span>
               </div>
-              <CapacityBar used={dayHours} budget={DAILY_HOURS_CAP} showRemaining={false} />
+              <CapacityBar used={dayHours} budget={capacity.daily_hours} showRemaining={false} />
               <div className="mw-week-blocks">
                 {dayTickets.length ? dayTickets.map((t) => {
                   const alloc = (t.schedule ?? []).find((s) => s.work_date === day.date)
@@ -376,9 +377,9 @@ export function MyWorkPage() {
               hero
               title="Hours this week"
               value={`${weekHours.toFixed(weekHours % 1 === 0 ? 0 : 1)} h`}
-              subtext={`of ${WEEKLY_HOURS_BUDGET} h budget`}
+              subtext={`of ${capacity.weekly_hours} h budget`}
               icon="clock"
-              progress={<CapacityBar used={weekHours} budget={WEEKLY_HOURS_BUDGET} showRemaining={false} />}
+              progress={<CapacityBar used={weekHours} budget={capacity.weekly_hours} showRemaining={false} />}
             />
             <KpiCard icon="arrow" title="In progress" value={statusCounts.in_progress} tone="teal" />
             <KpiCard icon="clock" title="In review" value={statusCounts.in_review} tone="teal" />

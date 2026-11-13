@@ -7,7 +7,7 @@ import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
   EmptyState, Modal, PageHeader, Skeleton,
 } from '../../../components/ui'
-import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
+import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
 /* helpers */
@@ -220,6 +220,7 @@ export function AgencyEmployeesPage() {
           {mine.map((assignment) => {
             const usage = assignment.weekly_usage
             const usedNum = Number(usage?.used ?? 0)
+            const capacity = assignment.capacity ?? DEFAULT_CAPACITY
             return (
               <Card key={assignment.id} className="ae-team-card">
                 <div className="ae-team-card-header">
@@ -232,15 +233,15 @@ export function AgencyEmployeesPage() {
                 </div>
 
                 <div className="ae-team-capacity">
-                  <CapacityBar used={usedNum} budget={WEEKLY_HOURS_BUDGET} />
+                  <CapacityBar used={usedNum} budget={capacity.weekly_hours} />
                 </div>
 
                 <div className="ae-day-bars" aria-label="Hours used Monday through Saturday">
                   {(usage?.days ?? []).map((day, index) => {
                     const hours = Number(day.used)
-                    const pct = Math.min(100, (hours / DAILY_HOURS_CAP) * 100)
+                    const pct = Math.min(100, (hours / capacity.daily_hours) * 100)
                     return (
-                      <div className="ae-day-col" key={day.date} title={`${day.date}: ${hours} of ${DAILY_HOURS_CAP} hours`}>
+                      <div className="ae-day-col" key={day.date} title={`${day.date}: ${hours} of ${capacity.daily_hours} hours`}>
                         <div className="ae-day-track">
                           <span className="ae-day-fill" style={{ height: `${pct}%` }} />
                         </div>

@@ -1,8 +1,8 @@
-import { WEEKLY_HOURS_BUDGET } from '../../lib/constants'
+import { DEFAULT_CAPACITY } from '../../lib/constants'
 
 export function CapacityBar({
   used = 0,
-  budget = WEEKLY_HOURS_BUDGET,
+  budget = DEFAULT_CAPACITY.weekly_hours,
   label,
   remaining,
   showRemaining = true,
@@ -10,7 +10,7 @@ export function CapacityBar({
   ...props
 }) {
   const numericUsed = Number(used) || 0
-  const numericBudget = Number(budget) || WEEKLY_HOURS_BUDGET
+  const numericBudget = Number(budget) || DEFAULT_CAPACITY.weekly_hours
   const numericRemaining = remaining !== undefined ? Number(remaining) : Math.max(0, numericBudget - numericUsed)
   const percent = numericBudget > 0 ? Math.min(100, Math.max(0, (numericUsed / numericBudget) * 100)) : 0
 
