@@ -35,6 +35,49 @@ class WorkItemController extends Controller
         return response()->json(['projects' => $items]);
     }
 
+    /**
+     * Per-day capacity for a held employee, computed by the same rules as the scheduler's plan().
+     */
+    public function capacity(Request $request, WorkItemScheduler $scheduler): JsonResponse
+    {
+        $agency = $this->activeAgency($request->user());
+        $data = $request->validate([
+            'assignment_id' => ['required', 'integer'],
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
+        $from = CarbonImmutable::parse($data['from'], config('app.timezone'));
+        $to = CarbonImmutable::parse($data['to'], config('app.timezone'));
+        $this->validateDateRange($from, $to, 'to');
+
+        $assignment = EmployeeAssignment::query()
+            ->with('employee')
+            ->whereKey($data['assignment_id'])
+            ->where('agency_id', $agency->id)
+            ->first();
+        abort_unless($assignment !== null, 404);
+
+        if ($assignment->status !== 'active' || ! $assignment->employee?->is_active) {
+            throw ValidationException::withMessages([
+                'assignment_id' => 'This employee assignment is no longer active.',
+            ]);
+        }
+
+        $days = $scheduler->dailyAvailability($assignment->employee, $from, $to);
+        $totalUnits = array_sum(array_map(
+            fn (array $day): int => (int) round((float) $day['available_hours'] * 100),
+            $days
+        ));
+
+        return response()->json([
+            'assignment_id' => $assignment->id,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'total_available_hours' => WorkItemScheduler::unitsToHours($totalUnits),
+            'days' => $days,
+        ]);
+    }
+
     public function agencyShow(Request $request, WorkItem $workItem): JsonResponse
     {
         $agency = $this->activeAgency($request->user());
@@ -285,11 +328,11 @@ class WorkItemController extends Controller
         }
     }
 
-    private function validateDateRange(CarbonImmutable $start, CarbonImmutable $due): void
+    private function validateDateRange(CarbonImmutable $start, CarbonImmutable $due, string $field = 'due_date'): void
     {
         if ($start->diffInDays($due) > 366) {
             throw ValidationException::withMessages([
-                'due_date' => 'The date range may not exceed one year.',
+                $field => 'The date range may not exceed one year.',
             ]);
         }
     }

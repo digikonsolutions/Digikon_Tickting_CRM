@@ -48,32 +48,86 @@ class WorkItemScheduler
     }
 
     /**
+     * Per-day availability for an employee, using exactly the same rules as plan():
+     * Sundays, configured non-working dates and today-after-cutoff are skipped, each
+     * working day holds at most 6 h, and bookings from ALL agencies count.
+     *
+     * @return list<array{date: string, available_hours: string, booked_hours: string, working_day: bool, reason: string|null}>
+     */
+    public function dailyAvailability(User $employee, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $bookedByDate = $this->bookedUnitsByDate($employee, $from, $to);
+        $context = $this->dateContext();
+        $days = [];
+
+        for ($date = $from; $date->lessThanOrEqualTo($to); $date = $date->addDay()) {
+            $workDate = $date->toDateString();
+            $reason = $this->skipReason($date, $context);
+            $bookedUnits = $bookedByDate[$workDate] ?? 0;
+            $availableUnits = $reason === null ? max(0, self::DAILY_CAPACITY_UNITS - $bookedUnits) : 0;
+
+            $days[] = [
+                'date' => $workDate,
+                'available_hours' => self::unitsToHours($availableUnits),
+                'booked_hours' => self::unitsToHours($bookedUnits),
+                'working_day' => $reason === null,
+                'reason' => $reason,
+            ];
+        }
+
+        return $days;
+    }
+
+    /**
      * @return list<string>
      */
     private function eligibleDates(CarbonImmutable $start, CarbonImmutable $due): array
     {
-        $nonWorkingDates = config('scheduling.non_working_dates', []);
-        $now = CarbonImmutable::now(config('app.timezone'));
-        $today = $now->toDateString();
-        $cutoff = (int) config('scheduling.today_cutoff_hour', 12);
-        $beforeCutoff = $now->lessThan($now->startOfDay()->addHours($cutoff));
+        $context = $this->dateContext();
         $dates = [];
 
         for ($date = $start; $date->lessThanOrEqualTo($due); $date = $date->addDay()) {
-            $workDate = $date->toDateString();
-
-            if (
-                $date->dayOfWeek === CarbonImmutable::SUNDAY
-                || in_array($workDate, $nonWorkingDates, true)
-                || ($workDate === $today && ! $beforeCutoff)
-            ) {
-                continue;
+            if ($this->skipReason($date, $context) === null) {
+                $dates[] = $date->toDateString();
             }
-
-            $dates[] = $workDate;
         }
 
         return $dates;
+    }
+
+    /**
+     * @return array{non_working_dates: list<string>, today: string, before_cutoff: bool}
+     */
+    private function dateContext(): array
+    {
+        $now = CarbonImmutable::now(config('app.timezone'));
+        $cutoff = (int) config('scheduling.today_cutoff_hour', 12);
+
+        return [
+            'non_working_dates' => config('scheduling.non_working_dates', []),
+            'today' => $now->toDateString(),
+            'before_cutoff' => $now->lessThan($now->startOfDay()->addHours($cutoff)),
+        ];
+    }
+
+    /**
+     * @param array{non_working_dates: list<string>, today: string, before_cutoff: bool} $context
+     */
+    private function skipReason(CarbonImmutable $date, array $context): ?string
+    {
+        $workDate = $date->toDateString();
+
+        if ($date->dayOfWeek === CarbonImmutable::SUNDAY) {
+            return 'sunday';
+        }
+        if (in_array($workDate, $context['non_working_dates'], true)) {
+            return 'non_working_day';
+        }
+        if ($workDate === $context['today'] && ! $context['before_cutoff']) {
+            return 'past_cutoff';
+        }
+
+        return null;
     }
 
     /**

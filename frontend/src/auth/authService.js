@@ -249,6 +249,11 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { projects: [] }
     return request('/agency/projects')
   },
+  async getCapacity({ assignmentId, from, to }) {
+    if (AUTH_MODE === 'mock') return { assignment_id: assignmentId, from, to, total_available_hours: '0.00', days: [] }
+    const query = new URLSearchParams({ assignment_id: String(assignmentId), from, to })
+    return request(`/agency/capacity?${query.toString()}`)
+  },
   async getAgencyProject(id) {
     if (AUTH_MODE === 'mock') return { project: null }
     return request(`/agency/projects/${encodeURIComponent(id)}`)

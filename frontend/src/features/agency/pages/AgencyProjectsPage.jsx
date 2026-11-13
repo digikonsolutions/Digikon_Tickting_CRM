@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
@@ -8,28 +8,10 @@ import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Tex
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
 import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
 
+const CAPACITY_DEBOUNCE_MS = 300
+
 function scheduleLabel(schedule = []) {
   return schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ') || 'No schedule'
-}
-
-function dateRangeRemaining(projects, assignmentId, start, due) {
-  if (!start || !due || due < start) return 0
-  const booked = new Map()
-  projects
-    .filter((project) => String(project.assignment_id) === String(assignmentId)
-      && !['completed', 'cancelled'].includes(project.status))
-    .flatMap((project) => project.schedule ?? [])
-    .forEach(({ work_date, hours }) => booked.set(work_date, (booked.get(work_date) ?? 0) + Number(hours)))
-
-  let total = 0
-  const cursor = new Date(`${start}T12:00:00`)
-  const end = new Date(`${due}T12:00:00`)
-  while (cursor <= end) {
-    const date = toDateStr(cursor)
-    if (cursor.getDay() !== 0) total += Math.max(0, DAILY_HOURS_CAP -(booked.get(date) ?? 0))
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return total
 }
 
 export function AgencyProjectsPage({ viewAs }) {
@@ -55,10 +37,35 @@ export function AgencyProjectsPage({ viewAs }) {
   const { data, error, isLoading, reload } = useAsync(loadData)
   const projects = data?.projects ?? []
   const assignments = data?.assignments ?? []
-  const remaining = selectedAssignment
-    ? dateRangeRemaining(projects, selectedAssignment, formValues.start_date, formValues.due_date)
-    : 0
+  // Capacity comes from the server (same rules as the scheduler). Debounced, and
+  // responses for an outdated assignment/date selection are ignored.
+  const capacityKey = selectedAssignment && formValues.start_date && formValues.due_date
+    && formValues.due_date >= formValues.start_date
+    ? `${selectedAssignment}|${formValues.start_date}|${formValues.due_date}`
+    : null
+  const [capacity, setCapacity] = useState({ key: null, hours: null, error: null })
+  useEffect(() => {
+    if (!capacityKey) return undefined
+    const [assignmentId, from, to] = capacityKey.split('|')
+    let active = true
+    const timer = setTimeout(async () => {
+      try {
+        const response = await authService.getCapacity({ assignmentId, from, to })
+        if (active) setCapacity({ key: capacityKey, hours: Number(response.total_available_hours), error: null })
+      } catch (reason) {
+        if (active) setCapacity({ key: capacityKey, hours: null, error: reason })
+      }
+    }, CAPACITY_DEBOUNCE_MS)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [capacityKey])
+  const isCheckingCapacity = Boolean(capacityKey) && capacity.key !== capacityKey
+  const capacityResult = capacityKey && capacity.key === capacityKey ? capacity : null
+  const remaining = capacityResult?.hours ?? null
   const canSchedule = selectedAssignment
+    && remaining !== null
     && Number(formValues.estimated_hours) > 0
     && Number(formValues.estimated_hours) <= remaining
     && formValues.due_date >= formValues.start_date
@@ -179,7 +186,13 @@ export function AgencyProjectsPage({ viewAs }) {
               <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>
             ))}
           </Select>
-          {selectedAssignment && (
+          {selectedAssignment && isCheckingCapacity && (
+            <p className="assignment-range-capacity" role="status">Checking employee capacity…</p>
+          )}
+          {selectedAssignment && capacityResult?.error && (
+            <p className="form-error" role="alert">{capacityResult.error.message ?? 'Could not check employee capacity.'}</p>
+          )}
+          {selectedAssignment && remaining !== null && (
             <p className={Number(formValues.estimated_hours) > remaining ? 'form-error' : 'assignment-range-capacity'} role="status">
               {remaining.toFixed(2)} h remain for this employee between the selected dates.
             </p>
