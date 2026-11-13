@@ -71,20 +71,22 @@ export function AgencyEmployeesPage() {
   /* ── compute impact for end-assignment ─────────────────────── */
   async function computeImpact(assignment) {
     try {
-      const result = await authService.listAgencyProjects()
-      const projects = result.projects ?? []
+      // The server filters to this assignment's open projects; the total gives the true count
+      // even if there are more than one page of them.
+      const result = await authService.listAgencyProjects({
+        assignmentId: assignment.id,
+        status: 'open',
+        perPage: 100,
+      })
+      const affected = result.projects ?? []
       const today = todayStr()
-      const affected = projects.filter(
-        (p) => p.assignment_id === assignment.id
-          && (p.status === 'scheduled' || p.status === 'in_progress'),
-      )
       let futureHours = 0
       for (const p of affected) {
         for (const s of p.schedule ?? []) {
           if (s.work_date >= today) futureHours += Number(s.hours) || 0
         }
       }
-      return { projectCount: affected.length, futureHours }
+      return { projectCount: result.pagination?.total ?? affected.length, futureHours }
     } catch {
       return null
     }

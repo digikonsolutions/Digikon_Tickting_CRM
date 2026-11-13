@@ -21,8 +21,8 @@ export function RoleDashboard({
   onRetryAdditionalStats,
 }) {
   const { user } = useAuth()
-  const tickets = useAsync(useCallback(() => dashboardService.getTickets({ scope, user }), [scope, user]))
-  const stats = dashboardService.getStats(tickets.data)
+  const tickets = useAsync(useCallback(() => dashboardService.getDashboard({ scope, user }), [scope, user]))
+  const stats = tickets.data ? dashboardService.getStats(tickets.data.projects, tickets.data.summary) : []
   const firstName = user.name?.split(' ')[0] ?? 'there'
 
   return (
@@ -41,7 +41,7 @@ export function RoleDashboard({
         <SectionCard title={ticketsTitle} description="Recently scheduled and assigned work">
           {tickets.error
             ? <p role="alert" className="form-error">Could not load assigned work. <button type="button" className="inline-link" onClick={tickets.reload}>Try again</button></p>
-            : <ProjectList tickets={(tickets.data ?? []).slice(0, 5)} isLoading={tickets.isLoading} showAgency={showAgency} />}
+            : <ProjectList tickets={(tickets.data?.projects ?? []).slice(0, 5)} isLoading={tickets.isLoading} showAgency={showAgency} />}
         </SectionCard>
         <div className="dashboard-side">
           <SectionCard title="Quick actions"><QuickActions actions={actions} /></SectionCard>

@@ -23,16 +23,58 @@ class WorkItemController extends Controller
     {
         $viewer = $request->user();
         $agency = $this->activeAgency($viewer);
+        $filters = $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'status' => ['sometimes', 'in:open,scheduled,in_progress,completed,cancelled'],
+            'assignment_id' => ['sometimes', 'integer'],
+            'search' => ['sometimes', 'string', 'max:120'],
+        ]);
 
         $items = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->withTicketProgress()
             ->where('agency_id', $agency->id)
+            ->when($filters['status'] ?? null, function ($query, string $status): void {
+                $status === 'open'
+                    ? $query->whereIn('status', ['scheduled', 'in_progress'])
+                    : $query->where('status', $status);
+            })
+            ->when($filters['assignment_id'] ?? null, fn ($query, int $assignmentId) => $query->where('assignment_id', $assignmentId))
+            ->when($filters['search'] ?? null, function ($query, string $search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->where('title', 'like', '%'.$search.'%')
+                        ->orWhereHas('client', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('employee', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
+                });
+            })
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (WorkItem $item): array => $this->payload($item));
+            ->orderByDesc('id')
+            ->paginate($filters['per_page'] ?? 25);
 
-        return response()->json(['projects' => $items]);
+        $counts = WorkItem::query()
+            ->where('agency_id', $agency->id)
+            ->selectRaw('status, COUNT(*) AS aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        return response()->json([
+            'projects' => collect($items->items())->map(fn (WorkItem $item): array => $this->payload($item))->values(),
+            'pagination' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+            // Counts the whole agency, regardless of filters or page.
+            'summary' => [
+                'total' => (int) $counts->sum(),
+                'scheduled' => (int) ($counts['scheduled'] ?? 0),
+                'in_progress' => (int) ($counts['in_progress'] ?? 0),
+                'completed' => (int) ($counts['completed'] ?? 0),
+                'cancelled' => (int) ($counts['cancelled'] ?? 0),
+            ],
+        ]);
     }
 
     /**

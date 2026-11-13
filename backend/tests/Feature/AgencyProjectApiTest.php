@@ -162,6 +162,114 @@ class AgencyProjectApiTest extends TestCase
         $this->assertSame($mineBefore, $measure('/api/work-items/mine'));
     }
 
+    public function test_project_list_is_paginated_and_reports_an_agency_wide_summary(): void
+    {
+        [$agency, $owner, $client, $employee, $assignment] = $this->agencyFixture();
+        foreach (range(1, 7) as $number) {
+            $this->makeProject($agency, $client, $employee, $assignment, title: 'Project '.$number);
+        }
+        $this->actingAs($owner);
+
+        $first = $this->getJson('/api/agency/projects?per_page=3')->assertOk()
+            ->assertJsonCount(3, 'projects')
+            ->assertJsonPath('pagination.current_page', 1)
+            ->assertJsonPath('pagination.last_page', 3)
+            ->assertJsonPath('pagination.per_page', 3)
+            ->assertJsonPath('pagination.total', 7)
+            ->assertJsonPath('summary.total', 7)
+            ->assertJsonPath('projects.0.title', 'Project 7');
+        $this->getJson('/api/agency/projects?per_page=3&page=3')->assertOk()
+            ->assertJsonCount(1, 'projects')
+            ->assertJsonPath('projects.0.title', 'Project 1')
+            ->assertJsonPath('summary.total', 7);
+        $this->assertSame(
+            ['Project 7', 'Project 6', 'Project 5'],
+            collect($first->json('projects'))->pluck('title')->all()
+        );
+
+        $this->getJson('/api/agency/projects')->assertOk()
+            ->assertJsonCount(7, 'projects')
+            ->assertJsonPath('pagination.per_page', 25);
+        $this->getJson('/api/agency/projects?per_page=101')->assertUnprocessable()->assertJsonValidationErrors('per_page');
+        $this->getJson('/api/agency/projects?page=0')->assertUnprocessable()->assertJsonValidationErrors('page');
+    }
+
+    public function test_project_list_filters_by_status_assignment_and_search_while_summary_stays_agency_wide(): void
+    {
+        [$agency, $owner, $client, $employee, $assignment] = $this->agencyFixture();
+        $secondEmployee = User::factory()->create(['role' => Role::Employee, 'name' => 'Zed Second']);
+        $secondAssignment = EmployeeAssignment::create([
+            'holder_id' => $client->id,
+            'agency_id' => $agency->id,
+            'employee_id' => $secondEmployee->id,
+            'status' => 'active',
+            'active_employee_id' => $secondEmployee->id,
+            'started_at' => now(),
+        ]);
+        $this->makeProject($agency, $client, $employee, $assignment, title: 'Alpha site');
+        $this->makeProject($agency, $client, $employee, $assignment, title: 'Beta app', status: 'in_progress');
+        $this->makeProject($agency, $client, $employee, $assignment, title: 'Gamma', status: 'completed');
+        $this->makeProject($agency, $client, $employee, $assignment, title: 'Delta', status: 'cancelled');
+        $this->makeProject($agency, $client, $secondEmployee, $secondAssignment, title: 'Epsilon', status: 'scheduled');
+        $this->actingAs($owner);
+        $summary = ['total' => 5, 'scheduled' => 2, 'in_progress' => 1, 'completed' => 1, 'cancelled' => 1];
+
+        $titles = fn (string $query): array => collect($this->getJson('/api/agency/projects?'.$query)->assertOk()
+            ->assertJsonPath('summary.total', $summary['total'])
+            ->assertJsonPath('summary.scheduled', $summary['scheduled'])
+            ->assertJsonPath('summary.in_progress', $summary['in_progress'])
+            ->assertJsonPath('summary.completed', $summary['completed'])
+            ->assertJsonPath('summary.cancelled', $summary['cancelled'])
+            ->json('projects'))->pluck('title')->sort()->values()->all();
+
+        $this->assertSame(['Alpha site', 'Beta app', 'Epsilon'], $titles('status=open'));
+        $this->assertSame(['Alpha site', 'Epsilon'], $titles('status=scheduled'));
+        $this->assertSame(['Beta app'], $titles('status=in_progress'));
+        $this->assertSame(['Gamma'], $titles('status=completed'));
+        $this->assertSame(['Delta'], $titles('status=cancelled'));
+        $this->assertSame(['Epsilon'], $titles('assignment_id='.$secondAssignment->id));
+        $this->assertSame(['Alpha site', 'Beta app'], $titles('status=open&assignment_id='.$assignment->id));
+        $this->assertSame(['Beta app'], $titles('search=beta'));
+        $this->assertSame(['Epsilon'], $titles('search=Zed'));
+        $this->assertSame([], $titles('status=completed&search=alpha'));
+        $this->getJson('/api/agency/projects?status=bogus')->assertUnprocessable()->assertJsonValidationErrors('status');
+
+        $this->getJson('/api/agency/projects?status=completed')->assertOk()
+            ->assertJsonPath('pagination.total', 1);
+    }
+
+    public function test_project_list_never_leaks_other_agencies_projects_or_counts(): void
+    {
+        [$agency, $owner, $client, $employee, $assignment] = $this->agencyFixture();
+        $this->makeProject($agency, $client, $employee, $assignment, title: 'Mine');
+        [$otherAgency, $otherOwner, $otherClient, $otherEmployee, $otherAssignment] = $this->agencyFixture('Other agency');
+        $this->makeProject($otherAgency, $otherClient, $otherEmployee, $otherAssignment, title: 'Theirs 1');
+        $this->makeProject($otherAgency, $otherClient, $otherEmployee, $otherAssignment, title: 'Theirs 2', status: 'completed');
+
+        $this->actingAs($owner)->getJson('/api/agency/projects')->assertOk()
+            ->assertJsonCount(1, 'projects')
+            ->assertJsonPath('projects.0.title', 'Mine')
+            ->assertJsonPath('summary.total', 1)
+            ->assertJsonPath('summary.completed', 0)
+            ->assertJsonPath('pagination.total', 1);
+        // Another agency's assignment id yields nothing, not their data.
+        $this->getJson('/api/agency/projects?assignment_id='.$otherAssignment->id)->assertOk()
+            ->assertJsonCount(0, 'projects')
+            ->assertJsonPath('summary.total', 1);
+        $this->actingAs($otherOwner)->getJson('/api/agency/projects')->assertOk()
+            ->assertJsonPath('summary.total', 2)
+            ->assertJsonPath('summary.completed', 1);
+    }
+
+    public function test_project_list_requires_authentication_and_an_agency_role(): void
+    {
+        [, , , $employee] = $this->agencyFixture();
+
+        $this->getJson('/api/agency/projects')->assertUnauthorized();
+        $this->actingAs($employee)->getJson('/api/agency/projects')->assertForbidden();
+        $this->actingAs(User::factory()->create(['role' => Role::Admin]))->getJson('/api/agency/projects')->assertForbidden();
+    }
+
     /**
      * @param list<string> $statuses
      */
@@ -182,9 +290,9 @@ class AgencyProjectApiTest extends TestCase
     /**
      * @return array{Agency, User, User, User, EmployeeAssignment}
      */
-    private function agencyFixture(): array
+    private function agencyFixture(string $name = 'Northwind'): array
     {
-        $agency = Agency::create(['name' => 'Northwind']);
+        $agency = Agency::create(['name' => $name]);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);

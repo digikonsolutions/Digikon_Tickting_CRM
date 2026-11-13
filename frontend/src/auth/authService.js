@@ -245,9 +245,20 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { message: 'The employee assignment has ended.' }
     return request(`/admin/assignments/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
-  async listAgencyProjects() {
-    if (AUTH_MODE === 'mock') return { projects: [] }
-    return request('/agency/projects')
+  // Paginated; resolves to { projects, pagination, summary } where summary counts the whole agency.
+  async listAgencyProjects({ page = 1, perPage = 25, status, assignmentId, search } = {}) {
+    if (AUTH_MODE === 'mock') {
+      return {
+        projects: [],
+        pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 },
+        summary: { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 },
+      }
+    }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    if (status) query.set('status', status)
+    if (assignmentId) query.set('assignment_id', String(assignmentId))
+    if (search) query.set('search', search)
+    return request(`/agency/projects?${query.toString()}`)
   },
   async getCapacity({ assignmentId, from, to }) {
     if (AUTH_MODE === 'mock') return { assignment_id: assignmentId, from, to, total_available_hours: '0.00', days: [] }

@@ -9,6 +9,15 @@ import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
 import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
 
 const CAPACITY_DEBOUNCE_MS = 300
+const PROJECTS_PER_PAGE = 25
+const STATUS_FILTERS = [
+  { value: '', label: 'All statuses' },
+  { value: 'open', label: 'Open' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
 
 function scheduleLabel(schedule = []) {
   return schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ') || 'No schedule'
@@ -27,16 +36,22 @@ export function AgencyProjectsPage({ viewAs }) {
   const [createError, setCreateError] = useState(null)
   const [success, setSuccess] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const loadData = useCallback(async () => {
-    const [projects, assignmentResponse] = await Promise.all([
-      authService.listAgencyProjects(),
-      authService.listMyAssignments(),
-    ])
-    return { projects: projects.projects, assignments: assignmentResponse.assignments }
-  }, [])
-  const { data, error, isLoading, reload } = useAsync(loadData)
-  const projects = data?.projects ?? []
-  const assignments = data?.assignments ?? []
+  const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState('')
+  const loadAssignments = useCallback(() => authService.listMyAssignments(), [])
+  const loadProjects = useCallback(
+    () => authService.listAgencyProjects({ page, perPage: PROJECTS_PER_PAGE, status: statusFilter || undefined }),
+    [page, statusFilter],
+  )
+  const assignmentsState = useAsync(loadAssignments)
+  const projectsState = useAsync(loadProjects)
+  const error = assignmentsState.error ?? projectsState.error
+  const isLoading = assignmentsState.isLoading
+  const isLoadingProjects = projectsState.isLoading
+  const reloadProjects = projectsState.reload
+  const projects = projectsState.data?.projects ?? []
+  const pagination = projectsState.data?.pagination ?? { current_page: page, last_page: 1, total: 0 }
+  const assignments = assignmentsState.data?.assignments ?? []
   // Capacity comes from the server (same rules as the scheduler). Debounced, and
   // responses for an outdated assignment/date selection are ignored.
   const capacityKey = selectedAssignment && formValues.start_date && formValues.due_date
@@ -97,7 +112,9 @@ export function AgencyProjectsPage({ viewAs }) {
       setSuccess('Project created and work hours scheduled.')
       form.reset()
       setSelectedAssignment('')
-      await reload()
+      setCapacity({ key: null, hours: null, error: null })
+      if (page !== 1) setPage(1)
+      else await reloadProjects()
     } catch (reason) {
       setCreateError(reason)
     } finally {
@@ -204,14 +221,34 @@ export function AgencyProjectsPage({ viewAs }) {
         </form>
       </Card>
       <Card title={isClient ? 'My projects' : 'Agency projects'} description="Select a project to view and manage its tickets.">
-        {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
+        <div className="admin-users-search">
+          <Select
+            id="project-status-filter"
+            label="Status"
+            value={statusFilter}
+            onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}
+            disabled={isLoadingProjects}
+          >
+            {STATUS_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+        </div>
+        {error && (
+          <Button type="button" variant="secondary" onClick={() => { assignmentsState.reload(); projectsState.reload() }}>Try again</Button>
+        )}
         <Table
           columns={columns}
           rows={projects}
-          loading={isLoading}
-          emptyTitle="No projects yet"
-          emptyText="Create a project above to start assigning work."
+          loading={isLoadingProjects}
+          emptyTitle={statusFilter ? 'No matching projects' : 'No projects yet'}
+          emptyText={statusFilter ? 'Try a different status filter.' : 'Create a project above to start assigning work.'}
         />
+        <div className="admin-users-pagination">
+          <span>Page {pagination.current_page} of {pagination.last_page} · {pagination.total} project{pagination.total === 1 ? '' : 's'}</span>
+          <div>
+            <Button type="button" variant="secondary" size="sm" disabled={isLoadingProjects || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
+            <Button type="button" variant="secondary" size="sm" disabled={isLoadingProjects || page >= pagination.last_page} onClick={() => setPage((value) => value + 1)}>Next</Button>
+          </div>
+        </div>
       </Card>
     </section>
   )
