@@ -327,13 +327,6 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { projects: [] }
     return request('/work-items/mine')
   },
-  async updateMyWorkStatus(id, status) {
-    if (AUTH_MODE === 'mock') return { project: { id, status } }
-    return request(`/work-items/${encodeURIComponent(id)}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    })
-  },
 }
 
 export { isKnownRole }

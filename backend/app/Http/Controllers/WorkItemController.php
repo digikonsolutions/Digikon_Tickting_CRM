@@ -248,29 +248,6 @@ class WorkItemController extends Controller
         return response()->json(['projects' => $items]);
     }
 
-    public function updateStatus(Request $request, WorkItem $workItem): JsonResponse
-    {
-        $this->ensureActiveEmployeeAgency($request->user());
-        abort_unless($workItem->employee_id === $request->user()->id, 404);
-        abort_unless(in_array($workItem->status, ['scheduled', 'in_progress'], true), 422, 'This project is already closed.');
-
-        $data = $request->validate([
-            'status' => ['required', 'in:in_progress,completed'],
-        ]);
-        abort_unless(
-            ($workItem->status === 'scheduled' && $data['status'] === 'in_progress')
-                || ($workItem->status === 'in_progress' && $data['status'] === 'completed'),
-            422,
-            'Work must move from scheduled to in-progress before it can be completed.'
-        );
-
-        $workItem->update(['status' => $data['status']]);
-
-        return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
-        ]);
-    }
-
     private function activeAgency(User $user): Agency
     {
         abort_unless(

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\EmployeeAssignment;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Services\WorkItemScheduler;
@@ -408,7 +409,7 @@ class WorkItemSchedulingTest extends TestCase
             ->assertJsonMissing(['id' => $employee->id]);
     }
 
-    public function test_owner_can_see_agency_projects_admin_can_view_all_and_employees_can_update_assigned_status(): void
+    public function test_owner_can_see_agency_projects_admin_can_view_all_and_employee_ticket_progress_drives_project_status(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
@@ -449,14 +450,20 @@ class WorkItemSchedulingTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'projects');
         $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'completed'])
-            ->assertUnprocessable();
+            ->assertNotFound();
         $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'scheduled']);
-        $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'in_progress'])
-            ->assertOk()
-            ->assertJsonPath('project.status', 'in_progress');
-        $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'completed'])
-            ->assertOk()
-            ->assertJsonPath('project.status', 'completed');
+
+        $ticket = $this->actingAs($client)->postJson('/api/agency/projects/'.$workItem->id.'/tickets', [
+            'title' => 'Only ticket',
+            'description' => 'Ticket description.',
+            'estimated_hours' => 1,
+        ])->assertCreated()->json('ticket');
+        $this->actingAs($employee)->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'in_progress'])
+            ->assertOk();
+        $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'in_progress']);
+        $this->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'in_review'])->assertOk();
+        $this->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'done'])->assertOk();
+        $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'completed']);
         $this->actingAs($client)->postJson('/api/agency/projects', [
             'title' => 'Replacement work',
             'description' => 'Completed work released its future booking.',
@@ -490,9 +497,18 @@ class WorkItemSchedulingTest extends TestCase
             ->getJson('/api/work-items/mine')
             ->assertForbidden();
 
-        $this->patchJson('/api/work-items/'.$workItem->id.'/status', ['status' => 'in_progress'])
+        $ticket = Ticket::create([
+            'work_item_id' => $workItem->id,
+            'title' => 'Suspended agency ticket',
+            'description' => 'This ticket should not be accessible.',
+            'estimated_hours' => 1,
+            'position' => 0,
+        ]);
+
+        $this->patchJson('/api/tickets/'.$ticket->id.'/status', ['status' => 'in_progress'])
             ->assertForbidden();
 
+        $this->assertDatabaseHas('tickets', ['id' => $ticket->id, 'status' => 'todo']);
         $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'scheduled']);
     }
 

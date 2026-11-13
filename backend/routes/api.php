@@ -85,6 +85,5 @@ Route::middleware('web')->group(function () {
 
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
-    Route::patch('/work-items/{workItem}/status', [WorkItemController::class, 'updateStatus']);
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
 });
