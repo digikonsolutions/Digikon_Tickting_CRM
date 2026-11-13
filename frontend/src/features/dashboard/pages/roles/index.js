@@ -1,5 +1,2 @@
 export { AdminDashboard } from './admin/AdminDashboard'
 export { AgencyDashboard } from './agency/AgencyDashboard'
-export { MyTicketsPage } from './employee/MyTicketsPage'
-export { QaQueuePage } from './qa/QaQueuePage'
-export { TeamQueuePage } from './team/TeamQueuePage'

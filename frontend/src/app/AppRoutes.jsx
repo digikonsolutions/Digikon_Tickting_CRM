@@ -29,11 +29,7 @@ import {
   AdminDashboard,
   AgencyDashboard,
   InternalEmployeeWorkPage,
-  MyTicketsPage,
   NotFoundPage,
-  PlaceholderPage,
-  QaQueuePage,
-  TeamQueuePage,
   UnauthorizedPage,
 } from '../features/dashboard'
 
@@ -69,19 +65,9 @@ export function AppRoutes() {
             <Route path="/admin/agency-clients" element={<AdminUsersPage key={ROLES.AGENCY_CLIENT} role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />
             <Route path="/admin/users" element={<Navigate to="/admin/employees" replace />} />
             <Route path="/admin/users/new" element={<Navigate to="/admin/employees/new" replace />} />
-            <Route path="/admin/settings" element={<PlaceholderPage title="Settings" />} />
-          </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
-            <Route path="/team/queue" element={<TeamQueuePage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE]} />}>
             <Route path="/my-work" element={<InternalEmployeeWorkPage />} />
-          </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.TEAM_LEAD, ROLES.ADMIN]} />}>
-            <Route path="/my-tickets" element={<MyTicketsPage />} />
-          </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.QA, ROLES.ADMIN]} />}>
-            <Route path="/qa/queue" element={<QaQueuePage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/dashboard" element={<AgencyDashboard />} />

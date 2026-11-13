@@ -7,9 +7,8 @@ import { useAsync } from '../../../hooks/useAsync'
 import { dashboardService } from '../services/dashboardService'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 
-// One composable dashboard; each role page just supplies scope, copy and quick actions.
+// Agency dashboard layout; the role page supplies copy and quick actions.
 export function RoleDashboard({
-  scope = 'all',
   subtitle,
   actions,
   ticketsLink,
@@ -21,8 +20,8 @@ export function RoleDashboard({
   onRetryAdditionalStats,
 }) {
   const { user } = useAuth()
-  const tickets = useAsync(useCallback(() => dashboardService.getDashboard({ scope, user }), [scope, user]))
-  const stats = tickets.data ? dashboardService.getStats(tickets.data.projects, tickets.data.summary) : []
+  const tickets = useAsync(useCallback(() => dashboardService.getDashboard({ user }), [user]))
+  const stats = tickets.data ? dashboardService.getStats(tickets.data.summary) : []
   const firstName = user.name?.split(' ')[0] ?? 'there'
 
   return (

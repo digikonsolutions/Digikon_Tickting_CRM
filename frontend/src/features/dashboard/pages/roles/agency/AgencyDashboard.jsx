@@ -1,12 +1,28 @@
 import { useCallback } from 'react'
 import { useAuth } from '../../../../../auth/useAuth'
 import { authService } from '../../../../../auth/authService'
-import { ROLES } from '../../../../../auth/roles'
+import { ROLES, ROLE_LABELS } from '../../../../../auth/roles'
+import { Link } from 'react-router-dom'
+import { WelcomeBanner } from '../../../components'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { DEFAULT_CAPACITY } from '../../../../../lib/constants'
 import { RoleDashboard } from '../../RoleDashboard'
 
-export const AgencyDashboard = () => {
+// Legacy agency members only get a welcome card and the directory: they have no projects or holds.
+function AgencyMemberDashboard() {
+  const { user } = useAuth()
+  const firstName = user.name?.split(' ')[0] ?? 'there'
+
+  return (
+    <section className="page dashboard">
+      <WelcomeBanner eyebrow={ROLE_LABELS[user.role]} title={`Welcome back, ${firstName}`} subtitle="Find the people in your agency.">
+        <Link to="/agency/directory" className="ui-button ui-button-secondary ui-button-sm">Agency directory</Link>
+      </WelcomeBanner>
+    </section>
+  )
+}
+
+function AgencyProjectsDashboard() {
   const { user } = useAuth()
   const isProjectManager = [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT].includes(user.role)
   const assignments = useAsync(useCallback(
@@ -29,7 +45,6 @@ export const AgencyDashboard = () => {
 
   return (
     <RoleDashboard
-      scope="agency"
       additionalStats={additionalStats}
       additionalStatsLoading={assignments.isLoading}
       additionalStatsError={isProjectManager ? assignments.error : null}
@@ -65,4 +80,9 @@ export const AgencyDashboard = () => {
         : [{ to: '/agency/directory', icon: 'users', label: 'Agency directory', description: 'View people in your agency' }]}
     />
   )
+}
+
+export const AgencyDashboard = () => {
+  const { user } = useAuth()
+  return user.role === ROLES.AGENCY_MEMBER ? <AgencyMemberDashboard /> : <AgencyProjectsDashboard />
 }

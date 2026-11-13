@@ -18,11 +18,12 @@ export const ROLE_LABELS = Object.freeze({
   [ROLES.AGENCY_CLIENT]: 'Agency client',
 })
 
+// Team lead and QA have no workspace in this version: they land on the access-restricted page.
 export const ROLE_HOME = Object.freeze({
   [ROLES.ADMIN]: '/admin/dashboard',
-  [ROLES.TEAM_LEAD]: '/team/queue',
+  [ROLES.TEAM_LEAD]: '/unauthorized',
   [ROLES.EMPLOYEE]: '/my-work',
-  [ROLES.QA]: '/qa/queue',
+  [ROLES.QA]: '/unauthorized',
   [ROLES.AGENCY_OWNER]: '/agency/dashboard',
   [ROLES.AGENCY_MEMBER]: '/agency/dashboard',
   [ROLES.AGENCY_CLIENT]: '/agency/dashboard',

@@ -197,21 +197,7 @@
 .ticket-due { min-width: 5.5rem; color: #64748b; font-size: .76rem; text-align: right; }
 .ticket-loading { display: grid; place-items: center; padding: 2rem; }
 
-.ticket-filters { display: grid; gap: .8rem; margin-bottom: 1rem; }
-.filter-search { display: flex; align-items: center; gap: .6rem; border: 1px solid #e1e3ed; border-radius: .75rem; padding: 0 .9rem; background: #fbfbfd; color: #94a3b8; }
-.filter-search:focus-within { border-color: var(--brand); background: #fff; box-shadow: 0 0 0 2px var(--brand-ring); }
-.filter-search input { width: 100%; min-height: 2.8rem; border: 0; background: transparent; color: #252640; outline: 0; font-size: .9rem; }
-.filter-chips { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .2rem; }
-.chip { min-height: 2.25rem; flex: 0 0 auto; border: 1px solid #e2e8f0; border-radius: 99rem; padding: .3rem .85rem; background: #fff; color: #475569; cursor: pointer; font-size: .8rem; font-weight: 650; }
-.chip:hover { border-color: var(--color-primary-200); }
-.chip-active { border-color: var(--brand); background: var(--brand); color: #fff; }
 
-.ticket-detail { display: grid; gap: 1rem; }
-.ticket-detail p { margin: 0; color: #475569; line-height: 1.6; }
-.ticket-detail dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 0; }
-.ticket-detail dt { color: var(--color-muted); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.ticket-detail dd { margin: .15rem 0 0; color: var(--color-heading); font-weight: 600; }
-.ticket-detail .ticket-detail-note { border-radius: .65rem; padding: .7rem .85rem; background: var(--color-page); color: var(--color-muted); font-size: .8rem; }
 
 .quick-actions { display: grid; gap: .5rem; }
 .quick-action { display: flex; align-items: center; gap: .8rem; border: 1px solid #eef1f6; border-radius: .8rem; padding: .7rem .8rem; color: inherit; text-decoration: none; transition: border-color 150ms ease, background-color 150ms ease; }
@@ -234,7 +220,6 @@
 }
 @media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
-  .ticket-detail dl { grid-template-columns: 1fr; }
 }
 
 .welcome-banner h1, .section-card-header h2, .ticket-title { font-weight: 700; }

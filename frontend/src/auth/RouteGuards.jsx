@@ -41,14 +41,8 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'building', section: 'People' },
     { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users', section: 'People' },
-    { to: '/admin/settings', label: 'Settings', icon: 'settings', section: 'Admin' },
-  ],
-  [ROLES.TEAM_LEAD]: [
-    { to: '/team/queue', label: 'Team Queue', icon: 'queue' },
-    { to: '/my-tickets', label: 'My Tickets', icon: 'ticket' },
   ],
   [ROLES.EMPLOYEE]: [{ to: '/my-work', label: 'My work', icon: 'ticket' }],
-  [ROLES.QA]: [{ to: '/qa/queue', label: 'QA Queue', icon: 'check' }],
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
@@ -102,7 +96,6 @@ export function AppLayout() {
       '/admin/agency-owners': 'Agency owners',
       '/admin/agency-owners/new': 'Create Agency Owner',
       '/admin/agency-clients': 'Agency clients',
-      '/admin/settings': 'Settings',
       '/admin/dashboard': 'Dashboard',
       '/admin/projects': 'All projects',
       '/admin/tickets': 'All tickets',

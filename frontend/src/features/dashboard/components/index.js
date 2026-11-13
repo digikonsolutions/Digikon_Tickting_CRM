@@ -1,7 +1,5 @@
 export { QuickActions } from './QuickActions'
 export { SectionCard } from './SectionCard'
 export { StatCard, StatGrid } from './StatCard'
-export { ProjectDetailModal } from './ProjectDetailModal'
-export { TicketFilters } from './TicketFilters'
 export { ProjectList } from './ProjectList'
 export { WelcomeBanner } from './WelcomeBanner'
