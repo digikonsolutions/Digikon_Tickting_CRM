@@ -34,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth-admin-signup', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('project-create', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        RateLimiter::for('notifications', fn (Request $request) => Limit::perMinute(60)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('auth-password-reset', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
 
         ResetPassword::createUrlUsing(function ($user, string $token): string {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AgencyUserController;
 use App\Http\Controllers\EmployeeAssignmentController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WorkItemController;
@@ -101,4 +102,14 @@ Route::middleware('web')->group(function () {
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
+});
+
+// Notifications for the signed-in user (any role). Everything is scoped to the caller.
+Route::middleware(['web', 'auth', 'throttle:notifications'])->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::get('/preferences', [NotificationController::class, 'preferences']);
+    Route::put('/preferences', [NotificationController::class, 'updatePreferences']);
+    Route::post('/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/{notification}/read', [NotificationController::class, 'markRead']);
 });

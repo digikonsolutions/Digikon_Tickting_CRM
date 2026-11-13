@@ -16,6 +16,7 @@ use App\Models\TicketComment;
 use App\Models\TicketEvent;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Services\TicketAccess;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use App\Services\TicketWorkflow;
@@ -441,8 +442,7 @@ class TicketController extends Controller
         $this->authorizeComments($request->user(), $ticket);
 
         $user = $request->user();
-        $canViewInternal = $user->role === Role::Admin
-            || ($user->role === Role::Employee && $ticket->workItem->employee_id === $user->id);
+        $canViewInternal = app(TicketAccess::class)->canSeeInternal($user, $ticket);
 
         $commentsQuery = $ticket->comments()
             ->with('user')
@@ -504,8 +504,7 @@ class TicketController extends Controller
         $this->authorizeTicketView($request->user(), $ticket);
 
         $user = $request->user();
-        $canViewInternal = $user->role === Role::Admin
-            || ($user->role === Role::Employee && $ticket->workItem->employee_id === $user->id);
+        $canViewInternal = app(TicketAccess::class)->canSeeInternal($user, $ticket);
 
         $paginated = $ticket->events()
             ->when(! $canViewInternal, fn ($query) => $query->where('visibility', '!=', 'internal'))
@@ -543,8 +542,7 @@ class TicketController extends Controller
 
     private function buildTimeline(Ticket $ticket, User $user, int $limit = 25): array
     {
-        $canViewInternal = $user->role === Role::Admin
-            || ($user->role === Role::Employee && $ticket->workItem->employee_id === $user->id);
+        $canViewInternal = app(TicketAccess::class)->canSeeInternal($user, $ticket);
 
         $events = $ticket->events()
             ->when(! $canViewInternal, fn ($query) => $query->where('visibility', '!=', 'internal'))
@@ -577,30 +575,7 @@ class TicketController extends Controller
 
     public function authorizeTicketView(User $user, Ticket $ticket): void
     {
-        if ($user->role === Role::Admin) {
-            return;
-        }
-
-        $workItem = $ticket->workItem;
-
-        if ($user->role === Role::Employee && $workItem->employee_id === $user->id) {
-            if ($user->agency_id !== null && $user->agency?->status !== 'active') {
-                abort(404);
-            }
-
-            return;
-        }
-
-        if (
-            in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
-            && $user->agency_id !== null
-            && $user->agency_id === $ticket->agency_id
-            && $user->agency?->status === 'active'
-        ) {
-            return;
-        }
-
-        abort(404);
+        app(TicketAccess::class)->authorizeView($user, $ticket);
     }
 
     /**
