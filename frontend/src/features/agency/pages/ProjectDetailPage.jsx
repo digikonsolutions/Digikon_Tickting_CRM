@@ -4,9 +4,10 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBadge, Textarea } from '../../../components/ui'
+import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBadge, TicketKey, Textarea, useToast } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '../../../lib/format'
-import { TicketCommentsToggle } from '../../comments'
+import { getAgencyLabels } from '../../../lib/labels'
+import { WaitingChip } from '../../tickets'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -14,6 +15,8 @@ export function ProjectDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { showToast } = useToast()
+  const labels = getAgencyLabels(user.role)
   const [editor, setEditor] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [mutationError, setMutationError] = useState(null)
@@ -39,12 +42,21 @@ export function ProjectDetailPage() {
     .filter((ticket) => ticket.status !== 'cancelled')
     .reduce((sum, ticket) => sum + Number(ticket.estimated_hours), 0)
   const progress = project ? Math.min(100, (projectTicketHours / Number(project.estimated_hours)) * 100) : 0
+  // Latest delivery date among tickets that are still open.
+  const expectedDelivery = tickets
+    .filter((ticket) => !['done', 'cancelled'].includes(ticket.status) && ticket.due_date)
+    .map((ticket) => ticket.due_date)
+    .sort()
+    .pop()
 
   async function mutate(action) {
     setMutationError(null)
     setIsSaving(true)
     try {
-      await action()
+      const result = await action()
+      // Edits and reorders can move other tickets: tell the user how many were rescheduled.
+      const moved = result?.rescheduled?.length ?? 0
+      if (moved > 0) showToast(`${moved} ticket${moved === 1 ? ' was' : 's were'} rescheduled.`)
       setEditor(null)
       setConfirmCancel(false)
       await reload()
@@ -114,6 +126,7 @@ export function ProjectDetailPage() {
               <div><dt>Project hours</dt><dd>{formatHours(project.estimated_hours)}</dd></div>
               <div><dt>Dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
               <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>
+              <div><dt>Expected delivery</dt><dd>{expectedDelivery ? formatDate(expectedDelivery) : '—'}</dd></div>
             </dl>
           </div>
           <div className="project-ticket-progress">
@@ -139,15 +152,23 @@ export function ProjectDetailPage() {
               <li className="project-ticket-card" key={ticket.id}>
                 <div className="project-ticket-main">
                   <div className="project-ticket-title">
-                    <span className="project-ticket-position">{ticket.position + 1}</span>
-                    <div><h3>{ticket.title}</h3><p>{ticket.description}</p></div>
+                    <span className="project-ticket-position">{index + 1}</span>
+                    <div>
+                      <TicketKey ticketKey={ticket.key} />
+                      <h3><Link className="project-ticket-link" to={`/tickets/${ticket.key}`}>{ticket.title}</Link></h3>
+                      <p>{ticket.description}</p>
+                    </div>
                   </div>
                   <div className="project-ticket-badges">
                     <PriorityBadge priority={ticket.priority} />
-                    <StatusBadge status={ticket.status} />
+                    <StatusBadge status={ticket.status} role={user.role} />
+                    <WaitingChip ticket={ticket} role={user.role} />
                     <strong>{formatHours(ticket.estimated_hours)}</strong>
                   </div>
-                  <p className="project-ticket-dates">{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</p>
+                  <p className="project-ticket-dates">
+                    {ticket.due_date ? `${labels.dueDate} ${formatDate(ticket.due_date)}` : 'Not scheduled'}
+                    {ticket.start_date && ` · ${formatDateRange(ticket.start_date, ticket.due_date)}`}
+                  </p>
                 </div>
                 {canEdit && ticket.status !== 'cancelled' && ticket.status !== 'done' && (
                   <div className="project-ticket-actions">
@@ -157,7 +178,10 @@ export function ProjectDetailPage() {
                     <Button type="button" variant="danger" size="sm" onClick={() => mutate(() => authService.cancelTicket(ticket.id))}>Cancel</Button>
                   </div>
                 )}
-                <TicketCommentsToggle ticketId={ticket.id} ticketTitle={ticket.title} count={ticket.comments_count ?? 0} />
+                <div className="project-ticket-footer">
+                  <Link to={`/tickets/${ticket.key}`}>Open ticket</Link>
+                  <span>{ticket.comments_count ?? 0} comment{ticket.comments_count === 1 ? '' : 's'}</span>
+                </div>
               </li>
             ))}
           </ol>

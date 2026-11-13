@@ -4,6 +4,7 @@ import { authService } from '../../../../../auth/authService'
 import { ROLES, ROLE_LABELS } from '../../../../../auth/roles'
 import { Link } from 'react-router-dom'
 import { WelcomeBanner } from '../../../components'
+import { NeedsAttentionCard } from '../../../../tickets'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { DEFAULT_CAPACITY } from '../../../../../lib/constants'
 import { getAgencyLabels } from '../../../../../lib/labels'
@@ -46,6 +47,7 @@ function AgencyProjectsDashboard() {
 
   return (
     <RoleDashboard
+      attention={<NeedsAttentionCard />}
       additionalStats={additionalStats}
       additionalStatsLoading={assignments.isLoading}
       additionalStatsError={isProjectManager ? assignments.error : null}

@@ -174,9 +174,9 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { employees: [] }
     return request('/agency/team')
   },
-  async listAdminUsers({ page = 1, search = '', role } = {}) {
+  async listAdminUsers({ page = 1, search = '', role, perPage = 25 } = {}) {
     if (AUTH_MODE === 'mock') return { users: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
-    const query = new URLSearchParams({ page: String(page), per_page: '25' })
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
     if (role) query.set('role', role)
     if (search) query.set('search', search)
     return request(`/admin/users?${query.toString()}`)
@@ -362,9 +362,15 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { tickets: [], total: 0 }
     return request('/agency/attention')
   },
-  async listAdminTickets({ page = 1, perPage = 25 } = {}) {
+  // Filters are applied by the server: status, agencyId, employeeId, waitingOn (client|employee|team), search (key or title).
+  async listAdminTickets({ page = 1, perPage = 25, status, agencyId, employeeId, waitingOn, search } = {}) {
     if (AUTH_MODE === 'mock') return { tickets: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
     const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    if (status) query.set('status', status)
+    if (agencyId) query.set('agency_id', String(agencyId))
+    if (employeeId) query.set('employee_id', String(employeeId))
+    if (waitingOn) query.set('waiting_on', waitingOn)
+    if (search) query.set('search', search)
     return request(`/admin/tickets?${query.toString()}`)
   },
   async listAdminAssignments({ page = 1, perPage = 25 } = {}) {

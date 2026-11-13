@@ -136,6 +136,23 @@ class TicketAttentionAndFiltersTest extends TestCase
         $this->assertSame(['from_position' => 3, 'to_position' => 2], TicketEvent::where('ticket_id', $third['id'])->where('type', 'reordered')->first()->payload);
     }
 
+    public function test_comments_count_never_includes_internal_notes_for_agency_roles(): void
+    {
+        [, $client, $employee, $project] = $this->fixture('Northwind');
+        $ticket = $this->ticket($project, 'Has notes', 'in_progress');
+        \App\Models\TicketComment::create(['ticket_id' => $ticket->id, 'user_id' => $client->id, 'body' => 'Public one', 'is_internal' => false]);
+        \App\Models\TicketComment::create(['ticket_id' => $ticket->id, 'user_id' => $employee->id, 'body' => 'Internal one', 'is_internal' => true]);
+        \App\Models\TicketComment::create(['ticket_id' => $ticket->id, 'user_id' => $employee->id, 'body' => 'Internal two', 'is_internal' => true]);
+        $admin = User::factory()->create(['role' => Role::Admin]);
+
+        $count = fn (User $viewer, string $url, string $path = 'tickets.0.comments_count'): int => $this->actingAs($viewer)->getJson($url)->assertOk()->json($path);
+        $this->assertSame(1, $count($client, '/api/agency/projects/'.$project->id.'/tickets'));
+        $this->assertSame(3, $count($employee, '/api/work-items/mine/tickets'));
+        $this->assertSame(3, $count($admin, '/api/admin/tickets'));
+        $this->assertSame(1, $count($client, '/api/tickets/key/'.$ticket->key, 'ticket.comments_count'));
+        $this->assertSame(3, $count($admin, '/api/tickets/key/'.$ticket->key, 'ticket.comments_count'));
+    }
+
     /**
      * @return array{Agency, User, User, WorkItem}
      */

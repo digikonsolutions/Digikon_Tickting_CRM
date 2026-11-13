@@ -3,9 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Icon, PageHeader, PriorityBadge, Spinner, StatusBadge } from '../../../components/ui'
+import { Button, Card, Icon, PageHeader, PriorityBadge, Spinner, StatusBadge, TicketKey } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
-import { TicketCommentsToggle } from '../../comments'
+import { WaitingChip } from '../../tickets'
 
 function formatSchedule(schedule = []) {
   if (!schedule.length) return 'No scheduled hours'
@@ -107,7 +107,7 @@ export function AdminProjectDetailPage() {
                   <span className="admin-project-ticket-position">{ticket.position + 1}</span>
                   <div className="admin-project-ticket-content">
                     <div className="admin-project-ticket-title-row">
-                      <h3>{ticket.title}</h3>
+                      <h3><TicketKey ticketKey={ticket.key} /> <Link className="admin-project-detail-link" to={`/tickets/${ticket.key}`}>{ticket.title}</Link></h3>
                       <div className="admin-project-ticket-badges">
                         <PriorityBadge priority={ticket.priority} />
                         <StatusBadge status={ticket.status} />
@@ -119,7 +119,7 @@ export function AdminProjectDetailPage() {
                       <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
                     </div>
                     <p className="admin-project-ticket-schedule">{formatSchedule(ticket.schedule)}</p>
-                    <TicketCommentsToggle ticketId={ticket.id} ticketTitle={ticket.title} count={ticket.comments_count ?? 0} />
+                    <p className="project-ticket-footer"><WaitingChip ticket={ticket} role="admin" /> <Link to={`/tickets/${ticket.key}`}>Open ticket</Link> <span>{ticket.comments_count ?? 0} comment{ticket.comments_count === 1 ? '' : 's'}</span></p>
                   </div>
                 </li>
               ))}

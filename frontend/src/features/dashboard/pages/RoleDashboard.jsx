@@ -18,6 +18,7 @@ export function RoleDashboard({
   additionalStatsLoading = false,
   additionalStatsError = null,
   onRetryAdditionalStats,
+  attention = null,
 }) {
   const { user } = useAuth()
   const tickets = useAsync(useCallback(() => dashboardService.getDashboard({ user }), [user]))
@@ -36,6 +37,7 @@ export function RoleDashboard({
       {additionalStatsError && onRetryAdditionalStats && (
         <button type="button" className="inline-link" onClick={onRetryAdditionalStats}>Retry loading employee stats</button>
       )}
+      {attention}
       <div className="dashboard-columns">
         <SectionCard title={ticketsTitle} description="Recently scheduled and assigned work">
           {tickets.error

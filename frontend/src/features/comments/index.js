@@ -1,2 +1,1 @@
-﻿export { TicketComments } from './TicketComments'
-export { TicketCommentsToggle } from './TicketCommentsToggle'
+export { TicketComments } from './TicketComments'

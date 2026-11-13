@@ -42,6 +42,7 @@ export function getWaitingLabel(waitingOn, viewerRole = null) {
     case 'client':
       return viewerIsAgency ? 'you' : 'client'
     case 'employee':
+      if (viewerRole === 'employee') return 'you'
       return viewerIsAgency ? 'specialist' : 'employee'
     case 'team':
       return 'team'

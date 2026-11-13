@@ -1,21 +1,29 @@
 import { useCallback, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
+import { useAuth } from '../../../auth/useAuth'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Button, Card, CapacityBar, Drawer, DueText, EmptyState,
-  KpiCard, PageHeader, PriorityBadge, Skeleton, StatusBadge, Tabs,
+  KpiCard, PageHeader, PlainText, PriorityBadge, Skeleton, StatusBadge, Tabs, TicketKey, useToast,
 } from '../../../components/ui'
 import { TicketComments } from '../../comments'
+import { WaitingChip } from '../../tickets'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
-function nextAction(status) {
-  if (status === 'todo') return ['in_progress', 'Start']
-  if (status === 'in_progress') return ['in_review', 'Send to review']
-  if (status === 'in_review') return ['done', 'Mark done']
-  return null
+// Statuses that need the employee to do something other than the normal flow.
+const NEEDS_ATTENTION = ['changes_requested', 'blocked']
+
+// Actions that can run straight from a card. Those that need a comment open the ticket page instead.
+function quickActions(ticket) {
+  return (ticket.allowed_actions ?? []).filter((action) => !action.requires_comment)
+}
+
+function hasCommentActions(ticket) {
+  return (ticket.allowed_actions ?? []).some((action) => action.requires_comment)
 }
 
 const PRIORITY_DOT = { urgent: '#dc2626', high: '#f59e0b', normal: '#0d9488', low: '#94a3b8' }
@@ -31,6 +39,8 @@ function weekDates() {
 /* ── component ───────────────────────────────────────────────── */
 
 export function MyWorkPage() {
+  const { user } = useAuth()
+  const { showToast } = useToast()
   const [actionError, setActionError] = useState(null)
   const [busyTicket, setBusyTicket] = useState(null)
   const [postedComments, setPostedComments] = useState({})
@@ -55,7 +65,9 @@ export function MyWorkPage() {
   const week = weekDates()
   const weekDateSet = new Set(week.map((d) => d.date))
 
-  const statusCounts = { todo: 0, in_progress: 0, in_review: 0, done: 0 }
+  const statusCounts = {
+    todo: 0, in_progress: 0, in_review: 0, done: 0, blocked: 0, waiting_on_client: 0, changes_requested: 0,
+  }
   let weekHours = 0
 
   for (const t of tickets) {
@@ -65,8 +77,10 @@ export function MyWorkPage() {
     }
   }
 
+  // Tickets that need attention are pinned above today's schedule, whatever day they are scheduled for.
+  const attentionTickets = tickets.filter((t) => NEEDS_ATTENTION.includes(t.status))
   const todayTickets = tickets.filter((t) =>
-    (t.schedule ?? []).some((s) => s.work_date === today),
+    !NEEDS_ATTENTION.includes(t.status) && (t.schedule ?? []).some((s) => s.work_date === today),
   )
 
   const ticketsByProject = tickets.reduce((groups, ticket) => {
@@ -77,11 +91,13 @@ export function MyWorkPage() {
   }, {})
 
   /* ── actions ───────────────────────────────────────────────── */
-  async function changeStatus(ticket, status) {
+  // Runs one of the ticket's allowed_actions (the server decides which exist).
+  async function runAction(ticket, action) {
     setBusyTicket(ticket.id)
     setActionError(null)
     try {
-      await authService.updateTicketStatus(ticket.id, status)
+      await authService.transitionTicket(ticket.id, action.action)
+      showToast(`${ticket.key}: ${action.label.toLowerCase()} done.`)
       if (drawerTicket?.id === ticket.id) setDrawerTicket(null)
       await reload()
     } catch (reason) {
@@ -99,9 +115,8 @@ export function MyWorkPage() {
   }
 
   /* ── sub-views ─────────────────────────────────────────────── */
-  function renderTicketCard(ticket, project) {
-    const action = nextAction(ticket.status)
-    const canAct = project && project.status !== 'cancelled' && project.status !== 'completed'
+  function renderTicketCard(ticket) {
+    const actions = quickActions(ticket)
     return (
       <article
         className="mw-ticket-card"
@@ -119,6 +134,7 @@ export function MyWorkPage() {
               title={ticket.priority}
               aria-label={`Priority: ${ticket.priority}`}
             />
+            <TicketKey ticketKey={ticket.key} />
             <h3 className="mw-ticket-title">{ticket.title}</h3>
           </div>
           {ticket.description && ticket.description !== ticket.title && (
@@ -129,20 +145,28 @@ export function MyWorkPage() {
             <DueText dueDate={ticket.due_date} status={ticket.status} />
             <span>{formatHours(ticket.estimated_hours)}</span>
             <span className="mw-comment-count" title="Comments">{countComments(ticket)} comment{countComments(ticket) === 1 ? '' : 's'}</span>
-            <StatusBadge status={ticket.status} />
+            <StatusBadge status={ticket.status} role={user.role} />
+            <WaitingChip ticket={ticket} role={user.role} />
             <PriorityBadge priority={ticket.priority} />
           </div>
+          {NEEDS_ATTENTION.includes(ticket.status) && ticket.status_reason && (
+            <p className="mw-ticket-reason">{ticket.status_reason}</p>
+          )}
         </div>
         <div className="mw-ticket-actions" onClick={(e) => e.stopPropagation()}>
-          {action && canAct && (
+          {actions.map((action) => (
             <Button
+              key={action.action}
               type="button"
               size="sm"
               loading={busyTicket === ticket.id}
-              onClick={() => changeStatus(ticket, action[0])}
+              onClick={() => runAction(ticket, action)}
             >
-              {action[1]}
+              {action.label}
             </Button>
+          ))}
+          {hasCommentActions(ticket) && (
+            <Link className="ui-button ui-button-secondary ui-button-sm" to={`/tickets/${ticket.key}`}>More actions</Link>
           )}
           <Button
             type="button"
@@ -150,7 +174,7 @@ export function MyWorkPage() {
             size="sm"
             onClick={() => setDrawerTicket(ticket)}
           >
-            Comment
+            Details
           </Button>
         </div>
       </article>
@@ -158,7 +182,7 @@ export function MyWorkPage() {
   }
 
   function renderToday() {
-    if (!todayTickets.length) {
+    if (!todayTickets.length && !attentionTickets.length) {
       return (
         <EmptyState
           title="Nothing scheduled today"
@@ -169,12 +193,21 @@ export function MyWorkPage() {
       )
     }
     return (
-      <div className="mw-ticket-list">
-        {todayTickets.map((t) => {
-          const proj = projects.find((p) => p.id === t.work_item_id)
-          return renderTicketCard(t, proj)
-        })}
-      </div>
+      <>
+        {attentionTickets.length > 0 && (
+          <section className="mw-attention" aria-label="Needs attention">
+            <h2 className="mw-attention-title">Needs attention <span>{attentionTickets.length}</span></h2>
+            <div className="mw-ticket-list">
+              {attentionTickets.map((t) => renderTicketCard(t))}
+            </div>
+          </section>
+        )}
+        {todayTickets.length > 0 && (
+          <div className="mw-ticket-list">
+            {todayTickets.map((t) => renderTicketCard(t))}
+          </div>
+        )}
+      </>
     )
   }
 
@@ -249,7 +282,7 @@ export function MyWorkPage() {
         >
           {projectTickets.length ? (
             <div className="mw-ticket-list">
-              {projectTickets.map((ticket) => renderTicketCard(ticket, project))}
+              {projectTickets.map((ticket) => renderTicketCard(ticket))}
             </div>
           ) : (
             <p className="mw-no-tickets">No tickets for this project.</p>
@@ -264,8 +297,7 @@ export function MyWorkPage() {
     if (!drawerTicket) return null
     const t = drawerTicket
     const proj = projects.find((p) => p.id === t.work_item_id)
-    const action = nextAction(t.status)
-    const canAct = proj && proj.status !== 'cancelled' && proj.status !== 'completed'
+    const actions = quickActions(t)
 
     return (
       <Drawer
@@ -275,14 +307,25 @@ export function MyWorkPage() {
         description={proj ? `${proj.title} · ${proj.agency_name ?? 'Agency'}` : undefined}
       >
         <div className="mw-drawer-badges">
-          <StatusBadge status={t.status} />
+          <TicketKey ticketKey={t.key} />
+          <StatusBadge status={t.status} role={user.role} />
+          <WaitingChip ticket={t} role={user.role} />
           <PriorityBadge priority={t.priority} />
         </div>
+
+        <Link className="ui-button ui-button-secondary ui-button-sm mw-drawer-open" to={`/tickets/${t.key}`}>Open ticket</Link>
+
+        {t.status_reason && (
+          <div className="mw-drawer-section">
+            <h4>Reason</h4>
+            <PlainText text={t.status_reason} />
+          </div>
+        )}
 
         {t.description && (
           <div className="mw-drawer-section">
             <h4>Description</h4>
-            <p>{t.description}</p>
+            <PlainText text={t.description} />
           </div>
         )}
 
@@ -307,14 +350,22 @@ export function MyWorkPage() {
           <p>{formatDateRange(t.start_date, t.due_date)} · <DueText dueDate={t.due_date} status={t.status} /> · {formatHours(t.estimated_hours)} estimated</p>
         </div>
 
-        {action && canAct && (
-          <Button
-            type="button"
-            loading={busyTicket === t.id}
-            onClick={() => changeStatus(t, action[0])}
-          >
-            {action[1]}
-          </Button>
+        {(actions.length > 0 || hasCommentActions(t)) && (
+          <div className="mw-drawer-actions">
+            {actions.map((action) => (
+              <Button
+                key={action.action}
+                type="button"
+                loading={busyTicket === t.id}
+                onClick={() => runAction(t, action)}
+              >
+                {action.label}
+              </Button>
+            ))}
+            {hasCommentActions(t) && (
+              <Link className="ui-button ui-button-secondary" to={`/tickets/${t.key}`}>More actions</Link>
+            )}
+          </div>
         )}
 
         <div className="mw-drawer-section">
@@ -383,6 +434,9 @@ export function MyWorkPage() {
             />
             <KpiCard icon="arrow" title="In progress" value={statusCounts.in_progress} tone="teal" />
             <KpiCard icon="clock" title="In review" value={statusCounts.in_review} tone="teal" />
+            <KpiCard icon="alert" title="Blocked" value={statusCounts.blocked} tone="teal" />
+            <KpiCard icon="chat" title="Waiting on client" value={statusCounts.waiting_on_client} tone="teal" />
+            <KpiCard icon="pencil" title="Changes requested" value={statusCounts.changes_requested} tone="teal" />
             <KpiCard icon="inbox" title="To do" value={statusCounts.todo} tone="teal" />
             <KpiCard icon="check" title="Done" value={statusCounts.done} tone="teal" />
           </div>

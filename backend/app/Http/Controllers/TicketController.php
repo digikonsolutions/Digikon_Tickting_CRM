@@ -35,7 +35,7 @@ class TicketController extends Controller
         return response()->json([
             'tickets' => $workItem->tickets()
                 ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
-                ->withCount('comments')
+                ->withCount(['comments' => $this->commentVisibility($request->user())])
                 ->orderBy('position')
                 ->orderBy('id')
                 ->get()
@@ -240,7 +240,7 @@ class TicketController extends Controller
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
             ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
-            ->withCount('comments')
+            ->withCount(['comments' => $this->commentVisibility($employee)])
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
             ->orderBy('work_item_id')
             ->orderBy('position')
@@ -315,7 +315,7 @@ class TicketController extends Controller
 
         $tickets = Ticket::query()
             ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent'])
-            ->withCount('comments')
+            ->withCount(['comments' => $this->commentVisibility($request->user())])
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['agency_id'] ?? null, fn ($query, $agencyId) => $query->where('agency_id', $agencyId))
             ->when($filters['employee_id'] ?? null, fn ($query, $employeeId) => $query->whereHas('workItem', fn ($q) => $q->where('employee_id', $employeeId)))
@@ -377,7 +377,7 @@ class TicketController extends Controller
 
         $tickets = (clone $query)
             ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
-            ->withCount('comments')
+            ->withCount(['comments' => $this->commentVisibility($user)])
             ->orderBy(
                 TicketEvent::query()
                     ->select('created_at')
@@ -709,6 +709,16 @@ class TicketController extends Controller
     }
 
     /**
+     * Constraint for counting/listing comments a viewer may see: agency roles never see internal notes.
+     */
+    private function commentVisibility(?User $viewer): \Closure
+    {
+        $isAgency = $viewer !== null && in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true);
+
+        return fn ($query) => $isAgency ? $query->where('is_internal', false) : $query;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function ticketPayload(Ticket $ticket, ?User $viewer = null): array
@@ -760,7 +770,7 @@ class TicketController extends Controller
             'status_reason' => $statusReason,
             'comments_count' => (int) (array_key_exists('comments_count', $ticket->getAttributes())
                 ? $ticket->comments_count
-                : $ticket->comments()->count()),
+                : $ticket->comments()->where($this->commentVisibility($viewer))->count()),
             'schedule' => $ticket->allocations
                 ->sortBy('work_date')
                 ->map(fn ($allocation): array => [
