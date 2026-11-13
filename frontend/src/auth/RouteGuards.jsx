@@ -220,13 +220,6 @@ export function AppLayout() {
             <h1>{pageTitle}</h1>
           </div>
           <div className="dashboard-header-tools">
-            <label className="header-search">
-              <Icon name="search" size={18} />
-              <input aria-label="Search (coming soon)" placeholder="Search..." type="search" />
-            </label>
-            <button className="header-icon-button" type="button" aria-label="Notifications (coming soon)" title="Notifications coming soon">
-              <Icon name="bell" size={19} />
-            </button>
             {showDashboardAction && (
               <Link className="ui-button ui-button-primary header-primary-action" to="/admin/employees/new">
                 <Icon name="plus" size={17} />
