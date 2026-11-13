@@ -14,7 +14,7 @@ export const AgencyDashboard = () => {
     [],
   ))
   const assignmentRows = assignments.data?.assignments ?? []
-  const additionalStats = user.role === ROLES.AGENCY_CLIENT && !assignments.error
+  const additionalStats = isProjectManager && !assignments.error
     ? [
       { id: 'employees-held', label: 'Employees held', value: assignmentRows.length, icon: 'users', tone: 'primary' },
       {
@@ -32,11 +32,11 @@ export const AgencyDashboard = () => {
       scope="agency"
       additionalStats={additionalStats}
       additionalStatsLoading={assignments.isLoading}
-      additionalStatsError={user.role === ROLES.AGENCY_CLIENT ? assignments.error : null}
-      onRetryAdditionalStats={user.role === ROLES.AGENCY_CLIENT ? assignments.reload : undefined}
+      additionalStatsError={isProjectManager ? assignments.error : null}
+      onRetryAdditionalStats={isProjectManager ? assignments.reload : undefined}
       ticketsTitle={isProjectManager ? 'Agency projects' : 'Agency directory'}
       showAgency={false}
-      subtitle="Track project requests, employee assignments, and scheduled work."
+      subtitle="Track project requests, the employees you hold, and scheduled work."
       ticketsLink={user.role === ROLES.AGENCY_OWNER
         ? '/agency/projects'
         : user.role === ROLES.AGENCY_CLIENT
@@ -55,12 +55,12 @@ export const AgencyDashboard = () => {
           {
             to: user.role === ROLES.AGENCY_OWNER ? '/agency/projects' : '/agency/my-projects',
             icon: 'inbox',
-            label: user.role === ROLES.AGENCY_OWNER ? 'Agency assignments' : 'Agency projects',
+            label: 'Agency projects',
             description: user.role === ROLES.AGENCY_OWNER
-              ? 'Review employee assignments and daily schedules'
+              ? 'Review agency projects and their daily schedules'
               : 'Track your project assignments',
           },
-          { to: '/agency/employees', icon: 'users', label: 'My employees', description: 'Hold employees and track weekly hours' },
+          { to: '/agency/employees', icon: 'users', label: 'My employees', description: 'Employees you hold and their weekly hours' },
         ]
         : [{ to: '/agency/directory', icon: 'users', label: 'Agency directory', description: 'View people in your agency' }]}
     />
