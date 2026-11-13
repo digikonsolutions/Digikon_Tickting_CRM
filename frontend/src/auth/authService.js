@@ -330,12 +330,37 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { comments: [], total: 0 }
     return request(`/tickets/${encodeURIComponent(id)}/comments`)
   },
-  async createTicketComment(id, body) {
-    if (AUTH_MODE === 'mock') return { comment: { id: Date.now(), ticket_id: id, body } }
+  // `isInternal` posts an internal note (admin and the assigned employee only).
+  async createTicketComment(id, body, { isInternal = false } = {}) {
+    if (AUTH_MODE === 'mock') return { comment: { id: Date.now(), ticket_id: id, body, is_internal: isInternal } }
     return request(`/tickets/${encodeURIComponent(id)}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, ...(isInternal ? { is_internal: true } : {}) }),
     })
+  },
+  // Resolves to { ticket, project: {id, title, status, agency_name}, timeline: [first page of events] }.
+  async getTicketByKey(key) {
+    if (AUTH_MODE === 'mock') return { ticket: null, project: null, timeline: [] }
+    return request(`/tickets/key/${encodeURIComponent(key)}`)
+  },
+  // Cursor-paginated, newest first: { events, next_cursor }.
+  async getTicketTimeline(id, { cursor } = {}) {
+    if (AUTH_MODE === 'mock') return { events: [], next_cursor: null }
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+    return request(`/tickets/${encodeURIComponent(id)}/timeline${query}`)
+  },
+  // Runs a workflow action (see ticket.allowed_actions). `comment` is required by some actions.
+  async transitionTicket(id, action, comment) {
+    if (AUTH_MODE === 'mock') return { ticket: { id, action } }
+    return request(`/tickets/${encodeURIComponent(id)}/transitions`, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...(comment ? { comment } : {}) }),
+    })
+  },
+  // Agency: tickets waiting on the client, longest-waiting first ({ tickets, total }).
+  async getAgencyAttention() {
+    if (AUTH_MODE === 'mock') return { tickets: [], total: 0 }
+    return request('/agency/attention')
   },
   async listAdminTickets({ page = 1, perPage = 25 } = {}) {
     if (AUTH_MODE === 'mock') return { tickets: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }

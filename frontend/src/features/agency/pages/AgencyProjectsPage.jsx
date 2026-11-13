@@ -126,7 +126,7 @@ export function AgencyProjectsPage({ viewAs }) {
     { key: 'title', label: 'Project', render: (title, project) => <Link to={`/agency/projects/${project.id}`}>{title}</Link> },
     { key: 'description', label: 'Description' },
     { key: 'client', label: isClient ? 'Client' : 'Created by', render: (client) => client?.name ?? 'Account removed' },
-    { key: 'employee', label: 'Assigned employee', render: (employee) => employee?.name ?? 'Unassigned' },
+    { key: 'employee', label: 'Specialist', render: (employee) => employee?.name ?? 'Unassigned' },
     { key: 'estimated_hours', label: 'Hours', render: formatHours },
     { key: 'due_date', label: 'Due date', render: formatDate },
     { key: 'status', label: 'Status', render: (status) => <StatusBadge status={status} /> },
@@ -139,14 +139,14 @@ export function AgencyProjectsPage({ viewAs }) {
         eyebrow="Agency workspace"
         title="Agency projects"
         subtitle={isClient
-          ? 'View agency projects and statuses. Create projects using employees you hold.'
-          : 'Create projects using your held employees and review agency project schedules.'}
+          ? 'View agency projects and statuses. Create projects using your specialists.'
+          : 'Create projects using your specialists and review agency project schedules.'}
       />
       <ApiErrorMessage error={error ?? (createError?.status === 422 ? null : createError)} />
       <Card title="Create a project" description={`Your assignment has a shared weekly budget of ${holdCapacity.weekly_hours} hours, with at most ${holdCapacity.daily_hours} hours scheduled each working day.`}>
         {!isLoading && assignments.length === 0 && (
           <Alert variant="info">
-            You need to hold an employee before creating a project. <Link to="/agency/employees">Go to My employees</Link>.
+            You need to add a specialist before creating a project. <Link to="/agency/employees">Go to My specialists</Link>.
           </Alert>
         )}
         <form className="agency-user-form" onSubmit={createProject}>
@@ -189,28 +189,28 @@ export function AgencyProjectsPage({ viewAs }) {
           />
           <Select
             id="project-assignment"
-            label="My employee"
+            label="Specialist"
             value={selectedAssignment}
             onChange={(event) => setSelectedAssignment(event.target.value)}
             required
             disabled={isLoading || assignments.length === 0}
             error={fieldError('assignment_id')}
-            helperText="Only your active employee assignments can be used."
+            helperText="Only specialists you have added can be used."
           >
-            <option value="">{isLoading ? 'Loading your employees…' : 'Select a held employee'}</option>
+            <option value="">{isLoading ? 'Loading your specialists…' : 'Choose a specialist'}</option>
             {assignments.map((assignment) => (
               <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>
             ))}
           </Select>
           {selectedAssignment && isCheckingCapacity && (
-            <p className="assignment-range-capacity" role="status">Checking employee capacity…</p>
+            <p className="assignment-range-capacity" role="status">Checking specialist capacity…</p>
           )}
           {selectedAssignment && capacityResult?.error && (
-            <p className="form-error" role="alert">{capacityResult.error.message ?? 'Could not check employee capacity.'}</p>
+            <p className="form-error" role="alert">{capacityResult.error.message ?? 'Could not check specialist capacity.'}</p>
           )}
           {selectedAssignment && remaining !== null && (
             <p className={Number(formValues.estimated_hours) > remaining ? 'form-error' : 'assignment-range-capacity'} role="status">
-              {formatHours(remaining)} available for {selectedHold?.employee?.name ?? 'this employee'} between these dates.
+              {formatHours(remaining)} available for {selectedHold?.employee?.name ?? 'this specialist'} between these dates.
             </p>
           )}
           {createError?.status === 422 && createError.message && <p className="form-error" role="alert">{createError.message}</p>}

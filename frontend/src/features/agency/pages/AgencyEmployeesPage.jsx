@@ -9,6 +9,7 @@ import {
 } from '../../../components/ui'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
+import { getAgencyLabels } from '../../../lib/labels'
 
 /* helpers */
 
@@ -25,6 +26,7 @@ function shiftWeek(weekStr, delta) {
 export function AgencyEmployeesPage() {
   const { user } = useAuth()
   const isOwner = user.role === 'agency_owner'
+  const labels = getAgencyLabels(user.role)
   const [week, setWeek] = useState(currentWeekDate)
   const [confirm, setConfirm] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -103,8 +105,8 @@ export function AgencyEmployeesPage() {
       }
       showToast(
         confirm.kind === 'assign'
-          ? `${confirm.employee.name} is now exclusively assigned to you.`
-          : `${confirm.assignment.employee.name}'s assignment has ended.`,
+          ? `${confirm.employee.name} was added to your specialists.`
+          : `${confirm.assignment.employee.name} was released.`,
       )
       setConfirm(null)
       setImpactData(null)
@@ -124,11 +126,11 @@ export function AgencyEmployeesPage() {
     <section className="page ae-page">
       <PageHeader
         eyebrow="Agency workspace"
-        title="My employees"
-        subtitle="Employees you hold for your projects, with their weekly capacity."
+        title={labels.myEmployees}
+        subtitle="The specialists you have added for your projects, with their weekly capacity."
         action={
           <Button type="button" onClick={() => setDrawerOpen(true)}>
-            + Hold employee
+            + {labels.holdEmployee}
           </Button>
         }
       />
@@ -236,7 +238,7 @@ export function AgencyEmployeesPage() {
                   className="ae-danger-outline"
                   onClick={() => openEndConfirm(assignment)}
                 >
-                  End assignment
+                  {labels.endAssignment}
                 </Button>
               </Card>
             )
@@ -244,14 +246,14 @@ export function AgencyEmployeesPage() {
         </div>
       ) : (
         <EmptyState
-          title="No employees held yet"
+          title="No specialists yet"
           action={
             <Button type="button" onClick={() => setDrawerOpen(true)}>
-              Hold an employee
+              {labels.holdEmployee}
             </Button>
           }
         >
-          These are the employees you hold. Hold an employee to start assigning them to your projects.
+          These are the specialists you work with. Add a specialist to start assigning them to your projects.
         </EmptyState>
       )}
 
@@ -265,8 +267,8 @@ export function AgencyEmployeesPage() {
       <Drawer
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setDrawerSearch('') }}
-        title="Hold an employee"
-        description="Selecting an employee makes them exclusive to you until the assignment ends."
+        title={labels.holdEmployee}
+        description="Choosing a specialist makes them exclusive to you until you release them."
       >
         <input
           type="search"
@@ -292,14 +294,14 @@ export function AgencyEmployeesPage() {
                   size="sm"
                   onClick={() => setConfirm({ kind: 'assign', employee })}
                 >
-                  Select
+                  {labels.selectEmployee}
                 </Button>
               </div>
             ))}
           </div>
         ) : (
           <p className="ae-drawer-empty">
-            {isLoading ? 'Loading…' : 'No unassigned employees are currently available.'}
+            {isLoading ? 'Loading…' : 'No specialists are currently available.'}
           </p>
         )}
       </Drawer>
@@ -308,7 +310,7 @@ export function AgencyEmployeesPage() {
       <Modal
         open={Boolean(confirm)}
         onClose={() => !isSaving && (setConfirm(null), setImpactData(null))}
-        title={confirm?.kind === 'assign' ? 'Assign employee?' : 'End employee assignment?'}
+        title={confirm?.kind === 'assign' ? `?` : `?`}
         footer={
           <>
             <Button
@@ -326,7 +328,7 @@ export function AgencyEmployeesPage() {
               loadingText="Saving…"
               onClick={confirmAction}
             >
-              {confirm?.kind === 'assign' ? 'Confirm selection' : 'End assignment'}
+              {confirm?.kind === 'assign' ? labels.selectEmployee : labels.endAssignment}
             </Button>
           </>
         }
@@ -334,12 +336,12 @@ export function AgencyEmployeesPage() {
         {confirm?.kind === 'assign' ? (
           <p>
             <strong>{confirm.employee.name}</strong> will become exclusive to you.
-            Other agency clients will no longer be able to select this employee.
+            Other agency clients will no longer be able to choose this specialist.
           </p>
         ) : (
           <>
             <p>
-              Ending <strong>{confirm?.assignment?.employee?.name}</strong>&apos;s assignment
+              Releasing <strong>{confirm?.assignment?.employee?.name}</strong>
               will cancel their open projects and release future work allocations.
               Past allocations are kept.
             </p>

@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom'
 import { WelcomeBanner } from '../../../components'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { DEFAULT_CAPACITY } from '../../../../../lib/constants'
+import { getAgencyLabels } from '../../../../../lib/labels'
 import { RoleDashboard } from '../../RoleDashboard'
 
 // Legacy agency members only get a welcome card and the directory: they have no projects or holds.
@@ -32,7 +33,7 @@ function AgencyProjectsDashboard() {
   const assignmentRows = assignments.data?.assignments ?? []
   const additionalStats = isProjectManager && !assignments.error
     ? [
-      { id: 'employees-held', label: 'Employees held', value: assignmentRows.length, icon: 'users', tone: 'primary' },
+      { id: 'employees-held', label: getAgencyLabels(user.role).employeesHeld, value: assignmentRows.length, icon: 'users', tone: 'primary' },
       {
         id: 'hours-remaining',
         label: 'Remaining hours this week',
@@ -51,7 +52,7 @@ function AgencyProjectsDashboard() {
       onRetryAdditionalStats={isProjectManager ? assignments.reload : undefined}
       ticketsTitle={isProjectManager ? 'Agency projects' : 'Agency directory'}
       showAgency={false}
-      subtitle="Track project requests, the employees you hold, and scheduled work."
+      subtitle="Track project requests, your specialists, and scheduled work."
       ticketsLink={user.role === ROLES.AGENCY_OWNER
         ? '/agency/projects'
         : user.role === ROLES.AGENCY_CLIENT
@@ -65,7 +66,7 @@ function AgencyProjectsDashboard() {
             label: user.role === ROLES.AGENCY_OWNER ? 'Create agency project' : 'Create project',
             description: user.role === ROLES.AGENCY_OWNER
               ? 'Assign work and manage all agency projects'
-              : 'Schedule work with an available employee',
+              : 'Schedule work with one of your specialists',
           },
           {
             to: user.role === ROLES.AGENCY_OWNER ? '/agency/projects' : '/agency/my-projects',
@@ -75,7 +76,7 @@ function AgencyProjectsDashboard() {
               ? 'Review agency projects and their daily schedules'
               : 'Track your project assignments',
           },
-          { to: '/agency/employees', icon: 'users', label: 'My employees', description: 'Employees you hold and their weekly hours' },
+          { to: '/agency/employees', icon: 'users', label: getAgencyLabels(user.role).myEmployees, description: 'Your specialists and their weekly hours' },
         ]
         : [{ to: '/agency/directory', icon: 'users', label: 'Agency directory', description: 'View people in your agency' }]}
     />

@@ -4,6 +4,7 @@ import { formatDateTime, formatRelativeTime } from '../../lib/format'
 import { Alert } from './Alert'
 import { Avatar } from './Avatar'
 import { Button } from './Button'
+import { PlainText } from './PlainText'
 import { Skeleton } from './Skeleton'
 
 // Relative times ("5 min ago") are recomputed on a slow tick so an open thread does not go stale.
@@ -62,8 +63,8 @@ export function CommentThread({ comments, isLoading = false, error = null, onRet
                   {formatRelativeTime(comment.created_at, now)}
                 </time>
               </div>
-              {/* Rendered as text (never HTML); line breaks are preserved by CSS. */}
-              <p className="ui-comment-body">{comment.body}</p>
+              {/* Rendered as text (never HTML); line breaks are kept and http(s) links are made clickable. */}
+              <PlainText className="ui-comment-body" text={comment.body} />
             </div>
           </li>
         )

@@ -101,7 +101,7 @@ export function ProjectDetailPage() {
       <PageHeader
         eyebrow="Project"
         title={project.title}
-        subtitle={`${project.employee?.name ?? 'Employee'} · due ${formatDate(project.due_date)}`}
+        subtitle={`${project.employee?.name ?? 'Specialist'} · due ${formatDate(project.due_date)}`}
         action={<Link className="ui-button ui-button-secondary ui-button-sm" to={user.role === 'agency_client' ? '/agency/my-projects' : '/agency/projects'}>Back to projects</Link>}
       />
       <ApiErrorMessage error={mutationError} />
@@ -110,7 +110,7 @@ export function ProjectDetailPage() {
           <div className="project-overview-details">
             <p>{project.description}</p>
             <dl>
-              <div><dt>Employee</dt><dd>{project.employee?.name ?? '—'}</dd></div>
+              <div><dt>Specialist</dt><dd>{project.employee?.name ?? '—'}</dd></div>
               <div><dt>Project hours</dt><dd>{formatHours(project.estimated_hours)}</dd></div>
               <div><dt>Dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
               <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>
