@@ -3,6 +3,7 @@ import { useAuth } from '../../../../../auth/useAuth'
 import { authService } from '../../../../../auth/authService'
 import { ROLES } from '../../../../../auth/roles'
 import { useAsync } from '../../../../../hooks/useAsync'
+import { WEEKLY_HOURS_BUDGET } from '../../../../../lib/constants'
 import { RoleDashboard } from '../../RoleDashboard'
 
 export const AgencyDashboard = () => {
@@ -19,7 +20,7 @@ export const AgencyDashboard = () => {
       {
         id: 'hours-remaining',
         label: 'Remaining hours this week',
-        value: `${assignmentRows.reduce((total, item) => total + Number(item.weekly_usage?.remaining ?? 36), 0).toFixed(2)} h`,
+        value: `${assignmentRows.reduce((total, item) => total + Number(item.weekly_usage?.remaining ?? WEEKLY_HOURS_BUDGET), 0).toFixed(2)} h`,
         icon: 'clock',
         tone: 'success',
       },

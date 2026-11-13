@@ -1,4 +1,5 @@
 import { ROLES, isKnownRole } from './roles'
+import { WEEKLY_HOURS_BUDGET } from '../lib/constants'
 
 const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api').replace(/\/$/, '')
 const AUTH_MODE = import.meta.env.VITE_AUTH_MODE ?? 'api'
@@ -232,7 +233,7 @@ export const authService = {
     return request(`/agency/assignments?${query.toString()}`)
   },
   async getAssignmentUsage(id, week) {
-    if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: '36.00', days: [] }
+    if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: WEEKLY_HOURS_BUDGET.toFixed(2), days: [] }
     const query = week ? `?week=${encodeURIComponent(week)}` : ''
     return request(`/agency/assignments/${encodeURIComponent(id)}/usage${query}`)
   },

@@ -4,6 +4,7 @@ import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, EmptyState, Icon, PageHeader, Spinner } from '../../../../../components/ui'
+import { AT_RISK_DAYS } from '../../../../../lib/constants'
 
 const PROJECT_FILTERS = [
   { id: 'all', label: 'All' },
@@ -70,7 +71,7 @@ function projectStatus(project, today) {
     const daysUntilDue = Math.floor(
       (new Date(`${project.due_date}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000,
     )
-    if (daysUntilDue <= 2) return 'at_risk'
+    if (daysUntilDue <= AT_RISK_DAYS) return 'at_risk'
   }
   return project.status
 }

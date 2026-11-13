@@ -5,6 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, Badge, Button, Card, Input, PageHeader, Select, Table, Textarea } from '../../../components/ui'
+import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
 
 function localDate(date) {
   const year = date.getFullYear()
@@ -31,7 +32,7 @@ function dateRangeRemaining(projects, assignmentId, start, due) {
   const end = new Date(`${due}T12:00:00`)
   while (cursor <= end) {
     const date = localDate(cursor)
-    if (cursor.getDay() !== 0) total += Math.max(0, 6 - (booked.get(date) ?? 0))
+    if (cursor.getDay() !== 0) total += Math.max(0, DAILY_HOURS_CAP -(booked.get(date) ?? 0))
     cursor.setDate(cursor.getDate() + 1)
   }
   return total
@@ -125,7 +126,7 @@ export function AgencyProjectsPage({ viewAs }) {
       />
       {success && <Alert variant="success">{success}</Alert>}
       <ApiErrorMessage error={error ?? (createError?.status === 422 ? null : createError)} />
-      <Card title="Create a project" description="Your assignment has a shared weekly budget of 36 hours, with at most 6 hours scheduled each working day.">
+      <Card title="Create a project" description={`Your assignment has a shared weekly budget of ${WEEKLY_HOURS_BUDGET} hours, with at most ${DAILY_HOURS_CAP} hours scheduled each working day.`}>
         {!isLoading && assignments.length === 0 && (
           <Alert variant="info">
             You need to hold an employee before creating a project. <Link to="/agency/employees">Go to My employees</Link>.

@@ -7,10 +7,9 @@ import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
   EmptyState, Modal, PageHeader, Skeleton, Table,
 } from '../../../components/ui'
+import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
 
 /* ── helpers ──────────────────────────────────────────────────── */
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function mondayOf(date) {
   const d = date ? new Date(date + 'T00:00:00') : new Date()
@@ -182,7 +181,7 @@ export function AgencyEmployeesPage() {
       render: (usage) => (
         <CapacityBar
           used={Number(usage?.used ?? 0)}
-          budget={36}
+          budget={WEEKLY_HOURS_BUDGET}
           showRemaining={false}
         />
       ),
@@ -314,19 +313,19 @@ export function AgencyEmployeesPage() {
                 </div>
 
                 <div className="ae-team-capacity">
-                  <CapacityBar used={usedNum} budget={36} />
+                  <CapacityBar used={usedNum} budget={WEEKLY_HOURS_BUDGET} />
                 </div>
 
                 <div className="ae-day-bars" aria-label="Hours used Monday through Saturday">
                   {(usage?.days ?? []).map((day, index) => {
                     const hours = Number(day.used)
-                    const pct = Math.min(100, (hours / 6) * 100)
+                    const pct = Math.min(100, (hours / DAILY_HOURS_CAP) * 100)
                     return (
-                      <div className="ae-day-col" key={day.date} title={`${day.date}: ${hours} of 6 hours`}>
+                      <div className="ae-day-col" key={day.date} title={`${day.date}: ${hours} of ${DAILY_HOURS_CAP} hours`}>
                         <div className="ae-day-track">
                           <span className="ae-day-fill" style={{ height: `${pct}%` }} />
                         </div>
-                        <span className="ae-day-label">{WEEKDAYS[index]}</span>
+                        <span className="ae-day-label">{WORKING_WEEKDAYS[index]}</span>
                         <span className="ae-day-hours">{hours.toFixed(1)}h</span>
                       </div>
                     )

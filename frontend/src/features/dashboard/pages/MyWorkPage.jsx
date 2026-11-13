@@ -5,6 +5,7 @@ import {
   Alert, Badge, Button, Card, CapacityBar, Drawer, EmptyState,
   KpiCard, PageHeader, Skeleton, Tabs, Textarea,
 } from '../../../components/ui'
+import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
@@ -16,7 +17,6 @@ function nextAction(status) {
 }
 
 const PRIORITY_DOT = { urgent: '#dc2626', high: '#f59e0b', normal: '#0d9488', low: '#94a3b8' }
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function localToday() {
   const d = new Date()
@@ -35,13 +35,13 @@ function mondayOfWeek(dateStr) {
 
 function weekDates() {
   const mon = mondayOfWeek()
-  return Array.from({ length: 6 }, (_, i) => {
+  return Array.from({ length: WORKING_WEEKDAYS.length }, (_, i) => {
     const day = new Date(mon)
     day.setDate(mon.getDate() + i)
     const y = day.getFullYear()
     const m = String(day.getMonth() + 1).padStart(2, '0')
     const dd = String(day.getDate()).padStart(2, '0')
-    return { date: `${y}-${m}-${dd}`, label: WEEKDAY_LABELS[i], dayNum: dd }
+    return { date: `${y}-${m}-${dd}`, label: WORKING_WEEKDAYS[i], dayNum: dd }
   })
 }
 
@@ -229,7 +229,7 @@ export function MyWorkPage() {
                 <span className="mw-week-day-label">{day.label}</span>
                 <span className="mw-week-day-num">{day.dayNum}</span>
               </div>
-              <CapacityBar used={dayHours} budget={6} showRemaining={false} />
+              <CapacityBar used={dayHours} budget={DAILY_HOURS_CAP} showRemaining={false} />
               <div className="mw-week-blocks">
                 {dayTickets.length ? dayTickets.map((t) => {
                   const alloc = (t.schedule ?? []).find((s) => s.work_date === day.date)
@@ -420,9 +420,9 @@ export function MyWorkPage() {
               hero
               title="Hours this week"
               value={`${weekHours.toFixed(weekHours % 1 === 0 ? 0 : 1)} h`}
-              subtext={`of 36 h budget`}
+              subtext={`of ${WEEKLY_HOURS_BUDGET} h budget`}
               icon="clock"
-              progress={<CapacityBar used={weekHours} budget={36} showRemaining={false} />}
+              progress={<CapacityBar used={weekHours} budget={WEEKLY_HOURS_BUDGET} showRemaining={false} />}
             />
             <KpiCard icon="arrow" title="In progress" value={statusCounts.in_progress} tone="teal" />
             <KpiCard icon="clock" title="In review" value={statusCounts.in_review} tone="teal" />
