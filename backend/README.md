@@ -21,7 +21,7 @@ SESSION_SECURE_COOKIE=false
 MAIL_MAILER=log
 ```
 
-Set the frontend `.env.local` to:
+Copy `frontend/.env.example` to `frontend/.env.local` (it already contains these values) or set:
 
 ```env
 VITE_API_URL=http://localhost:8000/api
