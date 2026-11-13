@@ -1246,3 +1246,18 @@
 .ui-kpi-hero-icon { display: grid; width: 2rem; height: 2rem; flex: 0 0 auto; place-items: center; border-radius: .65rem; background: rgb(255 255 255 / 18%); color: #fff; }
 
 .project-ticket-progress > p { margin: .5rem 0 0; color: var(--color-muted); font-size: .72rem; }
+
+/* Comment thread */
+.ui-comments { display: grid; gap: .85rem; margin: 0; padding: 0; list-style: none; }
+.ui-comments-empty { margin: 0; color: var(--color-muted); font-size: .84rem; }
+.ui-comments-retry { margin-top: .5rem; }
+.ui-comment { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .65rem; }
+.ui-comment-main { min-width: 0; border: 1px solid var(--color-border); border-radius: .75rem; padding: .6rem .75rem; background: var(--color-card); }
+.ui-comment-own .ui-comment-main { border-color: var(--color-primary-200); background: var(--color-accent-50); }
+.ui-comment-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .55rem; font-size: .76rem; color: var(--color-muted); }
+.ui-comment-meta strong { color: var(--color-heading); font-size: .82rem; font-weight: 700; }
+.ui-comment-role { font-weight: 600; }
+.ui-comment-meta time { margin-left: auto; white-space: nowrap; }
+.ui-comment-body { margin: .35rem 0 0; color: var(--color-text); font-size: .86rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ui-comment-form { display: grid; gap: .6rem; margin-top: 1rem; }
+.ui-comment-form .ui-button { justify-self: start; }

@@ -311,6 +311,11 @@ export const authService = {
       body: JSON.stringify({ status }),
     })
   },
+  // Resolves to { comments, total } (the latest 200, oldest first).
+  async listTicketComments(id) {
+    if (AUTH_MODE === 'mock') return { comments: [], total: 0 }
+    return request(`/tickets/${encodeURIComponent(id)}/comments`)
+  },
   async createTicketComment(id, body) {
     if (AUTH_MODE === 'mock') return { comment: { id: Date.now(), ticket_id: id, body } }
     return request(`/tickets/${encodeURIComponent(id)}/comments`, {

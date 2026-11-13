@@ -94,3 +94,28 @@ export function formatTicketProgress(project) {
   if (!Number.isFinite(total) || total <= 0) return 'No tickets yet'
   return `${Number(project.tickets_done) || 0}/${total} ticket${total === 1 ? '' : 's'} done`
 }
+
+// Full local date and time for tooltips, e.g. "Fri, Nov 14, 3:05 PM".
+export function formatDateTime(value) {
+  const date = value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return ''
+  const options = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+  if (date.getFullYear() !== new Date().getFullYear()) options.year = 'numeric'
+  return new Intl.DateTimeFormat('en-US', options).format(date)
+}
+
+// "just now", "5 min ago", "3 h ago", "yesterday", otherwise the date. `value` is an ISO timestamp.
+export function formatRelativeTime(value, now = new Date()) {
+  const date = value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return ''
+  const seconds = Math.floor((now - date) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} min ago`
+  const dateStr = toDateStr(date)
+  if (dateStr === toDateStr(now)) return `${Math.floor(minutes / 60)} h ago`
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (dateStr === toDateStr(yesterday)) return 'yesterday'
+  return formatDate(dateStr)
+}
