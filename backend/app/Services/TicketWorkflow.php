@@ -180,6 +180,11 @@ class TicketWorkflow
             $toStatus = $def['to'];
             $lockedTicket->update(['status' => $toStatus]);
 
+            // The employee is no longer actively working on it: stop any running timer.
+            if (in_array($toStatus, ['blocked', 'waiting_on_client', 'in_review', 'done'], true)) {
+                app(TimeTracker::class)->stopForTickets([$lockedTicket->id], 'status_'.$toStatus);
+            }
+
             $this->recorder->record(
                 $lockedTicket,
                 'status_changed',

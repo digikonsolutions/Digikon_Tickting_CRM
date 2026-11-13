@@ -155,7 +155,8 @@ class UserAccountService
                         ->whereNotIn('status', ['done', 'cancelled'])
                         ->get();
 
-                    foreach ($remainingTickets as $remainingTicket) {
+                    app(TimeTracker::class)->stopForUser($user, 'employee_deactivated');
+        foreach ($remainingTickets as $remainingTicket) {
                         $remainingTicket->update(['status' => 'cancelled', 'updated_at' => now()]);
                         $this->recorder->record($remainingTicket, 'cancelled', ['cause' => 'employee_deactivated'], null);
                     }

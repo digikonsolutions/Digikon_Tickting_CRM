@@ -14,6 +14,15 @@ const ICONS = {
   comment: 'chat',
   attachment_added: 'paperclip',
   attachment_removed: 'trash',
+  time_logged: 'clock',
+}
+
+function formatMinutes(minutes) {
+  const total = Number(minutes) || 0
+  const hours = Math.floor(total / 60)
+  const rest = total % 60
+  if (!hours) return `${rest} min`
+  return rest ? `${hours} h ${rest} min` : `${hours} h`
 }
 
 const CANCEL_CAUSES = {
@@ -46,6 +55,8 @@ function describe(item, viewerRole) {
       const count = (payload.files ?? []).length
       return `${actor} attached ${count} file${count === 1 ? '' : 's'}${item.visibility === 'internal' ? ' (internal)' : ''}`
     }
+    case 'time_logged':
+      return `${actor} logged ${formatMinutes(payload.minutes)}`
     case 'attachment_removed':
       return `${actor} removed ${payload.name ?? 'a file'}`
     case 'comment':

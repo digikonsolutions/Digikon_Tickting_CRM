@@ -6,6 +6,8 @@ use App\Http\Controllers\AgencyUserController;
 use App\Http\Controllers\EmployeeAssignmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\TimeController;
+use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\WorkItemController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +52,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/attention', [TicketController::class, 'attention'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    Route::get('/time-summary', [TimeSummaryController::class, 'agency'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/capacity', [WorkItemController::class, 'capacity'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/projects', [WorkItemController::class, 'agencyIndex'])
@@ -77,6 +81,7 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::patch('/admin/users/{adminUser}', [AdminUserController::class, 'updateAdminUser']);
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);
+    Route::get('/admin/time-summary', [TimeSummaryController::class, 'admin']);
     Route::get('/admin/dashboard', [WorkItemController::class, 'adminDashboard']);
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
     Route::get('/admin/projects/{workItem}', [WorkItemController::class, 'adminShow']);
@@ -121,4 +126,19 @@ Route::middleware(['web', 'auth', 'throttle:notifications'])->prefix('notificati
     Route::put('/preferences', [NotificationController::class, 'updatePreferences']);
     Route::post('/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('/{notification}/read', [NotificationController::class, 'markRead']);
+});
+
+// Time tracking. Logging is for the assigned employee; admins may only correct entries (with a reason).
+Route::middleware('web')->group(function () {
+    Route::get('/tickets/{ticket}/time', [TimeController::class, 'ticket'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::post('/tickets/{ticket}/time/start', [TimeController::class, 'start'])
+        ->middleware(['auth', 'role:employee']);
+    Route::post('/tickets/{ticket}/time', [TimeController::class, 'store'])
+        ->middleware(['auth', 'role:employee']);
+    Route::post('/time/stop', [TimeController::class, 'stop'])->middleware(['auth', 'role:employee']);
+    Route::get('/time/active', [TimeController::class, 'active'])->middleware(['auth', 'role:employee']);
+    Route::get('/time/week', [TimeController::class, 'week'])->middleware(['auth', 'role:employee']);
+    Route::patch('/time/{entry}', [TimeController::class, 'update'])->middleware(['auth', 'role:employee,admin']);
+    Route::delete('/time/{entry}', [TimeController::class, 'destroy'])->middleware(['auth', 'role:employee,admin']);
 });

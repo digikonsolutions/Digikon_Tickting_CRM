@@ -19,6 +19,7 @@ use App\Models\WorkItem;
 use App\Services\Attachments\AttachmentPresenter;
 use App\Services\TicketAccess;
 use App\Services\TicketEventRecorder;
+use App\Services\TimeTracker;
 use App\Services\TicketPlanner;
 use App\Services\TicketWorkflow;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,7 @@ class TicketController extends Controller
             'tickets' => $workItem->tickets()
                 ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
                 ->withCount(['comments' => $this->commentVisibility($request->user())])
+                ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
                 ->orderBy('position')
                 ->orderBy('id')
                 ->get()
@@ -168,6 +170,7 @@ class TicketController extends Controller
             abort_unless(! in_array($lockedTicket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
             $lockedTicket->update(['status' => 'cancelled']);
             $recorder->record($lockedTicket, 'cancelled', ['cause' => 'ticket'], $user);
+            app(TimeTracker::class)->stopForTickets([$lockedTicket->id], 'ticket_cancelled');
             $planner->plan($lockedWorkItem, null, [
                 'type' => 'ticket_cancelled',
                 'ticket_id' => $lockedTicket->id,
@@ -243,6 +246,7 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
             ->withCount(['comments' => $this->commentVisibility($employee)])
+            ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
             ->orderBy('work_item_id')
             ->orderBy('position')
@@ -318,6 +322,7 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent'])
             ->withCount(['comments' => $this->commentVisibility($request->user())])
+            ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['agency_id'] ?? null, fn ($query, $agencyId) => $query->where('agency_id', $agencyId))
             ->when($filters['employee_id'] ?? null, fn ($query, $employeeId) => $query->whereHas('workItem', fn ($q) => $q->where('employee_id', $employeeId)))
@@ -380,6 +385,7 @@ class TicketController extends Controller
         $tickets = (clone $query)
             ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
             ->withCount(['comments' => $this->commentVisibility($user)])
+            ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy(
                 TicketEvent::query()
                     ->select('created_at')
@@ -706,6 +712,9 @@ class TicketController extends Controller
     {
         $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent']);
 
+        $loggedMinutes = array_key_exists('logged_minutes', $ticket->getAttributes())
+            ? (int) $ticket->logged_minutes
+            : (int) $ticket->timeEntries()->whereNotNull('minutes')->sum('minutes');
         $workflow = app(TicketWorkflow::class);
         $allowedActions = $viewer ? $workflow->allowedActions($ticket, $viewer) : [];
 
@@ -749,6 +758,12 @@ class TicketController extends Controller
             'waiting_on' => $waitingOn,
             'waiting_since' => $waitingSince,
             'status_reason' => $statusReason,
+            'logged_hours' => TimeTracker::hours($loggedMinutes),
+            'over_estimate' => (float) $ticket->estimated_hours > 0 && TimeTracker::hours($loggedMinutes) > (float) $ticket->estimated_hours,
+            // True only for the assigned employee while their timer runs on this ticket.
+            'timer_running' => $viewer !== null
+                && app(TicketAccess::class)->isAssignedEmployee($viewer, $ticket)
+                && app(TimeTracker::class)->runningFor($viewer)?->ticket_id === $ticket->id,
             'comments_count' => (int) (array_key_exists('comments_count', $ticket->getAttributes())
                 ? $ticket->comments_count
                 : $ticket->comments()->where($this->commentVisibility($viewer))->count()),

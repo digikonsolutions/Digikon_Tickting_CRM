@@ -362,6 +362,50 @@ export const authService = {
   attachmentUrl(id, { inline = false } = {}) {
     return `${API_URL}/attachments/${encodeURIComponent(id)}/download${inline ? '?inline=1' : ''}`
   },
+  // Time tracking. Only the assigned specialist logs; admins correct entries with a reason.
+  async getActiveTimer({ signal } = {}) {
+    if (AUTH_MODE === 'mock') return { entry: null, server_time: new Date().toISOString() }
+    return request('/time/active', { signal })
+  },
+  async startTimer(ticketId) {
+    if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), running: true }, stopped: null }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/time/start`, { method: 'POST' })
+  },
+  async stopTimer() {
+    if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), running: false } }
+    return request('/time/stop', { method: 'POST' })
+  },
+  async logTime(ticketId, { entryDate, minutes, note }) {
+    if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), minutes, note } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/time`, {
+      method: 'POST',
+      body: JSON.stringify({ entry_date: entryDate, minutes, note: note || null }),
+    })
+  },
+  async updateTimeEntry(id, data) {
+    if (AUTH_MODE === 'mock') return { entry: { id, ...data } }
+    return request(`/time/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async deleteTimeEntry(id, reason) {
+    if (AUTH_MODE === 'mock') return { message: 'The time entry was removed.' }
+    return request(`/time/${encodeURIComponent(id)}`, { method: 'DELETE', body: JSON.stringify(reason ? { reason } : {}) })
+  },
+  async getTicketTime(ticketId) {
+    if (AUTH_MODE === 'mock') return { entries: [], entries_visible: true, totals: { logged_hours: 0, estimated_hours: 0, over_estimate: false, percent: null } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/time`)
+  },
+  async getTimesheetWeek(week) {
+    if (AUTH_MODE === 'mock') return { week_start: week, week_end: week, days: [], tickets: [], totals: { logged_hours: 0, scheduled_hours: 0 } }
+    return request(`/time/week${week ? `?week=${encodeURIComponent(week)}` : ''}`)
+  },
+  // Logged vs scheduled vs estimated hours. `scope` is 'admin' or 'agency'.
+  async getTimeSummary(scope, { from, to, groupBy }) {
+    if (AUTH_MODE === 'mock') return { from, to, group_by: groupBy, rows: [], totals: { logged_hours: 0, scheduled_hours: 0, estimated_hours: 0, utilization: null } }
+    return request(`/${scope === 'admin' ? 'admin' : 'agency'}/time-summary?${new URLSearchParams({ from, to, group_by: groupBy })}`)
+  },
+  timeSummaryCsvUrl(scope, { from, to, groupBy }) {
+    return `${API_URL}/${scope === 'admin' ? 'admin' : 'agency'}/time-summary?${new URLSearchParams({ from, to, group_by: groupBy, format: 'csv' })}`
+  },
   async getAgencyProject(id) {
     if (AUTH_MODE === 'mock') return { project: null }
     return request(`/agency/projects/${encodeURIComponent(id)}`)

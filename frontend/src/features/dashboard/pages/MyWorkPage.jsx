@@ -9,6 +9,7 @@ import {
 } from '../../../components/ui'
 import { TicketComments } from '../../comments'
 import { WaitingChip } from '../../tickets'
+import { TimeProgress, TimerButton, TimesheetTab, useTimerChanged } from '../../time'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
@@ -56,6 +57,7 @@ export function MyWorkPage() {
   }, [])
 
   const { data, error, isLoading, reload } = useAsync(loadData)
+  useTimerChanged(reload)
   const projects = data?.projects ?? []
   const tickets = data?.tickets ?? []
   const capacity = data?.capacity ?? DEFAULT_CAPACITY
@@ -143,7 +145,8 @@ export function MyWorkPage() {
           <div className="mw-ticket-meta">
             <span>{formatDateRange(ticket.start_date, ticket.due_date)}</span>
             <DueText dueDate={ticket.due_date} status={ticket.status} />
-            <span>{formatHours(ticket.estimated_hours)}</span>
+            <span title="Logged of estimated">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</span>
+            {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
             <span className="mw-comment-count" title="Comments">{countComments(ticket)} comment{countComments(ticket) === 1 ? '' : 's'}</span>
             <StatusBadge status={ticket.status} role={user.role} />
             <WaitingChip ticket={ticket} role={user.role} />
@@ -154,6 +157,7 @@ export function MyWorkPage() {
           )}
         </div>
         <div className="mw-ticket-actions" onClick={(e) => e.stopPropagation()}>
+          <TimerButton ticket={ticket} />
           {actions.map((action) => (
             <Button
               key={action.action}
@@ -347,7 +351,8 @@ export function MyWorkPage() {
 
         <div className="mw-drawer-section">
           <h4>Meta</h4>
-          <p>{formatDateRange(t.start_date, t.due_date)} · <DueText dueDate={t.due_date} status={t.status} /> · {formatHours(t.estimated_hours)} estimated</p>
+          <p>{formatDateRange(t.start_date, t.due_date)} · <DueText dueDate={t.due_date} status={t.status} /></p>
+          <TimeProgress logged={t.logged_hours} estimated={t.estimated_hours} />
         </div>
 
         {(actions.length > 0 || hasCommentActions(t)) && (
@@ -389,6 +394,7 @@ export function MyWorkPage() {
     { id: 'today', label: 'Today', count: todayTickets.length },
     { id: 'week', label: 'This week' },
     { id: 'all', label: 'All tickets', count: tickets.length },
+    { id: 'timesheet', label: 'Timesheet' },
   ]
 
   return (
@@ -448,6 +454,7 @@ export function MyWorkPage() {
             {activeTab === 'today' && renderToday()}
             {activeTab === 'week' && renderWeek()}
             {activeTab === 'all' && renderAllTickets()}
+            {activeTab === 'timesheet' && <TimesheetTab refreshKey={data} />}
           </div>
         </>
       )}

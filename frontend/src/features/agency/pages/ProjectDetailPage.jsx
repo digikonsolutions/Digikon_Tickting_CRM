@@ -163,7 +163,8 @@ export function ProjectDetailPage() {
                     <PriorityBadge priority={ticket.priority} />
                     <StatusBadge status={ticket.status} role={user.role} />
                     <WaitingChip ticket={ticket} role={user.role} />
-                    <strong>{formatHours(ticket.estimated_hours)}</strong>
+                    <strong title="Logged of estimated hours">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</strong>
+                    {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
                   </div>
                   <p className="project-ticket-dates">
                     {ticket.due_date ? `${labels.dueDate} ${formatDate(ticket.due_date)}` : 'Not scheduled'}

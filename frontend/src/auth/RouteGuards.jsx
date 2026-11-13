@@ -5,6 +5,7 @@ import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
+import { TimerPill } from '../features/time'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -38,6 +39,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Work' },
     { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
+    { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
     { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'building', section: 'People' },
@@ -47,6 +49,7 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
+    { to: '/agency/time', label: 'Time summary', icon: 'clock' },
     { to: '/agency/employees', label: 'My specialists', icon: 'users' },
     { to: '/agency/users', label: 'Agency accounts', icon: 'users' },
   ],
@@ -105,6 +108,8 @@ export function AppLayout() {
       '/admin/projects': 'All projects',
       '/admin/tickets': 'All tickets',
       '/admin/assignments': 'Assignments',
+      '/admin/time': 'Time report',
+      '/agency/time': 'Time summary',
       '/agency/dashboard': 'Dashboard',
       '/agency/projects': 'Projects',
       '/agency/my-projects': 'Agency projects',
@@ -224,6 +229,7 @@ export function AppLayout() {
                 Create employee
               </Link>
             )}
+            {user.role === ROLES.EMPLOYEE && <TimerPill />}
             <NotificationBell />
             <details className="header-user-menu">
               <summary aria-label="Open user menu" title="User menu">

@@ -1475,3 +1475,63 @@
   .files-queue-item { grid-template-columns: 1fr; }
   .files-queue-state { grid-column: 1; }
 }
+
+/* ── Time tracking ─────────────────────────────────────────────── */
+.timer-pill-slot { display: flex; align-items: center; justify-content: flex-end; min-width: 11.5rem; min-height: 2.25rem; }
+.timer-pill { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--brand-ring); border-radius: 999px; background: var(--brand-soft); color: var(--brand); }
+.timer-pill-link { display: inline-flex; align-items: center; gap: .45rem; padding: .35rem .6rem .35rem .75rem; color: inherit; font-size: .8125rem; font-weight: 600; text-decoration: none; }
+.timer-pill-link:focus-visible, .timer-pill-stop:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.timer-pill-dot { width: .5rem; height: .5rem; flex: none; border-radius: 50%; background: #dc2626; animation: timer-pulse 1.6s ease-in-out infinite; }
+.timer-pill-clock { font-variant-numeric: tabular-nums; }
+.timer-pill-stop { display: grid; width: 2.1rem; align-self: stretch; place-items: center; border: 0; border-left: 1px solid var(--brand-ring); background: transparent; color: inherit; cursor: pointer; }
+.timer-pill-stop:hover:not(:disabled) { background: var(--brand-ring); }
+@keyframes timer-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .timer-pill-dot { animation: none; } }
+@media (max-width: 640px) {
+  .timer-pill-slot { min-width: 0; }
+  .timer-pill-key { display: none; }
+  .timer-pill-link { padding-left: .6rem; }
+}
+
+.time-progress { display: grid; gap: .35rem; min-width: 0; }
+.time-progress-text { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .875rem; }
+.time-progress-track { height: .5rem; overflow: hidden; border-radius: 999px; background: var(--color-border); }
+.time-progress-fill { height: 100%; border-radius: inherit; background: var(--brand); }
+.time-progress-warn .time-progress-fill { background: #f59e0b; }
+.time-progress-over .time-progress-fill { background: #dc2626; }
+.time-progress-badge { display: inline-block; padding: .1rem .45rem; border: 1px solid var(--color-warning-200); border-radius: 999px; background: var(--color-warning-50); color: var(--color-warning-700); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+
+.time-tab { display: grid; gap: 1rem; }
+.time-tab-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.time-tab-summary .time-progress { flex: 1 1 14rem; }
+.time-tab-note { margin: 0; color: var(--color-muted); font-size: .875rem; }
+.time-entries { display: grid; margin: 0; padding: 0; gap: .5rem; list-style: none; }
+.time-entry { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .5rem; padding: .65rem .75rem; border: 1px solid var(--color-border); border-radius: .6rem; }
+.time-entry-main { display: grid; min-width: 0; gap: .15rem; }
+.time-entry-main > span { color: var(--color-muted); font-size: .8125rem; }
+.time-entry-note { margin: .25rem 0 0; overflow-wrap: anywhere; font-size: .875rem; }
+.time-entry-flag { color: var(--color-warning-700) !important; font-weight: 600; }
+.time-entry-actions { display: flex; gap: .25rem; }
+.time-form { display: grid; gap: .85rem; }
+.time-form-duration { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+.timesheet { display: grid; gap: .85rem; }
+.timesheet-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.timesheet-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; gap: .75rem; }
+.timesheet-totals div { padding: .6rem .75rem; border: 1px solid var(--color-border); border-radius: .6rem; }
+.timesheet-totals dt { color: var(--color-muted); font-size: .75rem; }
+.timesheet-totals dd { margin: 0; font-size: 1.1rem; font-weight: 700; }
+.timesheet-heading { margin: .25rem 0 0; font-size: .875rem; }
+.timesheet-table, .time-summary-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.timesheet-table th, .timesheet-table td, .time-summary-table th, .time-summary-table td { padding: .5rem .6rem; border-bottom: 1px solid var(--color-border); text-align: left; }
+.timesheet-table th[scope='row'], .time-summary-table th[scope='row'] { font-weight: 600; }
+.timesheet-table td, .time-summary-table td { font-variant-numeric: tabular-nums; }
+.time-summary-table tfoot th, .time-summary-table tfoot td { border-top: 2px solid var(--color-border); border-bottom: 0; font-weight: 700; }
+
+.time-summary-page { display: grid; gap: 1rem; }
+.time-summary-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; gap: .75rem; }
+.time-summary-presets { display: flex; flex-wrap: wrap; grid-column: 1 / -1; gap: .5rem; }
+.time-summary-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.time-summary-header h2 { margin: 0; font-size: 1rem; }
+.time-summary-scroll { overflow-x: auto; }
+@media (max-width: 480px) { .time-form-duration { grid-template-columns: 1fr 1fr; } .timesheet-totals { grid-template-columns: 1fr; } }

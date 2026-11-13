@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
 use App\Services\TicketEventRecorder;
+use App\Services\TimeTracker;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -258,6 +259,7 @@ class WorkItemController extends Controller
                 ->whereDate('work_date', '>=', $today)
                 ->delete();
 
+            app(TimeTracker::class)->stopForTickets($ticketIds, 'project_cancelled');
             foreach ($openTickets as $openTicket) {
                 $openTicket->update(['status' => 'cancelled']);
                 $recorder->record($openTicket, 'cancelled', ['cause' => 'project'], $user);
@@ -364,6 +366,7 @@ class WorkItemController extends Controller
         $tickets = $workItem->tickets()
             ->with(['agency', 'allocations', 'creator'])
             ->withCount('comments')
+            ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy('position')
             ->orderBy('id')
             ->get()
@@ -374,6 +377,8 @@ class WorkItemController extends Controller
                 'work_item_id' => $ticket->work_item_id,
                 'created_by' => $ticket->created_by,
                 'creator' => $ticket->creator ? ['id' => $ticket->creator->id, 'name' => $ticket->creator->name] : null,
+                'logged_hours' => round(((int) $ticket->logged_minutes) / 60, 2),
+                'over_estimate' => (float) $ticket->estimated_hours > 0 && ((int) $ticket->logged_minutes) / 60 > (float) $ticket->estimated_hours,
                 'title' => $ticket->title,
                 'description' => $ticket->description,
                 'estimated_hours' => $ticket->estimated_hours,

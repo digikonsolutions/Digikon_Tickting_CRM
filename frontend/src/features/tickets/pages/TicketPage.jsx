@@ -11,11 +11,13 @@ import { formatDate, formatElapsed, formatHours } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { getWaitingLabel } from '../../../lib/ticketStatus'
 import { FilesTab } from '../components/FilesTab'
+import { TimeProgress, TimeTab, TimerButton, useTimerChanged } from '../../time'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'activity', label: 'Activity' },
   { id: 'files', label: 'Files' },
+  { id: 'time', label: 'Time' },
   { id: 'schedule', label: 'Schedule' },
 ]
 
@@ -188,6 +190,8 @@ export function TicketPage() {
     await reload()
   }, [reload])
 
+  useTimerChanged(refresh)
+
   if (isLoading && !data) {
     return (
       <section className="page ticket-page" role="status" aria-label="Loading ticket">
@@ -221,6 +225,7 @@ export function TicketPage() {
   const { ticket, project } = data
   const banner = describeBanner(ticket, user.role)
   const waitingLabel = getWaitingLabel(ticket.waiting_on, user.role)
+  const isAssignedEmployee = user.role === 'employee' && project.employee?.id === user.id
 
   async function runAction(action) {
     if (action.requires_comment) {
@@ -270,7 +275,12 @@ export function TicketPage() {
             <PriorityBadge priority={ticket.priority} />
           </div>
         </div>
-        {!banner && ticket.allowed_actions.length > 0 && <div className="ticket-header-actions">{actionButtons}</div>}
+        {((!banner && ticket.allowed_actions.length > 0) || isAssignedEmployee) && (
+          <div className="ticket-header-actions">
+            {isAssignedEmployee && <TimerButton ticket={ticket} />}
+            {!banner && actionButtons}
+          </div>
+        )}
       </header>
 
       {actionError && <Alert variant="error">{actionError.message}</Alert>}
@@ -307,6 +317,7 @@ export function TicketPage() {
             )}
             {tab === 'activity' && <TicketActivity key={version} ticket={ticket} role={user.role} onPosted={commentPosted} />}
             {tab === 'files' && <FilesTab ticket={ticket} readOnly={['done', 'cancelled'].includes(ticket.status)} onChanged={() => setVersion((value) => value + 1)} />}
+            {tab === 'time' && <TimeTab ticket={ticket} role={user.role} isAssignedEmployee={isAssignedEmployee} version={version} onChanged={refresh} />}
             {tab === 'schedule' && (
               <div className="ticket-schedule">
                 <DayStrip schedule={ticket.schedule} />
@@ -329,8 +340,8 @@ export function TicketPage() {
               <div><dt>Project</dt><dd><Link to={projectPath(user.role, project.id)}>{project.title}</Link></dd></div>
               <div><dt>Created by</dt><dd>{ticket.creator?.name ?? 'Account removed'}</dd></div>
               <div><dt>Priority</dt><dd><PriorityBadge priority={ticket.priority} /></dd></div>
-              <div><dt>Estimated hours</dt><dd>{formatHours(ticket.estimated_hours)}</dd></div>
               <div><dt>{labels.dueDate}</dt><dd>{formatDate(ticket.due_date)}</dd></div>
+              <div><dt>Time</dt><dd><TimeProgress logged={ticket.logged_hours} estimated={ticket.estimated_hours} /></dd></div>
             </dl>
           </Card>
         </aside>

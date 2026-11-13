@@ -20,6 +20,7 @@ import {
   ProjectDetailPage,
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
+import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
 import {
   ForgotPasswordPage,
@@ -65,6 +66,7 @@ export function AppRoutes() {
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
             <Route path="/admin/tickets" element={<AdminTicketsPage />} />
             <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
+            <Route path="/admin/time" element={<TimeSummaryPage scope="admin" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
             <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
@@ -84,6 +86,7 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
+            <Route path="/agency/time" element={<TimeSummaryPage scope="agency" />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />

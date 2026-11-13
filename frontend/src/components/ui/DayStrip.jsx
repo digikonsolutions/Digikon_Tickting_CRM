@@ -3,8 +3,8 @@ import { addDays, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } 
 
 // Hours scheduled per working day (Mon to Sat), one row per week that has allocations.
 // `schedule` is `[{work_date: 'YYYY-MM-DD', hours}]`.
-export function DayStrip({ schedule = [], className = '' }) {
-  if (!schedule.length) return <p className="ui-day-strip-empty">No scheduled hours.</p>
+export function DayStrip({ schedule = [], className = '', emptyText = 'No scheduled hours.', noun = 'scheduled' }) {
+  if (!schedule.length) return <p className="ui-day-strip-empty">{emptyText}</p>
 
   const today = todayStr()
   const hoursByDate = new Map(schedule.map((item) => [item.work_date, Number(item.hours) || 0]))
@@ -15,7 +15,7 @@ export function DayStrip({ schedule = [], className = '' }) {
       {weeks.map((week) => (
         <div className="ui-day-strip-week" key={week}>
           <span className="ui-day-strip-label">{formatDateRange(week, addDays(week, WORKING_WEEKDAYS.length - 1))}</span>
-          <div className="ui-day-strip" role="group" aria-label={`Hours scheduled per day, week of ${week}`}>
+          <div className="ui-day-strip" role="group" aria-label={`Hours ${noun} per day, week of ${week}`}>
             {WORKING_WEEKDAYS.map((label, index) => {
               const date = addDays(week, index)
               const hours = hoursByDate.get(date) ?? 0

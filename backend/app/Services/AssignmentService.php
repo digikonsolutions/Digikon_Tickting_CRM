@@ -40,6 +40,8 @@ class AssignmentService
                 ->whereDate('work_date', '>=', $today)
                 ->delete();
 
+            app(TimeTracker::class)->stopForTickets($openTickets->pluck('id'), 'assignment_ended');
+
             foreach ($openTickets as $ticket) {
                 $ticket->update(['status' => 'cancelled', 'updated_at' => now()]);
                 $this->recorder->record($ticket, 'cancelled', ['cause' => 'assignment_ended'], null);

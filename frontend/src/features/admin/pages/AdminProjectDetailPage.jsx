@@ -115,7 +115,8 @@ export function AdminProjectDetailPage() {
                     </div>
                     {ticket.description && <p>{ticket.description}</p>}
                     <div className="admin-project-ticket-meta">
-                      <span>{formatHours(ticket.estimated_hours)}</span>
+                      <span title="Logged of estimated hours">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</span>
+                      {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
                       <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
                     </div>
                     <p className="admin-project-ticket-schedule">{formatSchedule(ticket.schedule)}</p>
