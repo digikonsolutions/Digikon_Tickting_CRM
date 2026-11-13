@@ -1264,3 +1264,7 @@
 
 .mw-comment-count { color: var(--color-muted); }
 .ticket-comments { display: grid; }
+
+.ticket-comments-toggle { grid-column: 1 / -1; display: grid; gap: .6rem; border-top: 1px solid var(--color-border); padding-top: .6rem; }
+.ticket-comments-toggle > .ui-button { justify-self: start; }
+.ticket-comments-toggle [hidden] { display: none; }

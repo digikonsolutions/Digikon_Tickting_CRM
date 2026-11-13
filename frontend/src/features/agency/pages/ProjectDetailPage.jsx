@@ -6,6 +6,7 @@ import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBadge, Textarea } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '../../../lib/format'
+import { TicketCommentsToggle } from '../../comments'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -156,6 +157,7 @@ export function ProjectDetailPage() {
                     <Button type="button" variant="danger" size="sm" onClick={() => mutate(() => authService.cancelTicket(ticket.id))}>Cancel</Button>
                   </div>
                 )}
+                <TicketCommentsToggle ticketId={ticket.id} ticketTitle={ticket.title} count={ticket.comments_count ?? 0} />
               </li>
             ))}
           </ol>

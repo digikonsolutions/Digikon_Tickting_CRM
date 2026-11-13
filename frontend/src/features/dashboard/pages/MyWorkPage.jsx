@@ -92,7 +92,9 @@ export function MyWorkPage() {
 
   // Comments posted from the drawer, so card counts stay right without refetching tickets.
   function countComments(ticket) {
-    return (Number(ticket.comments_count) || 0) + (postedComments[ticket.id] ?? 0)
+    const base = Number(ticket.comments_count) || 0
+    const posted = postedComments[ticket.id]
+    return base + (posted && posted.base === base ? posted.delta : 0)
   }
 
   /* ── sub-views ─────────────────────────────────────────────── */
@@ -319,7 +321,11 @@ export function MyWorkPage() {
           <TicketComments
             key={t.id}
             ticketId={t.id}
-            onPosted={() => setPostedComments((current) => ({ ...current, [t.id]: (current[t.id] ?? 0) + 1 }))}
+            onPosted={() => setPostedComments((current) => {
+              const base = Number(t.comments_count) || 0
+              const delta = current[t.id]?.base === base ? current[t.id].delta : 0
+              return { ...current, [t.id]: { base, delta: delta + 1 } }
+            })}
           />
         </div>
       </Drawer>
