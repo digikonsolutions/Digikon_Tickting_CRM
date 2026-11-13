@@ -1218,9 +1218,6 @@
 .status-card h1 { margin: .25rem 0 .5rem; color: var(--color-heading); font-size: 1.4rem; }
 .status-card .eyebrow { margin: 0; color: var(--color-accent-600); font-size: .75rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
 .status-card .page-copy { margin: 0 0 1.25rem; color: var(--color-muted); font-size: .9rem; }
-.primary-button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--color-accent-600); border-radius: var(--radius-control); padding: .6rem 1.1rem; background: var(--color-accent-600); color: #fff; cursor: pointer; font-size: .88rem; font-weight: 650; text-decoration: none; }
-.primary-button:hover { filter: brightness(1.06); }
-.primary-button:focus-visible { outline: 2px solid var(--color-accent-600); outline-offset: 2px; }
 
 @media (max-width: 760px) {
   .project-overview { grid-template-columns: 1fr; }

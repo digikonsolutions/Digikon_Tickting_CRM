@@ -11,7 +11,7 @@ export function UnauthorizedPage() {
         <p className="eyebrow">Access restricted</p>
         <h1>You don't have access</h1>
         <p className="page-copy">Your account is not permitted to view this page.</p>
-        <Link className="primary-button status-link" to={ROLE_HOME[user.role]}>Back to your home</Link>
+        <Link className="ui-button ui-button-primary" to={ROLE_HOME[user.role]}>Back to your home</Link>
       </section>
     </main>
   )
@@ -24,7 +24,7 @@ export function NotFoundPage() {
         <p className="eyebrow">404</p>
         <h1>Page not found</h1>
         <p className="page-copy">The page you’re looking for doesn’t exist.</p>
-        <Link className="primary-button status-link" to="/">Go to home</Link>
+        <Link className="ui-button ui-button-primary" to="/">Go to home</Link>
       </section>
     </main>
   )
