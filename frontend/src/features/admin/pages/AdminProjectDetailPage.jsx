@@ -4,6 +4,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, Icon, PageHeader, Spinner } from '../../../components/ui'
+import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
 
 function statusVariant(status) {
   if (status === 'completed' || status === 'done') return 'success'
@@ -21,7 +22,7 @@ function displayStatus(status) {
 
 function formatSchedule(schedule = []) {
   if (!schedule.length) return 'No scheduled hours'
-  return schedule.map(({ work_date, hours }) => `${work_date}: ${hours} h`).join(' · ')
+  return schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(' · ')
 }
 
 export function AdminProjectDetailPage() {
@@ -74,15 +75,15 @@ export function AdminProjectDetailPage() {
               <div><dt>Agency</dt><dd>{project.agency_name ?? '—'}</dd></div>
               <div><dt>Client</dt><dd>{project.client?.name ?? 'Account removed'}</dd></div>
               <div><dt>Assigned employee</dt><dd>{project.employee?.name ?? 'Unassigned'}</dd></div>
-              <div><dt>Project dates</dt><dd>{project.start_date} – {project.due_date}</dd></div>
-              <div><dt>Project hours</dt><dd>{projectHours.toFixed(2)} h</dd></div>
+              <div><dt>Project dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
+              <div><dt>Project hours</dt><dd>{formatHours(projectHours)}</dd></div>
               <div><dt>Status</dt><dd><Badge variant={statusVariant(project.status)}>{displayStatus(project.status)}</Badge></dd></div>
             </dl>
           </div>
           <div className="admin-project-progress">
             <div className="admin-project-progress-label">
               <strong>Ticket hours</strong>
-              <span>{ticketHours.toFixed(2)} / {projectHours.toFixed(2)} h</span>
+              <span>{formatHours(ticketHours)} / {formatHours(projectHours)}</span>
             </div>
             <div
               className="admin-project-progress-track"
@@ -127,8 +128,8 @@ export function AdminProjectDetailPage() {
                     </div>
                     {ticket.description && <p>{ticket.description}</p>}
                     <div className="admin-project-ticket-meta">
-                      <span>{Number(ticket.estimated_hours).toFixed(2)} h</span>
-                      <span>{ticket.start_date ?? 'Not scheduled'}{ticket.due_date ? ` – ${ticket.due_date}` : ''}</span>
+                      <span>{formatHours(ticket.estimated_hours)}</span>
+                      <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
                     </div>
                     <p className="admin-project-ticket-schedule">{formatSchedule(ticket.schedule)}</p>
                   </div>

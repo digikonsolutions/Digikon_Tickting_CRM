@@ -6,16 +6,10 @@ import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, Badge, Button, Card, Input, PageHeader, Select, Table, Textarea } from '../../../components/ui'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
-
-function localDate(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
 
 function scheduleLabel(schedule = []) {
-  return schedule.map(({ work_date, hours }) => `${work_date}: ${hours}h`).join(', ') || 'No schedule'
+  return schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ') || 'No schedule'
 }
 
 function dateRangeRemaining(projects, assignmentId, start, due) {
@@ -31,7 +25,7 @@ function dateRangeRemaining(projects, assignmentId, start, due) {
   const cursor = new Date(`${start}T12:00:00`)
   const end = new Date(`${due}T12:00:00`)
   while (cursor <= end) {
-    const date = localDate(cursor)
+    const date = toDateStr(cursor)
     if (cursor.getDay() !== 0) total += Math.max(0, DAILY_HOURS_CAP -(booked.get(date) ?? 0))
     cursor.setDate(cursor.getDate() + 1)
   }
@@ -41,11 +35,11 @@ function dateRangeRemaining(projects, assignmentId, start, due) {
 export function AgencyProjectsPage({ viewAs }) {
   const { user } = useAuth()
   const isClient = (viewAs ?? user.role) === 'agency_client'
-  const [today] = useState(() => localDate(new Date()))
+  const [today] = useState(todayStr)
   const [formValues, setFormValues] = useState(() => {
     const due = new Date()
     due.setDate(due.getDate() + 6)
-    return { start_date: localDate(new Date()), due_date: localDate(due), estimated_hours: '6' }
+    return { start_date: todayStr(), due_date: toDateStr(due), estimated_hours: '6' }
   })
   const [selectedAssignment, setSelectedAssignment] = useState('')
   const [createError, setCreateError] = useState(null)
@@ -109,8 +103,8 @@ export function AgencyProjectsPage({ viewAs }) {
     { key: 'description', label: 'Description' },
     { key: 'client', label: isClient ? 'Client' : 'Created by', render: (client) => client?.name ?? 'Account removed' },
     { key: 'employee', label: 'Assigned employee', render: (employee) => employee?.name ?? 'Unassigned' },
-    { key: 'estimated_hours', label: 'Hours', render: (hours) => `${hours}h` },
-    { key: 'due_date', label: 'Due date' },
+    { key: 'estimated_hours', label: 'Hours', render: formatHours },
+    { key: 'due_date', label: 'Due date', render: formatDate },
     { key: 'status', label: 'Status', render: (status) => <Badge variant={status === 'completed' ? 'success' : status === 'cancelled' ? 'slate' : 'primary'}>{status.replace('_', ' ')}</Badge> },
     { key: 'schedule', label: 'Daily schedule', render: scheduleLabel },
   ], [isClient])

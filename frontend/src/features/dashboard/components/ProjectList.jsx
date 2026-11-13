@@ -1,4 +1,5 @@
-import { Badge, EmptyState, Spinner } from '../../../components/ui'
+import { Badge, DueText, EmptyState, Spinner } from '../../../components/ui'
+import { formatHours } from '../../../lib/format'
 
 export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned projects', emptyText = 'Assignments will appear here when work is scheduled for you.', showAgency = true, onSelect }) {
   if (isLoading) return <div className="ticket-loading"><Spinner size="lg" /></div>
@@ -12,7 +13,7 @@ export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned proj
               <span className="ticket-id">Project #{project.id}</span>
               <span className="ticket-title">{project.title}</span>
               <span className="ticket-meta">
-                {`${project.estimated_hours}h`}
+                {formatHours(project.estimated_hours)}
                 {showAgency && project.agency_name && ` · ${project.agency_name}`}
                 {` · ${project.employee?.name ?? 'Unassigned'}`}
               </span>
@@ -22,7 +23,7 @@ export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned proj
                 {project.status === 'in_progress' ? 'In progress' : project.status}
               </Badge>
             </span>
-            <span className="ticket-due">Due {project.due_date}</span>
+            <span className="ticket-due"><DueText dueDate={project.due_date} status={project.status} /></span>
           </button>
         </li>
       ))}

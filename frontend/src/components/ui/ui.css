@@ -1234,3 +1234,8 @@
   .project-ticket-dates { padding-left: 2.75rem; }
   .project-ticket-actions { justify-content: flex-start; }
 }
+
+/* Due-date text coloured by urgency */
+.due-tone-danger { color: var(--color-danger-700); font-weight: 600; }
+.due-tone-warning { color: var(--color-warning-700); font-weight: 600; }
+.due-tone-neutral { color: var(--color-muted); }

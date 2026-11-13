@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, Input, PageHeader, Table } from '../../../components/ui'
+import { formatDate, formatHours } from '../../../lib/format'
 
-const formatSchedule = (schedule = []) => schedule.map(({ work_date, hours }) => `${work_date}: ${hours}h`).join(', ')
+const formatSchedule = (schedule = []) => schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ')
 
 export function AdminProjectsPage() {
   const [projects, setProjects] = useState([])
@@ -61,8 +62,8 @@ export function AdminProjectsPage() {
     { key: 'agency_name', label: 'Agency' },
     { key: 'client', label: 'Client', render: (client) => client?.name ?? 'Account removed' },
     { key: 'employee', label: 'Employee', render: (employee) => employee?.name ?? 'Unassigned' },
-    { key: 'estimated_hours', label: 'Hours', render: (hours) => `${hours}h` },
-    { key: 'due_date', label: 'Due date' },
+    { key: 'estimated_hours', label: 'Hours', render: formatHours },
+    { key: 'due_date', label: 'Due date', render: formatDate },
     { key: 'status', label: 'Status', render: (status) => <Badge variant={status === 'completed' ? 'success' : 'primary'}>{status.replace('_', ' ')}</Badge> },
     { key: 'schedule', label: 'Daily schedule', render: formatSchedule },
   ]

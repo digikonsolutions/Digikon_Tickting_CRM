@@ -2,10 +2,11 @@ import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
-  Alert, Badge, Button, Card, CapacityBar, Drawer, EmptyState,
+  Alert, Badge, Button, Card, CapacityBar, Drawer, DueText, EmptyState,
   KpiCard, PageHeader, Skeleton, Tabs, Textarea,
 } from '../../../components/ui'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
+import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
@@ -18,38 +19,12 @@ function nextAction(status) {
 
 const PRIORITY_DOT = { urgent: '#dc2626', high: '#f59e0b', normal: '#0d9488', low: '#94a3b8' }
 
-function localToday() {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function mondayOfWeek(dateStr) {
-  const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date()
-  const dayOfWeek = d.getDay() || 7
-  d.setDate(d.getDate() - dayOfWeek + 1)
-  return d
-}
-
 function weekDates() {
-  const mon = mondayOfWeek()
-  return Array.from({ length: WORKING_WEEKDAYS.length }, (_, i) => {
-    const day = new Date(mon)
-    day.setDate(mon.getDate() + i)
-    const y = day.getFullYear()
-    const m = String(day.getMonth() + 1).padStart(2, '0')
-    const dd = String(day.getDate()).padStart(2, '0')
-    return { date: `${y}-${m}-${dd}`, label: WORKING_WEEKDAYS[i], dayNum: dd }
+  const mon = toDateStr(mondayOf())
+  return WORKING_WEEKDAYS.map((label, i) => {
+    const date = addDays(mon, i)
+    return { date, label, dayNum: date.slice(8) }
   })
-}
-
-function formatDateShort(dateStr) {
-  if (!dateStr) return ''
-  const [, m, d] = dateStr.split('-')
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${months[Number(m) - 1]} ${Number(d)}`
 }
 
 /* ── component ───────────────────────────────────────────────── */
@@ -75,7 +50,7 @@ export function MyWorkPage() {
   const tickets = data?.tickets ?? []
 
   /* ── derived data ──────────────────────────────────────────── */
-  const today = localToday()
+  const today = todayStr()
   const week = weekDates()
   const weekDateSet = new Set(week.map((d) => d.date))
 
@@ -159,8 +134,9 @@ export function MyWorkPage() {
             <p className="mw-ticket-desc">{ticket.description}</p>
           )}
           <div className="mw-ticket-meta">
-            <span>{formatDateShort(ticket.start_date)}{ticket.due_date ? ` – ${formatDateShort(ticket.due_date)}` : ''}</span>
-            <span>{ticket.estimated_hours} h</span>
+            <span>{formatDateRange(ticket.start_date, ticket.due_date)}</span>
+            <DueText dueDate={ticket.due_date} status={ticket.status} />
+            <span>{formatHours(ticket.estimated_hours)}</span>
             <Badge status={ticket.status} />
             <Badge status={ticket.priority} />
           </div>
@@ -241,7 +217,7 @@ export function MyWorkPage() {
                       onClick={() => setDrawerTicket(t)}
                     >
                       <span className="mw-week-block-title">{t.title}</span>
-                      <span className="mw-week-block-hours">{alloc?.hours ?? 0} h</span>
+                      <span className="mw-week-block-hours">{formatHours(alloc?.hours ?? 0)}</span>
                     </button>
                   )
                 }) : <span className="mw-week-empty">—</span>}
@@ -271,7 +247,7 @@ export function MyWorkPage() {
               <div>
                 <h2 className="mw-project-title">{project.title}</h2>
                 <p className="mw-project-meta">
-                  {project.agency_name ?? 'Agency'} · {formatDateShort(project.start_date)} – {formatDateShort(project.due_date)}
+                  {project.agency_name ?? 'Agency'} · {formatDateRange(project.start_date, project.due_date)}
                 </p>
               </div>
               <Badge status={project.status} />
@@ -324,8 +300,8 @@ export function MyWorkPage() {
             <div className="mw-drawer-schedule">
               {(t.schedule ?? []).map((s) => (
                 <div key={s.work_date} className="mw-drawer-schedule-row">
-                  <span>{formatDateShort(s.work_date)}</span>
-                  <span>{s.hours} h</span>
+                  <span>{formatDate(s.work_date)}</span>
+                  <span>{formatHours(s.hours)}</span>
                 </div>
               ))}
             </div>
@@ -336,7 +312,7 @@ export function MyWorkPage() {
 
         <div className="mw-drawer-section">
           <h4>Meta</h4>
-          <p>{formatDateShort(t.start_date)}{t.due_date ? ` – ${formatDateShort(t.due_date)}` : ''} · {t.estimated_hours} h estimated</p>
+          <p>{formatDateRange(t.start_date, t.due_date)} · <DueText dueDate={t.due_date} status={t.status} /> · {formatHours(t.estimated_hours)} estimated</p>
         </div>
 
         {action && canAct && (

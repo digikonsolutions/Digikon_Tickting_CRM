@@ -8,49 +8,16 @@ import {
   EmptyState, Modal, PageHeader, Skeleton, Table,
 } from '../../../components/ui'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
+import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
-/* ── helpers ──────────────────────────────────────────────────── */
-
-function mondayOf(date) {
-  const d = date ? new Date(date + 'T00:00:00') : new Date()
-  const dayOfWeek = d.getDay() || 7
-  d.setDate(d.getDate() - dayOfWeek + 1)
-  return d
-}
-
-function toDateStr(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
+/* helpers */
 
 function currentWeekDate() {
   return toDateStr(mondayOf())
 }
 
-function formatRange(weekStr) {
-  const mon = new Date(weekStr + 'T00:00:00')
-  const sat = new Date(mon)
-  sat.setDate(mon.getDate() + 5)
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const mLabel = months[mon.getMonth()]
-  const sLabel = months[sat.getMonth()]
-  const monDay = mon.getDate()
-  const satDay = sat.getDate()
-  if (mLabel === sLabel) return `${mLabel} ${monDay} – ${satDay}`
-  return `${mLabel} ${monDay} – ${sLabel} ${satDay}`
-}
-
-function localToday() {
-  const d = new Date()
-  return toDateStr(d)
-}
-
 function shiftWeek(weekStr, delta) {
-  const d = new Date(weekStr + 'T00:00:00')
-  d.setDate(d.getDate() + delta * 7)
-  return toDateStr(mondayOf(toDateStr(d)))
+  return toDateStr(mondayOf(addDays(weekStr, delta * 7)))
 }
 
 /* ── component ───────────────────────────────────────────────── */
@@ -106,7 +73,7 @@ export function AgencyEmployeesPage() {
     try {
       const result = await authService.listAgencyProjects()
       const projects = result.projects ?? []
-      const today = localToday()
+      const today = todayStr()
       const affected = projects.filter(
         (p) => p.assignment_id === assignment.id
           && (p.status === 'scheduled' || p.status === 'in_progress'),
@@ -270,7 +237,7 @@ export function AgencyEmployeesPage() {
           ‹
         </button>
         <label htmlFor="ae-week-input" className="ae-week-label">
-          Week of <strong>{formatRange(week)}</strong>
+          Week of <strong>{formatDateRange(week, addDays(week, WORKING_WEEKDAYS.length - 1))}</strong>
         </label>
         <input
           id="ae-week-input"

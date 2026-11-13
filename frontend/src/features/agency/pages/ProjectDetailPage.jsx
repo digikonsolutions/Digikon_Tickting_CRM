@@ -5,6 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Badge, Button, Card, Input, Modal, PageHeader, Select, Textarea } from '../../../components/ui'
+import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -109,7 +110,7 @@ export function ProjectDetailPage() {
       <PageHeader
         eyebrow="Project"
         title={project.title}
-        subtitle={`${project.employee?.name ?? 'Employee'} · due ${project.due_date}`}
+        subtitle={`${project.employee?.name ?? 'Employee'} · due ${formatDate(project.due_date)}`}
         action={<Link className="ui-button ui-button-secondary ui-button-sm" to={user.role === 'agency_client' ? '/agency/my-projects' : '/agency/projects'}>Back to projects</Link>}
       />
       <ApiErrorMessage error={mutationError} />
@@ -119,13 +120,13 @@ export function ProjectDetailPage() {
             <p>{project.description}</p>
             <dl>
               <div><dt>Employee</dt><dd>{project.employee?.name ?? '—'}</dd></div>
-              <div><dt>Project hours</dt><dd>{project.estimated_hours} h</dd></div>
-              <div><dt>Dates</dt><dd>{project.start_date} – {project.due_date}</dd></div>
+              <div><dt>Project hours</dt><dd>{formatHours(project.estimated_hours)}</dd></div>
+              <div><dt>Dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
               <div><dt>Status</dt><dd><Badge variant={badgeVariant(project.status)}>{project.status.replace('_', ' ')}</Badge></dd></div>
             </dl>
           </div>
           <div className="project-ticket-progress">
-            <div><strong>Ticket hours</strong><span>{projectTicketHours.toFixed(2)} / {Number(project.estimated_hours).toFixed(2)} h</span></div>
+            <div><strong>Ticket hours</strong><span>{formatHours(projectTicketHours)} / {formatHours(project.estimated_hours)}</span></div>
             <progress value={progress} max="100" aria-label="Ticket hours versus project hours" />
           </div>
         </div>
@@ -152,9 +153,9 @@ export function ProjectDetailPage() {
                   <div className="project-ticket-badges">
                     <Badge variant={badgeVariant(ticket.priority)}>{ticket.priority}</Badge>
                     <Badge variant={badgeVariant(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
-                    <strong>{ticket.estimated_hours} h</strong>
+                    <strong>{formatHours(ticket.estimated_hours)}</strong>
                   </div>
-                  <p className="project-ticket-dates">{ticket.start_date ?? 'Not scheduled'}{ticket.due_date ? ` – ${ticket.due_date}` : ''}</p>
+                  <p className="project-ticket-dates">{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</p>
                 </div>
                 {canEdit && ticket.status !== 'cancelled' && ticket.status !== 'done' && (
                   <div className="project-ticket-actions">

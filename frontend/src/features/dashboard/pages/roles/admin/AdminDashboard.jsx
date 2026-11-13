@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, EmptyState, Icon, PageHeader, Spinner } from '../../../../../components/ui'
-import { AT_RISK_DAYS } from '../../../../../lib/constants'
+import { Badge, Button, Card, DueText, EmptyState, Icon, PageHeader, Spinner } from '../../../../../components/ui'
+import { getDueInfo, todayStr } from '../../../../../lib/format'
 
 const PROJECT_FILTERS = [
   { id: 'all', label: 'All' },
@@ -22,13 +22,6 @@ const STATUS_PRESENTATION = {
   cancelled: { label: 'Cancelled', variant: 'slate' },
   at_risk: { label: 'At risk', variant: 'warning' },
   overdue: { label: 'Overdue', variant: 'danger' },
-}
-
-function localDate(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 async function loadAllAdminProjects() {
@@ -60,30 +53,22 @@ async function loadDashboard() {
   return {
     ...projectData,
     ticketTotal: ticketResponse.pagination.total,
-    today: localDate(new Date()),
+    today: todayStr(),
   }
 }
 
-function projectStatus(project, today) {
+function projectStatus(project) {
   if (project.status === 'scheduled' || project.status === 'in_progress') {
     if (!project.due_date) return project.status
-    if (project.due_date < today) return 'overdue'
-    const daysUntilDue = Math.floor(
-      (new Date(`${project.due_date}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000,
-    )
-    if (daysUntilDue <= AT_RISK_DAYS) return 'at_risk'
+    const { tone } = getDueInfo(project.due_date, project.status)
+    if (tone === 'danger') return 'overdue'
+    if (tone === 'warning') return 'at_risk'
   }
   return project.status
 }
 
 function statusCount(projects, status) {
   return projects.filter((project) => project.status === status).length
-}
-
-function formatDueDate(value) {
-  if (!value) return 'No due date'
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
-    .format(new Date(`${value}T00:00:00`))
 }
 
 function employeeInitials(name) {
@@ -124,8 +109,8 @@ function sparklinePath(values, width = 168, height = 40) {
   }).join(' ')
 }
 
-function ProjectRow({ project, today }) {
-  const status = projectStatus(project, today)
+function ProjectRow({ project }) {
+  const status = projectStatus(project)
   const presentation = STATUS_PRESENTATION[status] ?? {
     label: status?.replace('_', ' ') ?? 'Unknown',
     variant: 'slate',
@@ -148,7 +133,7 @@ function ProjectRow({ project, today }) {
         <strong><Link to={`/admin/projects/${project.id}`}>{project.title}</Link></strong>
         <span>{project.agency_name ?? 'Agency'} · {projectOwner}</span>
       </span>
-      <span className="admin-project-due">{status === 'overdue' ? 'Past due' : `Due ${formatDueDate(project.due_date)}`}</span>
+      <span className="admin-project-due"><DueText dueDate={project.due_date} status={project.status} /></span>
       <Badge variant={presentation.variant}>{presentation.label}</Badge>
     </li>
   )
@@ -312,7 +297,7 @@ export const AdminDashboard = () => {
                 ? (
                   <>
                     <ul className="admin-project-list">
-                      {visibleProjects.map((project) => <ProjectRow key={project.id} project={project} today={today} />)}
+                      {visibleProjects.map((project) => <ProjectRow key={project.id} project={project} />)}
                     </ul>
                     {filteredProjects.length > visibleProjects.length && (
                       <Link className="admin-list-more" to="/admin/projects">
