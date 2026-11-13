@@ -27,6 +27,7 @@ class AgencyProjectApiTest extends TestCase
                 ->assertOk()
                 ->assertJsonPath('project.id', $project->id)
                 ->assertJsonPath('project.assignment_id', $assignment->id)
+                ->assertJsonPath('project.assignment_status', 'active')
                 ->assertJsonPath('project.employee.id', $employee->id);
         }
     }

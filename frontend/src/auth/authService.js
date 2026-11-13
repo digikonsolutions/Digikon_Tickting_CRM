@@ -226,12 +226,6 @@ export const authService = {
     const query = week ? `?week=${encodeURIComponent(week)}` : ''
     return request(`/agency/assignments${query}`)
   },
-  async listAgencyAssignments({ week } = {}) {
-    if (AUTH_MODE === 'mock') return { assignments: [] }
-    const query = new URLSearchParams({ scope: 'agency' })
-    if (week) query.set('week', week)
-    return request(`/agency/assignments?${query.toString()}`)
-  },
   async getAssignmentUsage(id, week) {
     if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: WEEKLY_HOURS_BUDGET.toFixed(2), days: [] }
     const query = week ? `?week=${encodeURIComponent(week)}` : ''

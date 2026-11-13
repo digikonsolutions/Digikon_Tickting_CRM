@@ -18,22 +18,21 @@ export function ProjectDetailPage() {
   const [mutationError, setMutationError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const loadData = useCallback(async () => {
-    const [projectResponse, ticketResponse, assignmentResponse] = await Promise.all([
+    const [projectResponse, ticketResponse] = await Promise.all([
       authService.getAgencyProject(id),
       authService.listProjectTickets(id),
-      authService.listAgencyAssignments(),
     ])
     return {
       project: projectResponse.project,
       tickets: ticketResponse.tickets,
-      assignments: assignmentResponse.assignments,
     }
   }, [id])
   const { data, error, isLoading, reload } = useAsync(loadData)
   const project = data?.project
   const tickets = useMemo(() => [...(data?.tickets ?? [])].sort((a, b) => a.position - b.position), [data?.tickets])
-  const assignment = data?.assignments?.find((item) => String(item.id) === String(project?.assignment_id))
-  const canManage = assignment?.status === 'active'
+  // The backend lets any agency owner/client manage tickets while the project's assignment is
+  // active, whoever holds it, so the payload's assignment_status is the source of truth.
+  const canManage = project?.assignment_status === 'active'
   const canEdit = canManage && ['scheduled', 'in_progress'].includes(project?.status)
   const projectTicketHours = tickets
     .filter((ticket) => ticket.status !== 'cancelled')

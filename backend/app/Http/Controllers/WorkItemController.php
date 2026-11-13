@@ -384,6 +384,7 @@ class WorkItemController extends Controller
             'description' => $item->description,
             'agency_id' => $item->agency_id,
             'assignment_id' => $item->assignment_id,
+            'assignment_status' => $item->assignment?->status,
             'agency_name' => $item->agency?->name,
             'client' => $item->client ? [
                 'id' => $item->client->id,

@@ -5,7 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
-  EmptyState, Modal, PageHeader, Skeleton, Table,
+  EmptyState, Modal, PageHeader, Skeleton,
 } from '../../../components/ui'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
@@ -48,18 +48,16 @@ export function AgencyEmployeesPage() {
   }, [actionError])
 
   const loadData = useCallback(async () => {
-    const [available, mine, agency] = await Promise.all([
+    const [available, mine] = await Promise.all([
       authService.listAvailableEmployees(),
       authService.listMyAssignments({ week }),
-      authService.listAgencyAssignments({ week }),
     ])
-    return { available: available.employees, mine: mine.assignments, agency: agency.assignments }
+    return { available: available.employees, mine: mine.assignments }
   }, [week])
 
   const { data, error, isLoading, reload } = useAsync(loadData)
   const available = data?.available ?? []
   const mine = data?.mine ?? []
-  const agencyAssignments = data?.agency ?? []
 
   const filteredAvailable = drawerSearch.trim()
     ? available.filter((e) => {
@@ -126,54 +124,6 @@ export function AgencyEmployeesPage() {
     }
   }
 
-  /* ── agency table columns ──────────────────────────────────── */
-  const agencyColumns = [
-    {
-      key: 'employee',
-      label: 'Employee',
-      render: (employee) => (
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Avatar name={employee?.name} size="sm" />
-          {employee?.name ?? 'Account removed'}
-        </span>
-      ),
-    },
-    { key: 'holder', label: 'Holder', render: (holder) => holder?.name ?? 'Account removed' },
-    {
-      key: 'started_at',
-      label: 'Started',
-      render: (date) => date ? new Date(date).toLocaleDateString() : '—',
-    },
-    {
-      key: 'weekly_usage',
-      label: 'Hours this week',
-      render: (usage) => (
-        <CapacityBar
-          used={Number(usage?.used ?? 0)}
-          budget={WEEKLY_HOURS_BUDGET}
-          showRemaining={false}
-        />
-      ),
-    },
-    ...(isOwner
-      ? [{
-        key: 'actions',
-        label: 'Actions',
-        render: (_value, assignment) => (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="ae-danger-outline"
-            onClick={() => openEndConfirm(assignment)}
-          >
-            End assignment
-          </Button>
-        ),
-      }]
-      : []),
-  ]
-
   /* ── render ────────────────────────────────────────────────── */
   const hasTeam = mine.length > 0
 
@@ -182,7 +132,7 @@ export function AgencyEmployeesPage() {
       <PageHeader
         eyebrow="Agency workspace"
         title="My employees"
-        subtitle="Hold employees for your projects and track their weekly capacity."
+        subtitle="Employees you hold for your projects, with their weekly capacity."
         action={
           <Button type="button" onClick={() => setDrawerOpen(true)}>
             + Hold employee
@@ -323,25 +273,8 @@ export function AgencyEmployeesPage() {
             </Button>
           }
         >
-          Hold an employee to start assigning them to your projects.
+          These are the employees you hold. Hold an employee to start assigning them to your projects.
         </EmptyState>
-      )}
-
-      {/* Agency assignments table */}
-      {(isOwner || user.role === 'agency_client') && (
-        <Card
-          title="Agency employee selections"
-          description="Active employee assignments held by clients and owners in your agency."
-          className="ae-agency-table"
-        >
-          <Table
-            columns={agencyColumns}
-            rows={agencyAssignments}
-            loading={isLoading}
-            emptyTitle="No active employee selections"
-            emptyText="Active employee assignments in your agency will appear here."
-          />
-        </Card>
       )}
 
       {isOwner && (
