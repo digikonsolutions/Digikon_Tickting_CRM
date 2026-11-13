@@ -165,7 +165,8 @@ class TicketManagementTest extends TestCase
 
         $this->actingAs($employee)->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'in_progress'])->assertOk();
         $this->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'in_review'])->assertOk();
-        $this->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'done'])->assertOk();
+        $this->patchJson('/api/tickets/'.$doneTicket['id'].'/status', ['status' => 'done'])->assertUnprocessable();
+        $this->actingAs($client)->postJson('/api/tickets/'.$doneTicket['id'].'/transitions', ['action' => 'approve'])->assertOk();
 
         $doneBefore = DB::table('tickets')->where('id', $doneTicket['id'])->first(['start_date', 'due_date']);
         $allocationsBefore = DB::table('ticket_allocations')
@@ -313,6 +314,9 @@ class TicketManagementTest extends TestCase
         $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'in_progress']);
         $this->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'in_review'])->assertOk();
         $this->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'done'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Only the client can approve this ticket.');
+        $this->actingAs($client)->postJson('/api/tickets/'.$ticket['id'].'/transitions', ['action' => 'approve'])
             ->assertOk()->assertJsonPath('ticket.status', 'done');
         $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'completed']);
 

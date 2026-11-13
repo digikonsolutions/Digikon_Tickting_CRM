@@ -462,7 +462,7 @@ class WorkItemSchedulingTest extends TestCase
             ->assertOk();
         $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'in_progress']);
         $this->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'in_review'])->assertOk();
-        $this->patchJson('/api/tickets/'.$ticket['id'].'/status', ['status' => 'done'])->assertOk();
+        $this->actingAs($client)->postJson('/api/tickets/'.$ticket['id'].'/transitions', ['action' => 'approve'])->assertOk();
         $this->assertDatabaseHas('work_items', ['id' => $workItem->id, 'status' => 'completed']);
         $this->actingAs($client)->postJson('/api/agency/projects', [
             'title' => 'Replacement work',

@@ -13,10 +13,12 @@ use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\TicketComment;
+use App\Models\TicketEvent;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
+use App\Services\TicketWorkflow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,12 +34,12 @@ class TicketController extends Controller
 
         return response()->json([
             'tickets' => $workItem->tickets()
-                ->with(['allocations', 'creator'])
+                ->with(['agency', 'allocations', 'creator'])
                 ->withCount('comments')
                 ->orderBy('position')
                 ->orderBy('id')
                 ->get()
-                ->map(fn (Ticket $ticket): array => $this->ticketPayload($ticket))
+                ->map(fn (Ticket $ticket): array => $this->ticketPayload($ticket, $request->user()))
                 ->values(),
         ]);
     }
@@ -86,7 +88,7 @@ class TicketController extends Controller
         });
 
         return response()->json([
-            'ticket' => $this->ticketPayload($ticket->fresh()->load(['allocations', 'creator'])),
+            'ticket' => $this->ticketPayload($ticket->fresh()->load(['agency', 'allocations', 'creator']), $user),
         ], 201);
     }
 
@@ -139,7 +141,7 @@ class TicketController extends Controller
         });
 
         return response()->json([
-            'ticket' => $this->ticketPayload($ticket->fresh()->load(['allocations', 'creator'])),
+            'ticket' => $this->ticketPayload($ticket->fresh()->load(['agency', 'allocations', 'creator']), $user),
             'rescheduled' => $rescheduled,
         ]);
     }
@@ -174,7 +176,7 @@ class TicketController extends Controller
         });
 
         return response()->json([
-            'ticket' => $this->ticketPayload($ticket->fresh()->load(['allocations', 'creator'])),
+            'ticket' => $this->ticketPayload($ticket->fresh()->load(['agency', 'allocations', 'creator']), $user),
         ]);
     }
 
@@ -231,14 +233,14 @@ class TicketController extends Controller
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
-            ->with(['allocations', 'creator', 'workItem'])
+            ->with(['agency', 'allocations', 'creator', 'workItem'])
             ->withCount('comments')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
             ->orderBy('work_item_id')
             ->orderBy('position')
             ->orderBy('id')
             ->get()
-            ->map(fn (Ticket $ticket): array => $this->ticketPayload($ticket));
+            ->map(fn (Ticket $ticket): array => $this->ticketPayload($ticket, $employee));
 
         return response()->json(['tickets' => $tickets]);
     }
@@ -246,8 +248,7 @@ class TicketController extends Controller
     public function updateStatus(
         UpdateTicketStatusRequest $request,
         Ticket $ticket,
-        TicketPlanner $planner,
-        TicketEventRecorder $recorder
+        TicketWorkflow $workflow
     ): JsonResponse {
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
@@ -255,57 +256,50 @@ class TicketController extends Controller
         abort_unless($workItem->employee_id === $employee->id, 404);
         $this->ensureOpenProject($workItem);
         $this->ensureActiveProjectAssignment($workItem);
+
         $newStatus = $request->validated('status');
-        $transitions = [
-            'todo' => 'in_progress',
-            'in_progress' => 'in_review',
-            'in_review' => 'done',
-        ];
-        abort_unless(($transitions[$ticket->status] ?? null) === $newStatus, 422, 'This ticket status transition is not allowed.');
+        $action = match ($newStatus) {
+            'in_progress' => match ($ticket->status) {
+                'todo' => 'start',
+                'blocked' => 'unblock',
+                'changes_requested' => 'restart_work',
+                default => null,
+            },
+            'in_review' => 'send_to_review',
+            'done' => 'approve',
+            default => null,
+        };
 
-        DB::transaction(function () use ($ticket, $workItem, $newStatus, $planner, $employee, $recorder): void {
-            $this->lockActiveProjectAssignment($workItem);
-            $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
-            $this->ensureOpenProject($lockedWorkItem);
-            $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
-            $transitions = [
-                'todo' => 'in_progress',
-                'in_progress' => 'in_review',
-                'in_review' => 'done',
-            ];
-            abort_unless(($transitions[$lockedTicket->status] ?? null) === $newStatus, 422, 'This ticket status transition is not allowed.');
-            $oldStatus = $lockedTicket->status;
-            $lockedTicket->update(['status' => $newStatus]);
-            $recorder->record($lockedTicket, 'status_changed', [
-                'from' => $oldStatus,
-                'to' => $newStatus,
-                'action' => $newStatus,
-            ], $employee);
+        if ($action === null) {
+            abort(422, 'This ticket status transition is not allowed.');
+        }
 
-            if ($newStatus === 'in_progress' && $lockedWorkItem->status === 'scheduled') {
-                $lockedWorkItem->update(['status' => 'in_progress']);
-            }
-
-            $hasOpenTickets = $lockedWorkItem->tickets()
-                ->whereNotIn('status', ['done', 'cancelled'])
-                ->exists();
-            $hasDoneTickets = $lockedWorkItem->tickets()->where('status', 'done')->exists();
-
-            if (! $hasOpenTickets && $hasDoneTickets) {
-                $lockedWorkItem->update(['status' => 'completed']);
-            }
-
-            $planner->plan($lockedWorkItem, null, [
-                'type' => 'status_changed',
-                'ticket_id' => $lockedTicket->id,
-                'ticket_key' => $lockedTicket->key,
-                'actor' => $employee,
-                'actor_name' => $employee->name,
-            ]);
-        });
+        $updatedTicket = $workflow->transition($ticket, $action, null, $employee);
 
         return response()->json([
-            'ticket' => $this->ticketPayload($ticket->fresh()->load(['allocations', 'creator'])),
+            'ticket' => $this->ticketPayload($updatedTicket, $employee),
+        ]);
+    }
+
+    public function transition(
+        Request $request,
+        Ticket $ticket,
+        TicketWorkflow $workflow
+    ): JsonResponse {
+        $data = $request->validate([
+            'action' => ['required', 'string'],
+            'comment' => ['nullable', 'string', 'max:10000'],
+        ]);
+
+        $updatedTicket = $workflow->transition(
+            $ticket,
+            $data['action'],
+            $data['comment'] ?? null,
+            $request->user()
+        );
+
+        return response()->json([
+            'ticket' => $this->ticketPayload($updatedTicket, $request->user()),
         ]);
     }
 
@@ -314,15 +308,43 @@ class TicketController extends Controller
         $filters = $request->validated();
 
         $tickets = Ticket::query()
-            ->with(['workItem.agency', 'creator'])
+            ->with(['agency', 'workItem.agency', 'creator'])
             ->withCount('comments')
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['agency_id'] ?? null, fn ($query, $agencyId) => $query->where('agency_id', $agencyId))
+            ->when($filters['employee_id'] ?? null, fn ($query, $employeeId) => $query->whereHas('workItem', fn ($q) => $q->where('employee_id', $employeeId)))
+            ->when($filters['waiting_on'] ?? null, function ($query, $waitingOn): void {
+                if ($waitingOn === 'client') {
+                    $query->whereIn('status', ['in_review', 'waiting_on_client']);
+                } elseif ($waitingOn === 'employee') {
+                    $query->whereIn('status', ['todo', 'in_progress', 'changes_requested']);
+                } elseif ($waitingOn === 'team') {
+                    $query->where('status', 'blocked');
+                }
+            })
+            ->when($filters['search'] ?? null, function ($query, $search): void {
+                $query->where(function ($q) use ($search): void {
+                    $q->where('title', 'like', "%{$search}%");
+                    $lastHyphenPos = strrpos($search, '-');
+                    if ($lastHyphenPos !== false) {
+                        $prefix = substr($search, 0, $lastHyphenPos);
+                        $num = substr($search, $lastHyphenPos + 1);
+                        if (ctype_digit($num)) {
+                            $q->orWhere(function ($sub) use ($prefix, $num): void {
+                                $sub->where('number', (int) $num)
+                                    ->whereHas('agency', fn ($agencyQ) => $agencyQ->where('ticket_prefix', $prefix));
+                            });
+                        }
+                    }
+                });
+            })
             ->orderBy('work_item_id')
             ->orderBy('position')
             ->paginate($filters['per_page'] ?? 25);
 
         return response()->json([
             'tickets' => collect($tickets->items())->map(fn (Ticket $ticket): array => [
-                ...$this->ticketPayload($ticket),
+                ...$this->ticketPayload($ticket, $request->user()),
                 'project_title' => $ticket->workItem->title,
                 'agency_name' => $ticket->workItem->agency?->name,
             ]),
@@ -396,6 +418,145 @@ class TicketController extends Controller
             'comments' => $comments->map(fn (TicketComment $comment): array => $this->commentPayload($comment))->values(),
             'total' => $commentsQuery->count(),
         ]);
+    }
+
+    public function showByKey(Request $request, string $key): JsonResponse
+    {
+        $lastHyphenPos = strrpos($key, '-');
+        abort_if($lastHyphenPos === false, 404);
+
+        $prefix = substr($key, 0, $lastHyphenPos);
+        $numberStr = substr($key, $lastHyphenPos + 1);
+        abort_unless(ctype_digit($numberStr), 404);
+
+        $agency = Agency::query()->where('ticket_prefix', $prefix)->first();
+        abort_unless($agency !== null, 404);
+
+        $ticket = Ticket::query()
+            ->with(['agency', 'allocations', 'creator', 'workItem.agency'])
+            ->where('agency_id', $agency->id)
+            ->where('number', (int) $numberStr)
+            ->first();
+
+        abort_unless($ticket !== null, 404);
+
+        $this->authorizeTicketView($request->user(), $ticket);
+
+        $project = $ticket->workItem;
+        $timeline = $this->buildTimeline($ticket, $request->user(), 25);
+
+        return response()->json([
+            'ticket' => $this->ticketPayload($ticket, $request->user()),
+            'project' => [
+                'id' => $project->id,
+                'title' => $project->title,
+                'status' => $project->status,
+                'agency_name' => $project->agency?->name,
+            ],
+            'timeline' => $timeline,
+        ]);
+    }
+
+    public function timeline(Request $request, Ticket $ticket): JsonResponse
+    {
+        $this->authorizeTicketView($request->user(), $ticket);
+
+        $user = $request->user();
+        $canViewInternal = $user->role === Role::Admin
+            || ($user->role === Role::Employee && $ticket->workItem->employee_id === $user->id);
+
+        $paginated = $ticket->events()
+            ->when(! $canViewInternal, fn ($query) => $query->where('visibility', '!=', 'internal'))
+            ->orderByDesc('id')
+            ->cursorPaginate(25);
+
+        $commentIds = collect($paginated->items())->pluck('payload.comment_id')->filter()->all();
+        $commentsById = ! empty($commentIds)
+            ? TicketComment::whereIn('id', $commentIds)->pluck('body', 'id')
+            : collect();
+
+        $items = collect($paginated->items())->map(function (TicketEvent $event) use ($commentsById): array {
+            $commentBody = isset($event->payload['comment_id']) ? ($commentsById[$event->payload['comment_id']] ?? null) : null;
+
+            return [
+                'id' => $event->id,
+                'type' => $event->type,
+                'actor' => [
+                    'name' => $event->actor_name ?? 'System',
+                    'role' => $event->actor_role ?? 'system',
+                ],
+                'created_at' => $event->created_at?->toISOString(),
+                'payload' => $event->payload ?? [],
+                'comment' => $commentBody,
+            ];
+        })->values();
+
+        return response()->json([
+            'events' => $items,
+            'next_cursor' => $paginated->nextCursor()?->encode(),
+            'prev_cursor' => $paginated->previousCursor()?->encode(),
+        ]);
+    }
+
+    private function buildTimeline(Ticket $ticket, User $user, int $limit = 25): array
+    {
+        $canViewInternal = $user->role === Role::Admin
+            || ($user->role === Role::Employee && $ticket->workItem->employee_id === $user->id);
+
+        $events = $ticket->events()
+            ->when(! $canViewInternal, fn ($query) => $query->where('visibility', '!=', 'internal'))
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+
+        $commentIds = $events->pluck('payload.comment_id')->filter()->all();
+        $commentsById = ! empty($commentIds)
+            ? TicketComment::whereIn('id', $commentIds)->pluck('body', 'id')
+            : collect();
+
+        return $events->map(function (TicketEvent $event) use ($commentsById): array {
+            $commentBody = isset($event->payload['comment_id']) ? ($commentsById[$event->payload['comment_id']] ?? null) : null;
+
+            return [
+                'id' => $event->id,
+                'type' => $event->type,
+                'actor' => [
+                    'name' => $event->actor_name ?? 'System',
+                    'role' => $event->actor_role ?? 'system',
+                ],
+                'created_at' => $event->created_at?->toISOString(),
+                'payload' => $event->payload ?? [],
+                'comment' => $commentBody,
+            ];
+        })->values()->all();
+    }
+
+    public function authorizeTicketView(User $user, Ticket $ticket): void
+    {
+        if ($user->role === Role::Admin) {
+            return;
+        }
+
+        $workItem = $ticket->workItem;
+
+        if ($user->role === Role::Employee && $workItem->employee_id === $user->id) {
+            if ($user->agency_id !== null && $user->agency?->status !== 'active') {
+                abort(404);
+            }
+
+            return;
+        }
+
+        if (
+            in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
+            && $user->agency_id !== null
+            && $user->agency_id === $ticket->agency_id
+            && $user->agency?->status === 'active'
+        ) {
+            return;
+        }
+
+        abort(404);
     }
 
     /**
@@ -503,76 +664,44 @@ class TicketController extends Controller
         }
     }
 
-    public function showByKey(Request $request, string $key): JsonResponse
-    {
-        $lastHyphenPos = strrpos($key, '-');
-        abort_if($lastHyphenPos === false, 404);
-
-        $prefix = substr($key, 0, $lastHyphenPos);
-        $numberStr = substr($key, $lastHyphenPos + 1);
-        abort_unless(ctype_digit($numberStr), 404);
-
-        $agency = Agency::query()->where('ticket_prefix', $prefix)->first();
-        abort_unless($agency !== null, 404);
-
-        $ticket = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'workItem.agency'])
-            ->where('agency_id', $agency->id)
-            ->where('number', (int) $numberStr)
-            ->first();
-
-        abort_unless($ticket !== null, 404);
-
-        $this->authorizeTicketView($request->user(), $ticket);
-
-        $project = $ticket->workItem;
-
-        return response()->json([
-            'ticket' => $this->ticketPayload($ticket),
-            'project' => [
-                'id' => $project->id,
-                'title' => $project->title,
-                'status' => $project->status,
-                'agency_name' => $project->agency?->name,
-            ],
-            'timeline' => [],
-        ]);
-    }
-
-    public function authorizeTicketView(User $user, Ticket $ticket): void
-    {
-        if ($user->role === Role::Admin) {
-            return;
-        }
-
-        $workItem = $ticket->workItem;
-
-        if ($user->role === Role::Employee && $workItem->employee_id === $user->id) {
-            if ($user->agency_id !== null && $user->agency?->status !== 'active') {
-                abort(404);
-            }
-
-            return;
-        }
-
-        if (
-            in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
-            && $user->agency_id !== null
-            && $user->agency_id === $ticket->agency_id
-            && $user->agency?->status === 'active'
-        ) {
-            return;
-        }
-
-        abort(404);
-    }
-
     /**
      * @return array<string, mixed>
      */
-    private function ticketPayload(Ticket $ticket): array
+    private function ticketPayload(Ticket $ticket, ?User $viewer = null): array
     {
-        $ticket->loadMissing(['agency', 'allocations', 'creator']);
+        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment']);
+
+        $workflow = app(TicketWorkflow::class);
+        $allowedActions = $viewer ? $workflow->allowedActions($ticket, $viewer) : [];
+
+        $waitingOn = match ($ticket->status) {
+            'in_review', 'waiting_on_client' => 'client',
+            'todo', 'in_progress', 'changes_requested' => 'employee',
+            'blocked' => 'team',
+            default => null,
+        };
+
+        $latestStatusEvent = $ticket->events()
+            ->where('type', 'status_changed')
+            ->latest('id')
+            ->first();
+
+        $waitingSince = $latestStatusEvent?->created_at?->toISOString()
+            ?? $ticket->created_at?->toISOString();
+
+        $statusReason = null;
+        if (in_array($ticket->status, ['blocked', 'waiting_on_client', 'changes_requested'], true)) {
+            $reasonEvent = $ticket->events()
+                ->where('type', 'status_changed')
+                ->whereIn('payload->to', ['blocked', 'waiting_on_client', 'changes_requested'])
+                ->latest('id')
+                ->first();
+
+            $commentId = $reasonEvent?->payload['comment_id'] ?? null;
+            if ($commentId) {
+                $statusReason = TicketComment::find($commentId)?->body;
+            }
+        }
 
         return [
             'id' => $ticket->id,
@@ -589,6 +718,10 @@ class TicketController extends Controller
             'position' => $ticket->position,
             'start_date' => $ticket->start_date?->toDateString(),
             'due_date' => $ticket->due_date?->toDateString(),
+            'allowed_actions' => $allowedActions,
+            'waiting_on' => $waitingOn,
+            'waiting_since' => $waitingSince,
+            'status_reason' => $statusReason,
             'comments_count' => (int) (array_key_exists('comments_count', $ticket->getAttributes())
                 ? $ticket->comments_count
                 : $ticket->comments()->count()),
