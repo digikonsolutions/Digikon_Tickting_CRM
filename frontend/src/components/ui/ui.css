@@ -1261,3 +1261,6 @@
 .ui-comment-body { margin: .35rem 0 0; color: var(--color-text); font-size: .86rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ui-comment-form { display: grid; gap: .6rem; margin-top: 1rem; }
 .ui-comment-form .ui-button { justify-self: start; }
+
+.mw-comment-count { color: var(--color-muted); }
+.ticket-comments { display: grid; }

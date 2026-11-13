@@ -3,8 +3,9 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Button, Card, CapacityBar, Drawer, DueText, EmptyState,
-  KpiCard, PageHeader, PriorityBadge, Skeleton, StatusBadge, Tabs, Textarea,
+  KpiCard, PageHeader, PriorityBadge, Skeleton, StatusBadge, Tabs,
 } from '../../../components/ui'
+import { TicketComments } from '../../comments'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
@@ -32,8 +33,7 @@ function weekDates() {
 export function MyWorkPage() {
   const [actionError, setActionError] = useState(null)
   const [busyTicket, setBusyTicket] = useState(null)
-  const [comments, setComments] = useState({})
-  const [commentMessages, setCommentMessages] = useState({})
+  const [postedComments, setPostedComments] = useState({})
   const [activeTab, setActiveTab] = useState('today')
   const [drawerTicket, setDrawerTicket] = useState(null)
 
@@ -90,21 +90,9 @@ export function MyWorkPage() {
     }
   }
 
-  async function addComment(event, ticket) {
-    event.preventDefault()
-    const body = (comments[ticket.id] ?? '').trim()
-    if (!body) return
-    setBusyTicket(ticket.id)
-    setActionError(null)
-    try {
-      await authService.createTicketComment(ticket.id, body)
-      setComments((current) => ({ ...current, [ticket.id]: '' }))
-      setCommentMessages((current) => ({ ...current, [ticket.id]: 'Comment added.' }))
-    } catch (reason) {
-      setActionError(reason)
-    } finally {
-      setBusyTicket(null)
-    }
+  // Comments posted from the drawer, so card counts stay right without refetching tickets.
+  function countComments(ticket) {
+    return (Number(ticket.comments_count) || 0) + (postedComments[ticket.id] ?? 0)
   }
 
   /* ── sub-views ─────────────────────────────────────────────── */
@@ -137,6 +125,7 @@ export function MyWorkPage() {
             <span>{formatDateRange(ticket.start_date, ticket.due_date)}</span>
             <DueText dueDate={ticket.due_date} status={ticket.status} />
             <span>{formatHours(ticket.estimated_hours)}</span>
+            <span className="mw-comment-count" title="Comments">{countComments(ticket)} comment{countComments(ticket) === 1 ? '' : 's'}</span>
             <StatusBadge status={ticket.status} />
             <PriorityBadge priority={ticket.priority} />
           </div>
@@ -325,29 +314,14 @@ export function MyWorkPage() {
           </Button>
         )}
 
-        {t.status !== 'cancelled' && (
-          <form className="mw-drawer-comment" onSubmit={(e) => addComment(e, t)}>
-            <Textarea
-              label="Add a comment"
-              rows="3"
-              value={comments[t.id] ?? ''}
-              onChange={(e) => setComments((c) => ({ ...c, [t.id]: e.target.value }))}
-              maxLength="10000"
-            />
-            {commentMessages[t.id] && (
-              <Alert variant="success">{commentMessages[t.id]}</Alert>
-            )}
-            <Button
-              type="submit"
-              variant="secondary"
-              size="sm"
-              disabled={!(comments[t.id] ?? '').trim()}
-              loading={busyTicket === t.id}
-            >
-              Post comment
-            </Button>
-          </form>
-        )}
+        <div className="mw-drawer-section">
+          <h4>Comments</h4>
+          <TicketComments
+            key={t.id}
+            ticketId={t.id}
+            onPosted={() => setPostedComments((current) => ({ ...current, [t.id]: (current[t.id] ?? 0) + 1 }))}
+          />
+        </div>
       </Drawer>
     )
   }
