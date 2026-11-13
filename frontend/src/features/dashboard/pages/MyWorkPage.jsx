@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
-  Alert, Badge, Button, Card, CapacityBar, Drawer, DueText, EmptyState,
-  KpiCard, PageHeader, Skeleton, Tabs, Textarea,
+  Alert, Button, Card, CapacityBar, Drawer, DueText, EmptyState,
+  KpiCard, PageHeader, PriorityBadge, Skeleton, StatusBadge, Tabs, Textarea,
 } from '../../../components/ui'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
@@ -137,8 +137,8 @@ export function MyWorkPage() {
             <span>{formatDateRange(ticket.start_date, ticket.due_date)}</span>
             <DueText dueDate={ticket.due_date} status={ticket.status} />
             <span>{formatHours(ticket.estimated_hours)}</span>
-            <Badge status={ticket.status} />
-            <Badge status={ticket.priority} />
+            <StatusBadge status={ticket.status} />
+            <PriorityBadge priority={ticket.priority} />
           </div>
         </div>
         <div className="mw-ticket-actions" onClick={(e) => e.stopPropagation()}>
@@ -250,7 +250,7 @@ export function MyWorkPage() {
                   {project.agency_name ?? 'Agency'} · {formatDateRange(project.start_date, project.due_date)}
                 </p>
               </div>
-              <Badge status={project.status} />
+              <StatusBadge status={project.status} />
             </div>
           }
           className="mw-project-card"
@@ -283,8 +283,8 @@ export function MyWorkPage() {
         description={proj ? `${proj.title} · ${proj.agency_name ?? 'Agency'}` : undefined}
       >
         <div className="mw-drawer-badges">
-          <Badge status={t.status} />
-          <Badge status={t.priority} />
+          <StatusBadge status={t.status} />
+          <PriorityBadge priority={t.priority} />
         </div>
 
         {t.description && (

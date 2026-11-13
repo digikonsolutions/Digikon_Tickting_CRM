@@ -3,22 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, Icon, PageHeader, Spinner } from '../../../components/ui'
+import { Button, Card, Icon, PageHeader, PriorityBadge, Spinner, StatusBadge } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
-
-function statusVariant(status) {
-  if (status === 'completed' || status === 'done') return 'success'
-  if (status === 'cancelled') return 'slate'
-  if (status === 'in_review') return 'violet'
-  if (status === 'urgent') return 'danger'
-  if (status === 'high') return 'warning'
-  if (status === 'low') return 'slate'
-  return status === 'scheduled' ? 'info' : 'primary'
-}
-
-function displayStatus(status) {
-  return status?.replaceAll('_', ' ') ?? 'Unknown'
-}
 
 function formatSchedule(schedule = []) {
   if (!schedule.length) return 'No scheduled hours'
@@ -77,7 +63,7 @@ export function AdminProjectDetailPage() {
               <div><dt>Assigned employee</dt><dd>{project.employee?.name ?? 'Unassigned'}</dd></div>
               <div><dt>Project dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
               <div><dt>Project hours</dt><dd>{formatHours(projectHours)}</dd></div>
-              <div><dt>Status</dt><dd><Badge variant={statusVariant(project.status)}>{displayStatus(project.status)}</Badge></dd></div>
+              <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>
             </dl>
           </div>
           <div className="admin-project-progress">
@@ -122,8 +108,8 @@ export function AdminProjectDetailPage() {
                     <div className="admin-project-ticket-title-row">
                       <h3>{ticket.title}</h3>
                       <div className="admin-project-ticket-badges">
-                        <Badge variant={statusVariant(ticket.priority)}>{ticket.priority}</Badge>
-                        <Badge variant={statusVariant(ticket.status)}>{displayStatus(ticket.status)}</Badge>
+                        <PriorityBadge priority={ticket.priority} />
+                        <StatusBadge status={ticket.status} />
                       </div>
                     </div>
                     {ticket.description && <p>{ticket.description}</p>}

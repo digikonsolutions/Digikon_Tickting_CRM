@@ -4,7 +4,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Badge, Button, Card, Input, PageHeader, Select, Table, Textarea } from '../../../components/ui'
+import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Textarea } from '../../../components/ui'
 import { DAILY_HOURS_CAP, WEEKLY_HOURS_BUDGET } from '../../../lib/constants'
 import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
 
@@ -105,7 +105,7 @@ export function AgencyProjectsPage({ viewAs }) {
     { key: 'employee', label: 'Assigned employee', render: (employee) => employee?.name ?? 'Unassigned' },
     { key: 'estimated_hours', label: 'Hours', render: formatHours },
     { key: 'due_date', label: 'Due date', render: formatDate },
-    { key: 'status', label: 'Status', render: (status) => <Badge variant={status === 'completed' ? 'success' : status === 'cancelled' ? 'slate' : 'primary'}>{status.replace('_', ' ')}</Badge> },
+    { key: 'status', label: 'Status', render: (status) => <StatusBadge status={status} /> },
     { key: 'schedule', label: 'Daily schedule', render: scheduleLabel },
   ], [isClient])
 

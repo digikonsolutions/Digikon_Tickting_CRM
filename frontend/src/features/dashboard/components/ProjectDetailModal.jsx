@@ -1,4 +1,4 @@
-import { Badge, Modal } from '../../../components/ui'
+import { Modal, StatusBadge } from '../../../components/ui'
 import { formatDate, formatHours } from '../../../lib/format'
 
 export function ProjectDetailModal({ ticket, onClose }) {
@@ -7,9 +7,7 @@ export function ProjectDetailModal({ ticket, onClose }) {
       {ticket && (
         <div className="ticket-detail">
           <div className="ticket-badges">
-            <Badge variant={ticket.status === 'completed' ? 'success' : ticket.status === 'in_progress' ? 'primary' : 'info'}>
-              {ticket.status === 'in_progress' ? 'In progress' : ticket.status}
-            </Badge>
+            <StatusBadge status={ticket.status} />
           </div>
           <p>{ticket.description || 'No description provided.'}</p>
           <dl>

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, PageHeader, Table } from '../../../components/ui'
+import { Button, Card, PageHeader, PriorityBadge, StatusBadge, Table } from '../../../components/ui'
 import { formatDate, formatHours } from '../../../lib/format'
 
 const PER_PAGE = 25
@@ -19,8 +19,8 @@ export function AdminTicketsPage() {
     { key: 'agency_name', label: 'Agency' },
     { key: 'creator', label: 'Created by', render: (creator) => creator?.name ?? 'Account removed' },
     { key: 'estimated_hours', label: 'Hours', render: formatHours },
-    { key: 'priority', label: 'Priority', render: (priority) => <Badge preset={priority}>{priority}</Badge> },
-    { key: 'status', label: 'Status', render: (status) => <Badge variant={status === 'done' ? 'success' : status === 'cancelled' ? 'slate' : 'primary'}>{status.replace('_', ' ')}</Badge> },
+    { key: 'priority', label: 'Priority', render: (priority) => <PriorityBadge priority={priority} /> },
+    { key: 'status', label: 'Status', render: (status) => <StatusBadge status={status} /> },
     { key: 'start_date', label: 'Start date', render: formatDate },
     { key: 'due_date', label: 'Due date', render: formatDate },
   ]

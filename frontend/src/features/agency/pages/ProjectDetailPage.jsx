@@ -4,17 +4,10 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, Input, Modal, PageHeader, Select, Textarea } from '../../../components/ui'
+import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBadge, Textarea } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
-
-function badgeVariant(status) {
-  if (['done', 'completed'].includes(status)) return 'success'
-  if (['cancelled'].includes(status)) return 'slate'
-  if (['urgent', 'in_review'].includes(status)) return status === 'urgent' ? 'danger' : 'violet'
-  return status === 'high' ? 'warning' : 'primary'
-}
 
 export function ProjectDetailPage() {
   const { id } = useParams()
@@ -122,7 +115,7 @@ export function ProjectDetailPage() {
               <div><dt>Employee</dt><dd>{project.employee?.name ?? '—'}</dd></div>
               <div><dt>Project hours</dt><dd>{formatHours(project.estimated_hours)}</dd></div>
               <div><dt>Dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
-              <div><dt>Status</dt><dd><Badge variant={badgeVariant(project.status)}>{project.status.replace('_', ' ')}</Badge></dd></div>
+              <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>
             </dl>
           </div>
           <div className="project-ticket-progress">
@@ -151,8 +144,8 @@ export function ProjectDetailPage() {
                     <div><h3>{ticket.title}</h3><p>{ticket.description}</p></div>
                   </div>
                   <div className="project-ticket-badges">
-                    <Badge variant={badgeVariant(ticket.priority)}>{ticket.priority}</Badge>
-                    <Badge variant={badgeVariant(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
+                    <PriorityBadge priority={ticket.priority} />
+                    <StatusBadge status={ticket.status} />
                     <strong>{formatHours(ticket.estimated_hours)}</strong>
                   </div>
                   <p className="project-ticket-dates">{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</p>

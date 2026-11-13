@@ -1,4 +1,4 @@
-import { Badge, DueText, EmptyState, Spinner } from '../../../components/ui'
+import { DueText, EmptyState, Spinner, StatusBadge } from '../../../components/ui'
 import { formatHours } from '../../../lib/format'
 
 export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned projects', emptyText = 'Assignments will appear here when work is scheduled for you.', showAgency = true, onSelect }) {
@@ -19,9 +19,7 @@ export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned proj
               </span>
             </span>
             <span className="ticket-badges">
-              <Badge variant={project.status === 'completed' ? 'success' : project.status === 'in_progress' ? 'primary' : 'info'}>
-                {project.status === 'in_progress' ? 'In progress' : project.status}
-              </Badge>
+              <StatusBadge status={project.status} />
             </span>
             <span className="ticket-due"><DueText dueDate={project.due_date} status={project.status} /></span>
           </button>

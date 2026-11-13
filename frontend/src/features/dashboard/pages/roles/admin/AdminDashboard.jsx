@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, DueText, EmptyState, Icon, PageHeader, Spinner } from '../../../../../components/ui'
+import { Button, Card, DueText, EmptyState, Icon, PageHeader, Spinner, StatusBadge } from '../../../../../components/ui'
 import { getDueInfo, todayStr } from '../../../../../lib/format'
 
 const PROJECT_FILTERS = [
@@ -14,15 +14,6 @@ const PROJECT_FILTERS = [
 ]
 const EMPTY_PROJECTS = []
 const EMPTY_WEEK_HOURS = Array.from({ length: 7 }, () => 0)
-
-const STATUS_PRESENTATION = {
-  scheduled: { label: 'Scheduled', variant: 'info' },
-  in_progress: { label: 'In progress', variant: 'primary' },
-  completed: { label: 'Completed', variant: 'success' },
-  cancelled: { label: 'Cancelled', variant: 'slate' },
-  at_risk: { label: 'At risk', variant: 'warning' },
-  overdue: { label: 'Overdue', variant: 'danger' },
-}
 
 async function loadAllAdminProjects() {
   const firstPage = await authService.listAdminProjects({ page: 1, perPage: 100 })
@@ -111,10 +102,6 @@ function sparklinePath(values, width = 168, height = 40) {
 
 function ProjectRow({ project }) {
   const status = projectStatus(project)
-  const presentation = STATUS_PRESENTATION[status] ?? {
-    label: status?.replace('_', ' ') ?? 'Unknown',
-    variant: 'slate',
-  }
   const projectOwner = project.client?.name ?? project.employee?.name ?? 'Project team'
   const employeeName = project.employee?.name
   const initials = employeeInitials(employeeName)
@@ -134,7 +121,7 @@ function ProjectRow({ project }) {
         <span>{project.agency_name ?? 'Agency'} · {projectOwner}</span>
       </span>
       <span className="admin-project-due"><DueText dueDate={project.due_date} status={project.status} /></span>
-      <Badge variant={presentation.variant}>{presentation.label}</Badge>
+      <StatusBadge status={status} />
     </li>
   )
 }

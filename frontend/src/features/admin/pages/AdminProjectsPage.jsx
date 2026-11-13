@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, Input, PageHeader, Table } from '../../../components/ui'
+import { Button, Card, Input, PageHeader, StatusBadge, Table } from '../../../components/ui'
 import { formatDate, formatHours } from '../../../lib/format'
 
 const formatSchedule = (schedule = []) => schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ')
@@ -64,7 +64,7 @@ export function AdminProjectsPage() {
     { key: 'employee', label: 'Employee', render: (employee) => employee?.name ?? 'Unassigned' },
     { key: 'estimated_hours', label: 'Hours', render: formatHours },
     { key: 'due_date', label: 'Due date', render: formatDate },
-    { key: 'status', label: 'Status', render: (status) => <Badge variant={status === 'completed' ? 'success' : 'primary'}>{status.replace('_', ' ')}</Badge> },
+    { key: 'status', label: 'Status', render: (status) => <StatusBadge status={status} /> },
     { key: 'schedule', label: 'Daily schedule', render: formatSchedule },
   ]
 
