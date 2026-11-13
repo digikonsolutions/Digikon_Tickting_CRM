@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Button, Input, PageHeader } from '../../../components/ui'
+import { Button, Input, PageHeader, useToast } from '../../../components/ui'
 
 export function AdminCreateUserPage({ role = ROLES.EMPLOYEE }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const fieldError = (field) => error?.errors?.[field]?.[0]
 
   async function submit(event) {
@@ -15,7 +15,6 @@ export function AdminCreateUserPage({ role = ROLES.EMPLOYEE }) {
     const form = event.currentTarget
     const data = new FormData(form)
     setError(null)
-    setSuccess('')
     setIsLoading(true)
 
     try {
@@ -26,7 +25,7 @@ export function AdminCreateUserPage({ role = ROLES.EMPLOYEE }) {
         role,
         agency_name: role === ROLES.AGENCY_OWNER ? String(data.get('agency_name')).trim() : undefined,
       })
-      setSuccess(`Invite email sent to ${email}`)
+      showToast(`Invite email sent to ${email}`)
       form.reset()
     } catch (reason) {
       setError(reason)
@@ -49,7 +48,6 @@ export function AdminCreateUserPage({ role = ROLES.EMPLOYEE }) {
           <Input id="agency-name" label="Agency name" name="agency_name" type="text" maxLength="160" required error={fieldError('agency_name')} helperText="The agency will be created automatically and assigned a database ID." />
         )}
         <ApiErrorMessage error={error?.status === 422 ? null : error} />
-        {success && <Alert variant="success">{success}</Alert>}
         <Button type="submit" loading={isLoading} loadingText="Sending invite…">
           Create {ROLE_LABELS[role]?.toLowerCase() ?? 'user'}
         </Button>

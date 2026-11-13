@@ -3,7 +3,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Badge, Button, Card, Input, Modal, PageHeader, Table } from '../../../components/ui'
+import { Badge, Button, Card, Input, Modal, PageHeader, Table, useToast } from '../../../components/ui'
 
 export function AgencyUsersPage() {
   const { user } = useAuth()
@@ -12,7 +12,7 @@ export function AgencyUsersPage() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [usersError, setUsersError] = useState(null)
   const [createError, setCreateError] = useState(null)
-  const [createSuccess, setCreateSuccess] = useState('')
+  const { showToast } = useToast()
   const [isCreating, setIsCreating] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [editError, setEditError] = useState(null)
@@ -60,7 +60,6 @@ export function AgencyUsersPage() {
     const data = new FormData(form)
     const email = String(data.get('email')).trim()
     setCreateError(null)
-    setCreateSuccess('')
     setIsCreating(true)
 
     try {
@@ -69,7 +68,7 @@ export function AgencyUsersPage() {
         email,
         role: ROLES.AGENCY_CLIENT,
       })
-      setCreateSuccess(`Invitation sent to ${email}.`)
+      showToast(`Invitation sent to ${email}.`)
       form.reset()
       await loadUsers()
     } catch (error) {
@@ -92,7 +91,7 @@ export function AgencyUsersPage() {
         email: String(data.get('email')).trim(),
       })
       setEditingUser(null)
-      setCreateSuccess(user.password_setup_email_sent
+      showToast(user.password_setup_email_sent
         ? `Account updated. A password setup email was sent to ${user.email}.`
         : 'Account updated.')
       await loadUsers()
@@ -110,10 +109,10 @@ export function AgencyUsersPage() {
     try {
       if (confirmation.kind === 'delete') {
         await authService.deleteAgencyUser(confirmation.user.id)
-        setCreateSuccess(`${confirmation.user.name} was permanently deleted.`)
+        showToast(`${confirmation.user.name} was permanently deleted.`)
       } else {
         await authService.updateAgencyUser(confirmation.user.id, { is_active: false })
-        setCreateSuccess(`${confirmation.user.name} was deactivated.`)
+        showToast(`${confirmation.user.name} was deactivated.`)
       }
       setConfirmation(null)
       await loadUsers()
@@ -129,7 +128,7 @@ export function AgencyUsersPage() {
     setPendingUserId(user.id)
     try {
       await authService.updateAgencyUser(user.id, { is_active: true })
-      setCreateSuccess(`${user.name} was reactivated.`)
+      showToast(`${user.name} was reactivated.`)
       await loadUsers()
     } catch (error) {
       setActionError(error)
@@ -177,7 +176,6 @@ export function AgencyUsersPage() {
           ? 'Manage client accounts in your agency. Employee accounts are created by an administrator.'
           : 'Manage client accounts in your agency.'}
       />
-      {createSuccess && <Alert variant="success">{createSuccess}</Alert>}
       <ApiErrorMessage error={actionError} />
 
       <Card title="Invite a client" description="They’ll receive an email to set their password.">

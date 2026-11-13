@@ -4,7 +4,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Textarea } from '../../../components/ui'
+import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Textarea, useToast } from '../../../components/ui'
 import { DEFAULT_CAPACITY } from '../../../lib/constants'
 import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
 
@@ -34,7 +34,7 @@ export function AgencyProjectsPage({ viewAs }) {
   })
   const [selectedAssignment, setSelectedAssignment] = useState('')
   const [createError, setCreateError] = useState(null)
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [isCreating, setIsCreating] = useState(false)
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
@@ -91,7 +91,6 @@ export function AgencyProjectsPage({ viewAs }) {
   function updateFormValue(field, value) {
     setFormValues((current) => ({ ...current, [field]: value }))
     setCreateError(null)
-    setSuccess('')
   }
 
   async function createProject(event) {
@@ -100,7 +99,6 @@ export function AgencyProjectsPage({ viewAs }) {
     const form = event.currentTarget
     const formData = new FormData(form)
     setCreateError(null)
-    setSuccess('')
     setIsCreating(true)
     try {
       await authService.createAgencyProject({
@@ -111,7 +109,7 @@ export function AgencyProjectsPage({ viewAs }) {
         due_date: String(formData.get('due_date')),
         assignment_id: Number(selectedAssignment),
       })
-      setSuccess('Project created and work hours scheduled.')
+      showToast('Project created and work hours scheduled.')
       form.reset()
       setSelectedAssignment('')
       setCapacity({ key: null, hours: null, error: null })
@@ -144,7 +142,6 @@ export function AgencyProjectsPage({ viewAs }) {
           ? 'View agency projects and statuses. Create projects using employees you hold.'
           : 'Create projects using your held employees and review agency project schedules.'}
       />
-      {success && <Alert variant="success">{success}</Alert>}
       <ApiErrorMessage error={error ?? (createError?.status === 422 ? null : createError)} />
       <Card title="Create a project" description={`Your assignment has a shared weekly budget of ${holdCapacity.weekly_hours} hours, with at most ${holdCapacity.daily_hours} hours scheduled each working day.`}>
         {!isLoading && assignments.length === 0 && (

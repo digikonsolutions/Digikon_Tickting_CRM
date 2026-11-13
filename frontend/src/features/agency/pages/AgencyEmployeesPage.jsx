@@ -5,7 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
-  EmptyState, Modal, PageHeader, Skeleton,
+  EmptyState, Modal, PageHeader, Skeleton, useToast,
 } from '../../../components/ui'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
@@ -29,18 +29,12 @@ export function AgencyEmployeesPage() {
   const [confirm, setConfirm] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [actionError, setActionError] = useState(null)
-  const [actionSuccess, setActionSuccess] = useState('')
+  const { showToast } = useToast()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerSearch, setDrawerSearch] = useState('')
   const [impactData, setImpactData] = useState(null)
 
-  /* auto-dismiss alerts */
-  useEffect(() => {
-    if (!actionSuccess) return
-    const timer = setTimeout(() => setActionSuccess(''), 5000)
-    return () => clearTimeout(timer)
-  }, [actionSuccess])
-
+  /* auto-dismiss the error alert */
   useEffect(() => {
     if (!actionError) return
     const timer = setTimeout(() => setActionError(null), 5000)
@@ -101,14 +95,13 @@ export function AgencyEmployeesPage() {
     if (!confirm || isSaving) return
     setIsSaving(true)
     setActionError(null)
-    setActionSuccess('')
     try {
       if (confirm.kind === 'assign') {
         await authService.createEmployeeAssignment(confirm.employee.id)
       } else {
         await authService.endEmployeeAssignment(confirm.assignment.id)
       }
-      setActionSuccess(
+      showToast(
         confirm.kind === 'assign'
           ? `${confirm.employee.name} is now exclusively assigned to you.`
           : `${confirm.assignment.employee.name}'s assignment has ended.`,
@@ -142,22 +135,6 @@ export function AgencyEmployeesPage() {
 
       {/* Alerts */}
       <div aria-live="polite" className="ae-alerts">
-        {actionSuccess && (
-          <Alert
-            variant="success"
-            title="Done"
-          >
-            {actionSuccess}
-            <button
-              type="button"
-              className="ae-alert-dismiss"
-              aria-label="Dismiss"
-              onClick={() => setActionSuccess('')}
-            >
-              ✕
-            </button>
-          </Alert>
-        )}
         {(actionError || error) && (
           <Alert variant="error" title="Error">
             {String(actionError?.message ?? error?.message ?? actionError ?? error)}

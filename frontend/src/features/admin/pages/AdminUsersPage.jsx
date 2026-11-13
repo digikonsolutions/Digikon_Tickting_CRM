@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Badge, Button, Card, Input, Modal, PageHeader, Table } from '../../../components/ui'
+import { Badge, Button, Card, Input, Modal, PageHeader, Table, useToast } from '../../../components/ui'
 
 export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [users, setUsers] = useState([])
@@ -16,7 +16,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [editError, setEditError] = useState(null)
   const [action, setAction] = useState(null)
   const [actionError, setActionError] = useState(null)
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
 
   const loadUsers = useCallback(async (page, query) => {
@@ -74,7 +74,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
         email: String(data.get('email')).trim(),
       })
       setEditingUser(null)
-      setSuccess('Account updated.')
+      showToast('Account updated.')
       await loadUsers(pagination.current_page, search)
     } catch (reason) {
       setEditError(reason)
@@ -89,10 +89,10 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
     try {
       if (action.kind === 'delete') {
         await authService.deleteAdminUser(action.user.id)
-        setSuccess(`${action.user.name} was permanently deleted.`)
+        showToast(`${action.user.name} was permanently deleted.`)
       } else {
         await authService.updateAdminUser(action.user.id, { is_active: !action.user.is_active })
-        setSuccess(`${action.user.name} was ${action.user.is_active ? 'deactivated' : 'reactivated'}.`)
+        showToast(`${action.user.name} was ${action.user.is_active ? 'deactivated' : 'reactivated'}.`)
       }
       setAction(null)
       await loadUsers(pagination.current_page, search)
@@ -142,7 +142,6 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
             : 'View every account and its role and status. Only employees and agency owners can be managed here.'}
         action={createTo && <Link className="ui-button ui-button-primary ui-button-md" to={createTo}>{createLabel}</Link>}
       />
-      {success && <Alert variant="success">{success}</Alert>}
       <ApiErrorMessage error={actionError} />
       <Card title={title} description={`${pagination.total} account${pagination.total === 1 ? '' : 's'} total.`}>
         <form className="admin-users-search" onSubmit={submitSearch}>
