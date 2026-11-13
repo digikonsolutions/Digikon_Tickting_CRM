@@ -18,8 +18,9 @@ export function TicketComments({ ticketId, onPosted }) {
   const loadedIds = new Set(loaded.map((comment) => comment.id))
   const comments = [...loaded, ...added.filter((comment) => !loadedIds.has(comment.id))]
 
-  const post = useCallback(async (body) => {
-    const { comment } = await authService.createTicketComment(ticketId, body)
+  const allowInternal = user?.role === 'admin' || user?.role === 'employee'
+  const post = useCallback(async (body, { isInternal = false } = {}) => {
+    const { comment } = await authService.createTicketComment(ticketId, body, { isInternal })
     setAdded((current) => [...current, comment])
     showToast('Comment posted.')
     onPosted?.(comment)
@@ -34,7 +35,7 @@ export function TicketComments({ ticketId, onPosted }) {
         onRetry={reload}
         currentUserId={user?.id}
       />
-      <CommentForm onSubmit={post} />
+      <CommentForm onSubmit={post} allowInternal={allowInternal} />
     </div>
   )
 }

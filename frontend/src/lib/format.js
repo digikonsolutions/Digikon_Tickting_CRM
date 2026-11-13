@@ -119,3 +119,14 @@ export function formatRelativeTime(value, now = new Date()) {
   if (dateStr === toDateStr(yesterday)) return 'yesterday'
   return formatDate(dateStr)
 }
+
+// How long ago an ISO timestamp was, in coarse units: "less than an hour", "3 hours", "2 days".
+export function formatElapsed(value, now = new Date()) {
+  const date = value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return ''
+  const hours = Math.floor((now - date) / 3600000)
+  if (hours < 1) return 'less than an hour'
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`
+  const days = Math.floor(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'}`
+}

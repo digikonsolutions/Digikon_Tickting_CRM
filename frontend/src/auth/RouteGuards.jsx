@@ -86,7 +86,9 @@ export function AppLayout() {
     return groups
   }, [])
   const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
-    ?? (location.pathname.startsWith('/admin/projects/')
+    ?? (location.pathname.startsWith('/tickets/')
+      ? 'Ticket'
+      : location.pathname.startsWith('/admin/projects/')
       ? 'Project details'
       : ({
       '/profile': 'My profile',

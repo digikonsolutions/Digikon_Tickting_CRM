@@ -19,6 +19,7 @@ import {
   AgencyUsersPage,
   ProjectDetailPage,
 } from '../features/agency'
+import { TicketPage } from '../features/tickets'
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -52,6 +53,9 @@ export function AppRoutes() {
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route element={<AppLayout />}>
           <Route path="/profile" element={<ProfilePage />} />
+          <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
+            <Route path="/tickets/:key" element={<TicketPage />} />
+          </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/projects/:id" element={<AdminProjectDetailPage />} />

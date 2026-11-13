@@ -5,8 +5,9 @@ import { Textarea } from './Fields'
 const MAX_COMMENT_LENGTH = 10000
 
 // `onSubmit(body)` must return a promise; throw to report an error, which is shown under the field.
-export function CommentForm({ onSubmit, label = 'Add a comment', disabled = false, className = '' }) {
+export function CommentForm({ onSubmit, label = 'Add a comment', disabled = false, allowInternal = false, className = '' }) {
   const [body, setBody] = useState('')
+  const [isInternal, setIsInternal] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState(null)
   const isMounted = useRef(true)
@@ -23,7 +24,7 @@ export function CommentForm({ onSubmit, label = 'Add a comment', disabled = fals
     setIsSending(true)
     setError(null)
     try {
-      await onSubmit(trimmed)
+      await onSubmit(trimmed, { isInternal: allowInternal && isInternal })
       if (isMounted.current) setBody('')
     } catch (reason) {
       if (isMounted.current) setError(reason)
@@ -34,17 +35,17 @@ export function CommentForm({ onSubmit, label = 'Add a comment', disabled = fals
 
   return (
     <form
-      className={`ui-comment-form ${className}`.trim()}
+      className={`ui-comment-form${allowInternal && isInternal ? ' is-internal' : ''} ${className}`.trim()}
       onSubmit={(event) => { event.preventDefault(); send() }}
     >
       <Textarea
-        label={label}
+        label={allowInternal && isInternal ? 'Internal note' : label}
         rows="3"
         maxLength={MAX_COMMENT_LENGTH}
         value={body}
         disabled={disabled || isSending}
         error={error ? (error.errors?.body?.[0] ?? error.message ?? 'Could not post the comment.') : undefined}
-        helperText="Press Ctrl+Enter (or Cmd+Enter) to post."
+        helperText={allowInternal && isInternal ? 'Internal: not visible to the client.' : 'Press Ctrl+Enter (or Cmd+Enter) to post.'}
         onChange={(event) => { setBody(event.target.value); if (error) setError(null) }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -53,6 +54,12 @@ export function CommentForm({ onSubmit, label = 'Add a comment', disabled = fals
           }
         }}
       />
+      {allowInternal && (
+        <label className="ui-comment-internal-toggle">
+          <input type="checkbox" checked={isInternal} onChange={(event) => setIsInternal(event.target.checked)} disabled={disabled || isSending} />
+          Internal note (not visible to the client)
+        </label>
+      )}
       <Button type="submit" size="sm" disabled={!canSend} loading={isSending} loadingText="Posting…">
         Post comment
       </Button>

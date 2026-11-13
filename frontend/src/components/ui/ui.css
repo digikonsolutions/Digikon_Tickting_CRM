@@ -1320,3 +1320,43 @@
   .ui-day-strip { gap: .25rem; }
   .ui-day-cell-hours { font-size: .66rem; }
 }
+
+.ui-comment-internal-tag { border-radius: 999px; padding: .05rem .5rem; background: var(--color-warning-50); color: var(--color-warning-700); font-size: .68rem; font-weight: 700; }
+.ui-comment-internal .ui-comment-main { border-color: var(--color-warning-200); background: var(--color-warning-50); }
+.ui-comment-internal-toggle { display: flex; align-items: center; gap: .5rem; color: var(--color-text); font-size: .82rem; }
+.ui-comment-form.is-internal .ui-textarea { border-color: var(--color-warning-200); background: var(--color-warning-50); }
+
+/* ---- Ticket detail page ---- */
+.ticket-page { display: grid; gap: 1rem; min-width: 0; }
+.ticket-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; color: var(--color-muted); font-size: .8rem; }
+.ticket-breadcrumb a { color: var(--brand); font-weight: 600; text-decoration: none; }
+.ticket-breadcrumb a:hover { text-decoration: underline; }
+.ticket-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem 1rem; }
+.ticket-header-main { display: grid; gap: .5rem; min-width: 0; flex: 1 1 22rem; }
+.ticket-header-main h1 { margin: 0; color: var(--color-heading); font-size: clamp(1.25rem, 3vw, 1.6rem); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.ticket-header-badges { display: flex; flex-wrap: wrap; gap: .4rem; }
+.ticket-header-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ticket-layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1.25rem; align-items: start; }
+.ticket-main { display: grid; gap: 1rem; min-width: 0; }
+.ticket-overview, .ticket-schedule, .ticket-activity { display: grid; gap: 1rem; min-width: 0; }
+.ticket-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .9rem 1.25rem; margin: 0; }
+.ticket-facts-stacked { grid-template-columns: 1fr; }
+.ticket-facts > div { min-width: 0; }
+.ticket-facts dt { color: var(--color-muted); font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.ticket-facts dd { margin: .25rem 0 0; color: var(--color-heading); font-size: .86rem; font-weight: 600; overflow-wrap: anywhere; }
+.ticket-facts dd a { color: var(--brand); text-decoration: none; }
+.ticket-facts dd a:hover { text-decoration: underline; }
+.ticket-waiting { margin: 0; border-radius: .75rem; padding: .6rem .8rem; background: var(--color-page); color: var(--color-text); font-size: .86rem; }
+.ticket-waiting-reason { color: var(--color-muted); }
+.ticket-schedule-list { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.ticket-schedule-list li { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--color-border); padding: .4rem 0; color: var(--color-text); font-size: .86rem; }
+.ticket-action-form { display: grid; gap: 1rem; }
+.ticket-sidebar { min-width: 0; }
+
+@media (max-width: 900px) {
+  .ticket-layout { grid-template-columns: 1fr; }
+  .ticket-sidebar { order: 2; }
+}
+@media (max-width: 480px) {
+  .ticket-header-actions .ui-button, .ui-needs-input-actions .ui-button { flex: 1 1 100%; }
+}

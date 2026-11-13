@@ -53,12 +53,13 @@ export function CommentThread({ comments, isLoading = false, error = null, onRet
       {comments.map((comment) => {
         const isOwn = currentUserId !== undefined && String(comment.user?.id) === String(currentUserId)
         return (
-          <li className={`ui-comment${isOwn ? ' ui-comment-own' : ''}`} key={comment.id}>
+          <li className={`ui-comment${isOwn ? ' ui-comment-own' : ''}${comment.is_internal ? ' ui-comment-internal' : ''}`} key={comment.id}>
             <Avatar name={comment.user?.name} size="sm" />
             <div className="ui-comment-main">
               <div className="ui-comment-meta">
                 <strong>{isOwn ? `${comment.user?.name ?? 'You'} (you)` : (comment.user?.name ?? 'Deleted user')}</strong>
                 {comment.user?.role && <span className="ui-comment-role">{ROLE_LABELS[comment.user.role] ?? comment.user.role}</span>}
+                {comment.is_internal && <span className="ui-comment-internal-tag">Internal, not visible to the client</span>}
                 <time dateTime={comment.created_at} title={formatDateTime(comment.created_at)}>
                   {formatRelativeTime(comment.created_at, now)}
                 </time>

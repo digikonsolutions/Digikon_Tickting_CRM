@@ -493,6 +493,7 @@ class TicketController extends Controller
                 'title' => $project->title,
                 'status' => $project->status,
                 'agency_name' => $project->agency?->name,
+                'employee' => $project->employee ? ['id' => $project->employee->id, 'name' => $project->employee->name] : null,
             ],
             'timeline' => $timeline,
         ]);
