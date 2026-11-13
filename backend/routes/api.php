@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AgencyUserController;
 use App\Http\Controllers\EmployeeAssignmentController;
 use App\Http\Controllers\NotificationController;
@@ -91,6 +92,14 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth']);
     Route::post('/tickets/{ticket}/transitions', [TicketController::class, 'transition'])
         ->middleware(['auth']);
+    Route::get('/tickets/{ticket}/attachments', [AttachmentController::class, 'index'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::post('/tickets/{ticket}/attachments', [AttachmentController::class, 'store'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
+    Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::get('/tickets/{ticket}/comments', [TicketController::class, 'comments'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::post('/tickets/{ticket}/comments', [TicketController::class, 'comment'])

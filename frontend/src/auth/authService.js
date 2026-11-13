@@ -43,9 +43,11 @@ function notifyUnauthorized(path) {
 
 function requestHeaders(options, isStateChanging) {
   const csrf = xsrfToken()
+  // FormData bodies must not set a content type: the browser adds the multipart boundary itself.
+  const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData
   return {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
+    ...(isForm ? {} : { 'Content-Type': 'application/json' }),
     ...(csrf && isStateChanging ? { 'X-XSRF-TOKEN': csrf } : {}),
     ...options.headers,
   }
@@ -110,6 +112,42 @@ async function request(path, options = {}) {
     }
     throw new ApiError(SAFE_ERROR_MESSAGE)
   }
+}
+
+// Multipart upload with progress (fetch cannot report upload progress). Mirrors request(): CSRF cookie,
+// credentials, and ApiError for failures. `onProgress` receives a 0 to 100 percentage.
+async function uploadForm(path, formData, { onProgress, signal } = {}) {
+  await establishCsrfCookie()
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_URL}${path}`)
+    xhr.withCredentials = true
+    xhr.setRequestHeader('Accept', 'application/json')
+    const csrf = xsrfToken()
+    if (csrf) xhr.setRequestHeader('X-XSRF-TOKEN', csrf)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100))
+    }
+    xhr.onerror = () => reject(new ApiError('Cannot connect to the server. Check your connection and try again.'))
+    xhr.onabort = () => reject(new ApiError('The upload was cancelled.'))
+    xhr.onload = () => {
+      let payload = null
+      try { payload = JSON.parse(xhr.responseText) } catch { payload = null }
+      if (xhr.status >= 200 && xhr.status < 300 && payload) {
+        resolve(payload)
+        return
+      }
+      if (xhr.status === 401) notifyUnauthorized(path)
+      const message = xhr.status === 403 ? "You don't have access"
+        : xhr.status === 413 ? 'That file is too large for the server.'
+          : xhr.status === 429 ? 'Too many uploads. Please wait a moment and try again.'
+            : xhr.status >= 500 ? 'The server is temporarily unavailable. Please try again later.'
+              : payload?.message ?? SAFE_ERROR_MESSAGE
+      reject(new ApiError(message, { status: xhr.status, errors: payload?.errors ?? {} }))
+    }
+    signal?.addEventListener('abort', () => xhr.abort())
+    xhr.send(formData)
+  })
 }
 
 function mockUser(email) {
@@ -302,6 +340,27 @@ export const authService = {
   async updateNotificationPreferences(preferences) {
     if (AUTH_MODE === 'mock') return { preferences }
     return request('/notifications/preferences', { method: 'PUT', body: JSON.stringify({ preferences }) })
+  },
+  // Attachments: private files on tickets. Downloads go through attachmentUrl() so the browser sends the session cookie.
+  async listTicketAttachments(ticketId) {
+    if (AUTH_MODE === 'mock') return { attachments: [], limits: null }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/attachments`)
+  },
+  // Sends files (and an optional comment) as multipart. `onProgress(0-100)` reports the upload.
+  async uploadTicketAttachments(ticketId, { files, comment, isInternal = false, onProgress, signal } = {}) {
+    if (AUTH_MODE === 'mock') return { attachments: [] }
+    const form = new FormData()
+    files.forEach((file) => form.append('files[]', file, file.name))
+    if (comment) form.append('comment', comment)
+    if (isInternal) form.append('is_internal', '1')
+    return uploadForm(`/tickets/${encodeURIComponent(ticketId)}/attachments`, form, { onProgress, signal })
+  },
+  async deleteAttachment(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The file was removed.' }
+    return request(`/attachments/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+  attachmentUrl(id, { inline = false } = {}) {
+    return `${API_URL}/attachments/${encodeURIComponent(id)}/download${inline ? '?inline=1' : ''}`
   },
   async getAgencyProject(id) {
     if (AUTH_MODE === 'mock') return { project: null }

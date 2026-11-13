@@ -16,6 +16,7 @@ use App\Models\TicketComment;
 use App\Models\TicketEvent;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Services\Attachments\AttachmentPresenter;
 use App\Services\TicketAccess;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
@@ -516,7 +517,8 @@ class TicketController extends Controller
             ? TicketComment::whereIn('id', $commentIds)->pluck('body', 'id')
             : collect();
 
-        $items = collect($paginated->items())->map(function (TicketEvent $event) use ($commentsById): array {
+        $attachmentsByEvent = app(AttachmentPresenter::class)->forEvents(collect($paginated->items())->pluck('id'), $canViewInternal, $user, $ticket);
+        $items = collect($paginated->items())->map(function (TicketEvent $event) use ($commentsById, $attachmentsByEvent): array {
             $commentBody = isset($event->payload['comment_id']) ? ($commentsById[$event->payload['comment_id']] ?? null) : null;
 
             return [
@@ -530,6 +532,7 @@ class TicketController extends Controller
                 'created_at' => $event->created_at?->toISOString(),
                 'payload' => $event->payload ?? [],
                 'comment' => $commentBody,
+                'attachments' => $attachmentsByEvent[$event->id] ?? [],
             ];
         })->values();
 
@@ -555,7 +558,9 @@ class TicketController extends Controller
             ? TicketComment::whereIn('id', $commentIds)->pluck('body', 'id')
             : collect();
 
-        return $events->map(function (TicketEvent $event) use ($commentsById): array {
+        $attachmentsByEvent = app(AttachmentPresenter::class)->forEvents($events->pluck('id'), $canViewInternal, $user, $ticket);
+
+        return $events->map(function (TicketEvent $event) use ($commentsById, $attachmentsByEvent): array {
             $commentBody = isset($event->payload['comment_id']) ? ($commentsById[$event->payload['comment_id']] ?? null) : null;
 
             return [
@@ -569,6 +574,7 @@ class TicketController extends Controller
                 'created_at' => $event->created_at?->toISOString(),
                 'payload' => $event->payload ?? [],
                 'comment' => $commentBody,
+                'attachments' => $attachmentsByEvent[$event->id] ?? [],
             ];
         })->values()->all();
     }

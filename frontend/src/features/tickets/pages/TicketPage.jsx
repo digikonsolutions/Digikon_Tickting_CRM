@@ -10,10 +10,12 @@ import {
 import { formatDate, formatElapsed, formatHours } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { getWaitingLabel } from '../../../lib/ticketStatus'
+import { FilesTab } from '../components/FilesTab'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'activity', label: 'Activity' },
+  { id: 'files', label: 'Files' },
   { id: 'schedule', label: 'Schedule' },
 ]
 
@@ -138,14 +140,16 @@ function TicketActivity({ ticket, role, onPosted }) {
     }
   }
 
-  const post = useCallback(async (body, { isInternal }) => {
-    await authService.createTicketComment(ticket.id, body, { isInternal })
+  // With files, the comment and the files go up together as one multipart request.
+  const post = useCallback(async (body, { isInternal, files = [] }) => {
+    if (files.length) await authService.uploadTicketAttachments(ticket.id, { files, comment: body, isInternal })
+    else await authService.createTicketComment(ticket.id, body, { isInternal })
     await onPosted()
   }, [ticket.id, onPosted])
 
   return (
     <div className="ticket-activity">
-      <CommentForm onSubmit={post} allowInternal={allowInternal} label="Add a comment" />
+      <CommentForm onSubmit={post} allowInternal={allowInternal} allowAttachments={!['done', 'cancelled'].includes(ticket.status)} label="Add a comment" />
       {error && (
         <Alert variant="error" title="Could not load activity">
           {error.message}
@@ -155,7 +159,7 @@ function TicketActivity({ ticket, role, onPosted }) {
       {isLoading && !events.length
         ? <div role="status" aria-label="Loading activity"><Skeleton variant="row" /><Skeleton variant="row" /></div>
         : (
-          <Timeline items={events} viewerRole={role}>
+          <Timeline items={events} viewerRole={role} attachmentUrl={authService.attachmentUrl}>
             {cursor && (
               <Button type="button" variant="secondary" size="sm" loading={more.isLoading} onClick={loadMore}>Load earlier activity</Button>
             )}
@@ -302,6 +306,7 @@ export function TicketPage() {
               </div>
             )}
             {tab === 'activity' && <TicketActivity key={version} ticket={ticket} role={user.role} onPosted={commentPosted} />}
+            {tab === 'files' && <FilesTab ticket={ticket} readOnly={['done', 'cancelled'].includes(ticket.status)} onChanged={() => setVersion((value) => value + 1)} />}
             {tab === 'schedule' && (
               <div className="ticket-schedule">
                 <DayStrip schedule={ticket.schedule} />

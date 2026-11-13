@@ -16,7 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Swap this binding for a real scanner (ClamAV, a cloud API, ...) without touching the controllers.
+        $this->app->bind(\App\Services\Attachments\AttachmentScanner::class, \App\Services\Attachments\NullScanner::class);
     }
 
     /**
@@ -33,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('auth-admin-signup', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('project-create', fn (Request $request) => Limit::perMinute(30)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        RateLimiter::for('attachments', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('notifications', fn (Request $request) => Limit::perMinute(60)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
