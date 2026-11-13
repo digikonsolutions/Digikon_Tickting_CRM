@@ -15,6 +15,7 @@ class StoreTicketCommentRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:10000'],
+            'is_internal' => ['sometimes', 'boolean'],
         ];
     }
 }

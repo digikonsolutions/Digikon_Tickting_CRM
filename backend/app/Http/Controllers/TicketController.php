@@ -15,6 +15,7 @@ use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,13 +42,17 @@ class TicketController extends Controller
         ]);
     }
 
-    public function store(StoreTicketRequest $request, WorkItem $workItem, TicketPlanner $planner): JsonResponse
-    {
+    public function store(
+        StoreTicketRequest $request,
+        WorkItem $workItem,
+        TicketPlanner $planner,
+        TicketEventRecorder $recorder
+    ): JsonResponse {
         $user = $request->user();
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $data = $request->validated();
 
-        $ticket = DB::transaction(function () use ($workItem, $user, $data, $planner): Ticket {
+        $ticket = DB::transaction(function () use ($workItem, $user, $data, $planner, $recorder): Ticket {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
@@ -69,6 +74,7 @@ class TicketController extends Controller
             ]);
 
             $planner->plan($lockedWorkItem, $ticket->id);
+            $recorder->record($ticket, 'created', [], $user);
 
             return $ticket;
         });
@@ -78,19 +84,44 @@ class TicketController extends Controller
         ], 201);
     }
 
-    public function update(UpdateTicketRequest $request, Ticket $ticket, TicketPlanner $planner): JsonResponse
-    {
+    public function update(
+        UpdateTicketRequest $request,
+        Ticket $ticket,
+        TicketPlanner $planner,
+        TicketEventRecorder $recorder
+    ): JsonResponse {
         $user = $request->user();
         $workItem = $ticket->workItem;
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $data = $request->validated();
 
-        DB::transaction(function () use ($ticket, $workItem, $data, $planner): void {
+        DB::transaction(function () use ($ticket, $workItem, $data, $planner, $user, $recorder): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
+
+            $changes = [];
+            foreach (['title', 'description', 'estimated_hours', 'priority'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $oldVal = $lockedTicket->{$field};
+                    $newVal = $data[$field];
+                    if ($field === 'estimated_hours') {
+                        $oldVal = number_format((float) $oldVal, 2, '.', '');
+                        $newVal = number_format((float) $newVal, 2, '.', '');
+                    }
+                    if ((string) $oldVal !== (string) $newVal) {
+                        $changes[$field] = ['from' => $oldVal, 'to' => $newVal];
+                    }
+                }
+            }
+
             $lockedTicket->update($data);
+
+            if (! empty($changes)) {
+                $recorder->record($lockedTicket, 'updated', ['changes' => $changes], $user);
+            }
+
             $planner->plan($lockedWorkItem, $lockedTicket->id);
         });
 
@@ -99,21 +130,26 @@ class TicketController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Ticket $ticket, TicketPlanner $planner): JsonResponse
-    {
+    public function cancel(
+        Request $request,
+        Ticket $ticket,
+        TicketPlanner $planner,
+        TicketEventRecorder $recorder
+    ): JsonResponse {
         $workItem = $ticket->workItem;
         $user = $request->user();
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
 
         abort_unless(! in_array($ticket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
 
-        DB::transaction(function () use ($ticket, $workItem, $planner): void {
+        DB::transaction(function () use ($ticket, $workItem, $planner, $user, $recorder): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
             abort_unless(! in_array($lockedTicket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
             $lockedTicket->update(['status' => 'cancelled']);
+            $recorder->record($lockedTicket, 'cancelled', ['cause' => 'ticket'], $user);
             $planner->plan($lockedWorkItem);
         });
 
@@ -122,13 +158,17 @@ class TicketController extends Controller
         ]);
     }
 
-    public function reorder(ReorderTicketsRequest $request, WorkItem $workItem, TicketPlanner $planner): JsonResponse
-    {
+    public function reorder(
+        ReorderTicketsRequest $request,
+        WorkItem $workItem,
+        TicketPlanner $planner,
+        TicketEventRecorder $recorder
+    ): JsonResponse {
         $user = $request->user();
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $ids = $request->validated('ticket_ids');
 
-        DB::transaction(function () use ($workItem, $ids, $planner): void {
+        DB::transaction(function () use ($workItem, $ids, $planner, $user, $recorder): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
@@ -143,7 +183,9 @@ class TicketController extends Controller
             }
 
             foreach ($orderedIds as $position => $ticketId) {
-                $tickets->firstWhere('id', $ticketId)->update(['position' => $position]);
+                $t = $tickets->firstWhere('id', $ticketId);
+                $t->update(['position' => $position]);
+                $recorder->record($t, 'reordered', [], $user);
             }
 
             $planner->plan($lockedWorkItem);
@@ -169,8 +211,12 @@ class TicketController extends Controller
         return response()->json(['tickets' => $tickets]);
     }
 
-    public function updateStatus(UpdateTicketStatusRequest $request, Ticket $ticket, TicketPlanner $planner): JsonResponse
-    {
+    public function updateStatus(
+        UpdateTicketStatusRequest $request,
+        Ticket $ticket,
+        TicketPlanner $planner,
+        TicketEventRecorder $recorder
+    ): JsonResponse {
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
         $workItem = $ticket->workItem;
@@ -185,7 +231,7 @@ class TicketController extends Controller
         ];
         abort_unless(($transitions[$ticket->status] ?? null) === $newStatus, 422, 'This ticket status transition is not allowed.');
 
-        DB::transaction(function () use ($ticket, $workItem, $newStatus, $planner): void {
+        DB::transaction(function () use ($ticket, $workItem, $newStatus, $planner, $employee, $recorder): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
@@ -196,7 +242,13 @@ class TicketController extends Controller
                 'in_review' => 'done',
             ];
             abort_unless(($transitions[$lockedTicket->status] ?? null) === $newStatus, 422, 'This ticket status transition is not allowed.');
+            $oldStatus = $lockedTicket->status;
             $lockedTicket->update(['status' => $newStatus]);
+            $recorder->record($lockedTicket, 'status_changed', [
+                'from' => $oldStatus,
+                'to' => $newStatus,
+                'action' => $newStatus,
+            ], $employee);
 
             if ($newStatus === 'in_progress' && $lockedWorkItem->status === 'scheduled') {
                 $lockedWorkItem->update(['status' => 'in_progress']);
@@ -245,16 +297,37 @@ class TicketController extends Controller
         ]);
     }
 
-    public function comment(StoreTicketCommentRequest $request, Ticket $ticket): JsonResponse
-    {
+    public function comment(
+        StoreTicketCommentRequest $request,
+        Ticket $ticket,
+        TicketEventRecorder $recorder
+    ): JsonResponse {
         $user = $request->user();
         $this->authorizeComments($user, $ticket);
+
+        $isInternal = (bool) ($request->validated('is_internal') ?? false);
+        if ($isInternal) {
+            abort_unless(
+                in_array($user->role, [Role::Admin, Role::Employee], true),
+                403,
+                'Only employees and administrators can create internal comments.'
+            );
+        }
 
         $comment = TicketComment::create([
             'ticket_id' => $ticket->id,
             'user_id' => $user->id,
             'body' => $request->validated('body'),
+            'is_internal' => $isInternal,
         ]);
+
+        $recorder->record(
+            $ticket,
+            'comment',
+            ['comment_id' => $comment->id],
+            $user,
+            $isInternal ? 'internal' : 'public'
+        );
 
         return response()->json(['comment' => $this->commentPayload($comment->setRelation('user', $user))], 201);
     }
@@ -266,8 +339,15 @@ class TicketController extends Controller
     {
         $this->authorizeComments($request->user(), $ticket);
 
-        $comments = $ticket->comments()
+        $user = $request->user();
+        $canViewInternal = $user->role === Role::Admin
+            || ($user->role === Role::Employee && $ticket->workItem->employee_id === $user->id);
+
+        $commentsQuery = $ticket->comments()
             ->with('user')
+            ->when(! $canViewInternal, fn ($query) => $query->where('is_internal', false));
+
+        $comments = (clone $commentsQuery)
             ->orderByDesc('id')
             ->limit(self::COMMENT_LIMIT)
             ->get()
@@ -276,7 +356,7 @@ class TicketController extends Controller
 
         return response()->json([
             'comments' => $comments->map(fn (TicketComment $comment): array => $this->commentPayload($comment))->values(),
-            'total' => $ticket->comments()->count(),
+            'total' => $commentsQuery->count(),
         ]);
     }
 
@@ -308,6 +388,7 @@ class TicketController extends Controller
                 'role' => $comment->user->role->value,
             ],
             'body' => $comment->body,
+            'is_internal' => (bool) $comment->is_internal,
             'created_at' => $comment->created_at?->toISOString(),
             'updated_at' => $comment->updated_at?->toISOString(),
         ];

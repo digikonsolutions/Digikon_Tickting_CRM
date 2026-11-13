@@ -3,10 +3,16 @@
 namespace App\Services;
 
 use App\Models\EmployeeAssignment;
+use App\Models\Ticket;
 use Illuminate\Support\Facades\DB;
 
 class AssignmentService
 {
+    public function __construct(private ?TicketEventRecorder $recorder = null)
+    {
+        $this->recorder ??= app(TicketEventRecorder::class);
+    }
+
     public function end(EmployeeAssignment $assignment): void
     {
         DB::transaction(function () use ($assignment): void {
@@ -24,15 +30,20 @@ class AssignmentService
                 ->whereDate('work_date', '>=', $today)
                 ->delete();
 
-            $ticketIds = DB::table('tickets')->whereIn('work_item_id', $workItemIds)->pluck('id');
+            $openTickets = Ticket::query()
+                ->whereIn('work_item_id', $workItemIds)
+                ->whereNotIn('status', ['done', 'cancelled'])
+                ->get();
+
             DB::table('ticket_allocations')
-                ->whereIn('ticket_id', $ticketIds)
+                ->whereIn('ticket_id', $openTickets->pluck('id'))
                 ->whereDate('work_date', '>=', $today)
                 ->delete();
-            DB::table('tickets')
-                ->whereIn('id', $ticketIds)
-                ->whereNotIn('status', ['done', 'cancelled'])
-                ->update(['status' => 'cancelled', 'updated_at' => now()]);
+
+            foreach ($openTickets as $ticket) {
+                $ticket->update(['status' => 'cancelled', 'updated_at' => now()]);
+                $this->recorder->record($ticket, 'cancelled', ['cause' => 'assignment_ended'], null);
+            }
 
             $locked->update([
                 'status' => 'ended',

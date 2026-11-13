@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Role;
 use App\Models\Agency;
 use App\Models\EmployeeAssignment;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\SetPasswordNotification;
 use Illuminate\Http\Request;
@@ -14,7 +15,12 @@ use Illuminate\Support\Str;
 
 class UserAccountService
 {
-    public function __construct(private AssignmentService $assignments) {}
+    public function __construct(
+        private AssignmentService $assignments,
+        private ?TicketEventRecorder $recorder = null
+    ) {
+        $this->recorder ??= app(TicketEventRecorder::class);
+    }
 
     /**
      * @param  array{name: string, email: string, role: string, agency_id?: int|null, agency_name?: string}  $data
@@ -143,6 +149,16 @@ class UserAccountService
                         ->where('employee_id', $user->id)
                         ->whereDate('work_date', '>=', now()->toDateString())
                         ->delete();
+
+                    $remainingTickets = Ticket::query()
+                        ->whereIn('work_item_id', $workItemIds)
+                        ->whereNotIn('status', ['done', 'cancelled'])
+                        ->get();
+
+                    foreach ($remainingTickets as $remainingTicket) {
+                        $remainingTicket->update(['status' => 'cancelled', 'updated_at' => now()]);
+                        $this->recorder->record($remainingTicket, 'cancelled', ['cause' => 'employee_deactivated'], null);
+                    }
                 }
             }
         });

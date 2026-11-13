@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
+use App\Services\TicketEventRecorder;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -223,7 +224,7 @@ class WorkItemController extends Controller
         ], 201);
     }
 
-    public function cancel(Request $request, WorkItem $workItem): JsonResponse
+    public function cancel(Request $request, WorkItem $workItem, TicketEventRecorder $recorder): JsonResponse
     {
         $user = $request->user();
         $agency = $user->agency;
@@ -240,7 +241,7 @@ class WorkItemController extends Controller
             'Completed or cancelled projects cannot be cancelled.'
         );
 
-        DB::transaction(function () use ($workItem): void {
+        DB::transaction(function () use ($workItem, $user, $recorder): void {
             $workItem->update(['status' => 'cancelled']);
             $today = now(config('app.timezone'))->toDateString();
             DB::table('work_item_allocations')
@@ -248,13 +249,19 @@ class WorkItemController extends Controller
                 ->whereDate('work_date', '>=', $today)
                 ->delete();
 
-            $openTickets = $workItem->tickets()->whereNotIn('status', ['done', 'cancelled']);
-            $ticketIds = (clone $openTickets)->pluck('id');
+            $openTickets = $workItem->tickets()
+                ->whereNotIn('status', ['done', 'cancelled'])
+                ->get();
+            $ticketIds = $openTickets->pluck('id');
             DB::table('ticket_allocations')
                 ->whereIn('ticket_id', $ticketIds)
                 ->whereDate('work_date', '>=', $today)
                 ->delete();
-            $openTickets->update(['status' => 'cancelled']);
+
+            foreach ($openTickets as $openTicket) {
+                $openTicket->update(['status' => 'cancelled']);
+                $recorder->record($openTicket, 'cancelled', ['cause' => 'project'], $user);
+            }
         });
 
         return response()->json([
