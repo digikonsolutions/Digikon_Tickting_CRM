@@ -5,7 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBadge, Textarea } from '../../../components/ui'
-import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
+import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '../../../lib/format'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -119,6 +119,7 @@ export function ProjectDetailPage() {
           <div className="project-ticket-progress">
             <div><strong>Ticket hours</strong><span>{formatHours(projectTicketHours)} / {formatHours(project.estimated_hours)}</span></div>
             <progress value={progress} max="100" aria-label="Ticket hours versus project hours" />
+            <p>{formatTicketProgress(project)}</p>
           </div>
         </div>
       </Card>

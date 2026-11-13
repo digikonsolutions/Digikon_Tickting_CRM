@@ -1,5 +1,5 @@
 import { DueText, EmptyState, Spinner, StatusBadge } from '../../../components/ui'
-import { formatHours } from '../../../lib/format'
+import { formatHours, formatTicketProgress } from '../../../lib/format'
 
 export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned projects', emptyText = 'Assignments will appear here when work is scheduled for you.', showAgency = true, onSelect }) {
   if (isLoading) return <div className="ticket-loading"><Spinner size="lg" /></div>
@@ -16,6 +16,7 @@ export function ProjectList({ tickets, isLoading, emptyTitle = 'No assigned proj
                 {formatHours(project.estimated_hours)}
                 {showAgency && project.agency_name && ` · ${project.agency_name}`}
                 {` · ${project.employee?.name ?? 'Unassigned'}`}
+                {` · ${formatTicketProgress(project)}`}
               </span>
             </span>
             <span className="ticket-badges">

@@ -87,3 +87,10 @@ export function getDueInfo(dueDateStr, status) {
   if (days <= 14) return { label: `Due in ${plural(days, 'day')}`, tone: 'neutral' }
   return { label: `Due ${formatDate(dueDateStr)}`, tone: 'neutral' }
 }
+
+// "3/5 tickets done" from a project payload's ticket progress fields.
+export function formatTicketProgress(project) {
+  const total = Number(project?.tickets_total)
+  if (!Number.isFinite(total) || total <= 0) return 'No tickets yet'
+  return `${Number(project.tickets_done) || 0}/${total} ticket${total === 1 ? '' : 's'} done`
+}

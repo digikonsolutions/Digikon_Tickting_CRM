@@ -26,6 +26,7 @@ class WorkItemController extends Controller
 
         $items = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->withTicketProgress()
             ->where('agency_id', $agency->id)
             ->orderByDesc('created_at')
             ->get()
@@ -186,6 +187,7 @@ class WorkItemController extends Controller
 
         $items = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->withTicketProgress()
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('title', 'like', '%'.$search.'%')
@@ -249,6 +251,7 @@ class WorkItemController extends Controller
 
         $items = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->withTicketProgress()
             ->where('employee_id', $request->user()->id)
             ->orderBy('start_date')
             ->orderBy('id')
@@ -296,6 +299,13 @@ class WorkItemController extends Controller
      */
     private function payload(WorkItem $item): array
     {
+        // List endpoints preload progress via withTicketProgress(); single-item
+        // endpoints fall back to one extra set of queries here.
+        if (! $item->hasTicketProgress()) {
+            $item->loadTicketProgress();
+        }
+        $nextTicket = $item->nextTicket;
+
         return [
             'id' => $item->id,
             'title' => $item->title,
@@ -316,6 +326,14 @@ class WorkItemController extends Controller
             'start_date' => $item->start_date->toDateString(),
             'due_date' => $item->due_date->toDateString(),
             'status' => $item->status,
+            'tickets_total' => (int) $item->tickets_total,
+            'tickets_done' => (int) $item->tickets_done,
+            'tickets_open' => (int) $item->tickets_open,
+            'next_ticket' => $nextTicket ? [
+                'id' => $nextTicket->id,
+                'title' => $nextTicket->title,
+                'status' => $nextTicket->status,
+            ] : null,
             'schedule' => $item->allocations->map(fn (WorkItemAllocation $allocation): array => [
                 'work_date' => $allocation->work_date->toDateString(),
                 'hours' => $allocation->hours,
