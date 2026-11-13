@@ -73,7 +73,13 @@ class TicketController extends Controller
                 'status' => 'todo',
             ]);
 
-            $planner->plan($lockedWorkItem, $ticket->id);
+            $planner->plan($lockedWorkItem, $ticket->id, [
+                'type' => 'ticket_created',
+                'ticket_id' => $ticket->id,
+                'ticket_key' => $ticket->key,
+                'actor' => $user,
+                'actor_name' => $user->name,
+            ]);
             $recorder->record($ticket, 'created', [], $user);
 
             return $ticket;
@@ -95,7 +101,8 @@ class TicketController extends Controller
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $data = $request->validated();
 
-        DB::transaction(function () use ($ticket, $workItem, $data, $planner, $user, $recorder): void {
+        $rescheduled = [];
+        DB::transaction(function () use ($ticket, $workItem, $data, $planner, $user, $recorder, &$rescheduled): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
@@ -122,11 +129,18 @@ class TicketController extends Controller
                 $recorder->record($lockedTicket, 'updated', ['changes' => $changes], $user);
             }
 
-            $planner->plan($lockedWorkItem, $lockedTicket->id);
+            $rescheduled = $planner->plan($lockedWorkItem, $lockedTicket->id, [
+                'type' => 'ticket_updated',
+                'ticket_id' => $lockedTicket->id,
+                'ticket_key' => $lockedTicket->key,
+                'actor' => $user,
+                'actor_name' => $user->name,
+            ]);
         });
 
         return response()->json([
             'ticket' => $this->ticketPayload($ticket->fresh()->load(['allocations', 'creator'])),
+            'rescheduled' => $rescheduled,
         ]);
     }
 
@@ -150,7 +164,13 @@ class TicketController extends Controller
             abort_unless(! in_array($lockedTicket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
             $lockedTicket->update(['status' => 'cancelled']);
             $recorder->record($lockedTicket, 'cancelled', ['cause' => 'ticket'], $user);
-            $planner->plan($lockedWorkItem);
+            $planner->plan($lockedWorkItem, null, [
+                'type' => 'ticket_cancelled',
+                'ticket_id' => $lockedTicket->id,
+                'ticket_key' => $lockedTicket->key,
+                'actor' => $user,
+                'actor_name' => $user->name,
+            ]);
         });
 
         return response()->json([
@@ -168,7 +188,8 @@ class TicketController extends Controller
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         $ids = $request->validated('ticket_ids');
 
-        DB::transaction(function () use ($workItem, $ids, $planner, $user, $recorder): void {
+        $rescheduled = [];
+        DB::transaction(function () use ($workItem, $ids, $planner, $user, $recorder, &$rescheduled): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
@@ -188,10 +209,21 @@ class TicketController extends Controller
                 $recorder->record($t, 'reordered', [], $user);
             }
 
-            $planner->plan($lockedWorkItem);
+            $prioritisedTicket = $tickets->firstWhere('id', $orderedIds[0]);
+            $rescheduled = $planner->plan($lockedWorkItem, null, [
+                'type' => 'reordered',
+                'ticket_id' => $prioritisedTicket?->id,
+                'ticket_key' => $prioritisedTicket?->key,
+                'actor' => $user,
+                'actor_name' => $user->name,
+            ]);
         });
 
-        return $this->index($request, $workItem->fresh());
+        $indexResponse = $this->index($request, $workItem->fresh());
+        $responseData = $indexResponse->getData(true);
+        $responseData['rescheduled'] = $rescheduled;
+
+        return response()->json($responseData);
     }
 
     public function mine(Request $request): JsonResponse
@@ -263,7 +295,13 @@ class TicketController extends Controller
                 $lockedWorkItem->update(['status' => 'completed']);
             }
 
-            $planner->plan($lockedWorkItem);
+            $planner->plan($lockedWorkItem, null, [
+                'type' => 'status_changed',
+                'ticket_id' => $lockedTicket->id,
+                'ticket_key' => $lockedTicket->key,
+                'actor' => $employee,
+                'actor_name' => $employee->name,
+            ]);
         });
 
         return response()->json([
