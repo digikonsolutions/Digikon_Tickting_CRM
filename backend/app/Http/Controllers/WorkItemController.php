@@ -34,6 +34,16 @@ class WorkItemController extends Controller
         return response()->json(['projects' => $items]);
     }
 
+    public function agencyShow(Request $request, WorkItem $workItem): JsonResponse
+    {
+        $agency = $this->activeAgency($request->user());
+        abort_unless($workItem->agency_id === $agency->id, 404);
+
+        return response()->json([
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
+        ]);
+    }
+
     public function store(StoreWorkItemRequest $request, WorkItemScheduler $scheduler): JsonResponse
     {
         $creator = $request->user();

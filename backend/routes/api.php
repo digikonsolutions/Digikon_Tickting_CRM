@@ -48,6 +48,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/projects', [WorkItemController::class, 'agencyIndex'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::get('/projects/{workItem}', [WorkItemController::class, 'agencyShow'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::post('/projects', [WorkItemController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'throttle:project-create']);
     Route::patch('/projects/{workItem}/cancel', [WorkItemController::class, 'cancel'])

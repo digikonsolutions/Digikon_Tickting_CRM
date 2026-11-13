@@ -19,14 +19,12 @@ export function ProjectDetailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const loadData = useCallback(async () => {
     const [projectResponse, ticketResponse, assignmentResponse] = await Promise.all([
-      authService.listAgencyProjects(),
+      authService.getAgencyProject(id),
       authService.listProjectTickets(id),
       authService.listAgencyAssignments(),
     ])
-    const project = projectResponse.projects.find((item) => String(item.id) === String(id))
-    if (!project) throw new Error('This project is not available in your agency.')
     return {
-      project,
+      project: projectResponse.project,
       tickets: ticketResponse.tickets,
       assignments: assignmentResponse.assignments,
     }

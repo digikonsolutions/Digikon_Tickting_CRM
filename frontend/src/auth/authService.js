@@ -249,6 +249,10 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { projects: [] }
     return request('/agency/projects')
   },
+  async getAgencyProject(id) {
+    if (AUTH_MODE === 'mock') return { project: null }
+    return request(`/agency/projects/${encodeURIComponent(id)}`)
+  },
   async createAgencyProject(data) {
     if (AUTH_MODE === 'mock') return { project: { id: Date.now(), ...data, status: 'scheduled', schedule: [] } }
     return request('/agency/projects', { method: 'POST', body: JSON.stringify(data) })

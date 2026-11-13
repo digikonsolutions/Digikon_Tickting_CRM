@@ -444,7 +444,7 @@ class WorkItemSchedulingTest extends TestCase
             ->assertJsonCount(1, 'projects')
             ->assertJsonPath('projects.0.agency_name', 'Northwind');
         $this->patchJson('/api/agency/projects/'.$workItem->id, ['status' => 'completed'])
-            ->assertNotFound();
+            ->assertMethodNotAllowed();
 
         $this->actingAs($employee)->getJson('/api/work-items/mine')
             ->assertOk()

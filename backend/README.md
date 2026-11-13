@@ -56,6 +56,7 @@ Available routes:
 | GET | `/api/agency/assignments/{assignment}/usage` | Read assignment usage within the caller's agency for a requested `?week=YYYY-MM-DD` |
 | DELETE | `/api/agency/assignments/{assignment}` | Holder ends its assignment; owners may end any assignment in their agency |
 | GET | `/api/agency/projects` | Agency clients and owners see all projects and schedules in their agency |
+| GET | `/api/agency/projects/{workItem}` | Agency clients and owners read one project in their agency (404 for other agencies) |
 | POST | `/api/agency/projects` | Agency client/owner create a project using their active `assignment_id` |
 | PATCH | `/api/agency/projects/{workItem}/cancel` | Agency clients and owners cancel any open project in their agency |
 | GET | `/api/agency/projects/{workItem}/tickets` | Agency clients and owners read tickets for projects in their agency |
