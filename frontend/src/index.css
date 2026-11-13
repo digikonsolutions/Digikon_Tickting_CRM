@@ -9,12 +9,22 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --color-primary-50: #f0fdfa;
+  /* Semantic brand tokens (teal). Prefer these in new CSS. */
+  --brand: #0d9488;
+  --brand-hover: #0f766e;
+  --brand-soft: #f0fdfa;
+  --brand-ring: rgb(13 148 136 / 22%);
+  --brand-shadow: 0 4px 12px rgb(13 148 136 / 20%);
+  --brand-shadow-hover: 0 6px 16px rgb(13 148 136 / 26%);
+  --focus-ring: #14b8a6;
+
+  /* Legacy names kept so existing rules keep working; all teal. */
+  --color-primary-50: var(--brand-soft);
   --color-primary-100: #ccfbf1;
   --color-primary-200: #99f6e4;
-  --color-primary-500: #14b8a6;
-  --color-primary-600: #0d9488;
-  --color-primary-700: #0f766e;
+  --color-primary-500: var(--focus-ring);
+  --color-primary-600: var(--brand);
+  --color-primary-700: var(--brand-hover);
   --color-primary-900: #134e4a;
   --color-navy: #134e4a;
   --color-navy-light: #0f766e;
@@ -61,4 +71,4 @@
 body { margin: 0; min-width: 320px; color: var(--color-text); background: var(--color-page); }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--color-primary-500); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
