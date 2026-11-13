@@ -67,7 +67,8 @@ Available routes:
 | DELETE | `/api/agency/tickets/{ticket}` | Agency owner/client cancels a ticket and replans remaining tickets |
 | GET | `/api/work-items/mine/tickets` | Employee reads tickets for their assigned projects |
 | PATCH | `/api/tickets/{ticket}/status` | Assigned employee advances a ticket through its status flow |
-| POST | `/api/tickets/{ticket}/comments` | Authorized project participants or admins add a ticket comment |
+| GET | `/api/tickets/{ticket}/comments` | Same access as posting (admin, the ticket's assigned employee, agency owners/clients of its active agency; others 403). Returns `{ comments, total }`: the latest 200 comments oldest first, each with `user: {id, name, role}` |
+| POST | `/api/tickets/{ticket}/comments` | Authorized project participants or admins add a ticket comment (same access rule as reading) |
 | GET | `/api/admin/tickets` | Admin read-only paginated ticket directory |
 | GET | `/api/work-items/mine` | Employee list of assigned projects |
 | GET | `/api/admin/projects` | Admin read-only, searchable paginated view of all projects and schedules |

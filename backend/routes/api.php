@@ -81,6 +81,8 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
 });
 
 Route::middleware('web')->group(function () {
+    Route::get('/tickets/{ticket}/comments', [TicketController::class, 'comments'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::post('/tickets/{ticket}/comments', [TicketController::class, 'comment'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::patch('/tickets/{ticket}/status', [TicketController::class, 'updateStatus'])

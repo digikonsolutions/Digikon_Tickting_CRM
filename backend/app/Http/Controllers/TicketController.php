@@ -22,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 
 class TicketController extends Controller
 {
+    private const COMMENT_LIMIT = 200;
+
     public function index(Request $request, WorkItem $workItem): JsonResponse
     {
         $this->authorizeProject($request->user(), $workItem);
@@ -29,6 +31,7 @@ class TicketController extends Controller
         return response()->json([
             'tickets' => $workItem->tickets()
                 ->with(['allocations', 'creator'])
+                ->withCount('comments')
                 ->orderBy('position')
                 ->orderBy('id')
                 ->get()
@@ -147,6 +150,7 @@ class TicketController extends Controller
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
             ->with(['allocations', 'creator', 'workItem'])
+            ->withCount('comments')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
             ->orderBy('work_item_id')
             ->orderBy('position')
@@ -213,6 +217,7 @@ class TicketController extends Controller
 
         $tickets = Ticket::query()
             ->with(['workItem.agency', 'creator'])
+            ->withCount('comments')
             ->orderBy('work_item_id')
             ->orderBy('position')
             ->paginate($filters['per_page'] ?? 25);
@@ -235,12 +240,7 @@ class TicketController extends Controller
     public function comment(StoreTicketCommentRequest $request, Ticket $ticket): JsonResponse
     {
         $user = $request->user();
-        $workItem = $ticket->workItem;
-        $isAdmin = $user->role === Role::Admin;
-        $isAssignedEmployee = $user->role === Role::Employee && $workItem->employee_id === $user->id;
-        $isAgencyParticipant = in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
-            && $this->canAccessProject($user, $workItem);
-        abort_unless($isAdmin || $isAssignedEmployee || $isAgencyParticipant, 403);
+        $this->authorizeComments($user, $ticket);
 
         $comment = TicketComment::create([
             'ticket_id' => $ticket->id,
@@ -248,16 +248,61 @@ class TicketController extends Controller
             'body' => $request->validated('body'),
         ]);
 
+        return response()->json(['comment' => $this->commentPayload($comment->setRelation('user', $user))], 201);
+    }
+
+    /**
+     * Latest 200 comments, oldest first, plus the total number of comments on the ticket.
+     */
+    public function comments(Request $request, Ticket $ticket): JsonResponse
+    {
+        $this->authorizeComments($request->user(), $ticket);
+
+        $comments = $ticket->comments()
+            ->with('user')
+            ->orderByDesc('id')
+            ->limit(self::COMMENT_LIMIT)
+            ->get()
+            ->reverse()
+            ->values();
+
         return response()->json([
-            'comment' => [
-                'id' => $comment->id,
-                'ticket_id' => $comment->ticket_id,
-                'user' => ['id' => $user->id, 'name' => $user->name],
-                'body' => $comment->body,
-                'created_at' => $comment->created_at?->toISOString(),
-                'updated_at' => $comment->updated_at?->toISOString(),
+            'comments' => $comments->map(fn (TicketComment $comment): array => $this->commentPayload($comment))->values(),
+            'total' => $ticket->comments()->count(),
+        ]);
+    }
+
+    /**
+     * One rule for reading and writing comments: admins, the ticket's assigned employee, and
+     * agency owners/clients of the ticket's (active) agency.
+     */
+    private function authorizeComments(User $user, Ticket $ticket): void
+    {
+        $workItem = $ticket->workItem;
+        $isAdmin = $user->role === Role::Admin;
+        $isAssignedEmployee = $user->role === Role::Employee && $workItem->employee_id === $user->id;
+        $isAgencyParticipant = in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
+            && $this->canAccessProject($user, $workItem);
+        abort_unless($isAdmin || $isAssignedEmployee || $isAgencyParticipant, 403);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function commentPayload(TicketComment $comment): array
+    {
+        return [
+            'id' => $comment->id,
+            'ticket_id' => $comment->ticket_id,
+            'user' => [
+                'id' => $comment->user->id,
+                'name' => $comment->user->name,
+                'role' => $comment->user->role->value,
             ],
-        ], 201);
+            'body' => $comment->body,
+            'created_at' => $comment->created_at?->toISOString(),
+            'updated_at' => $comment->updated_at?->toISOString(),
+        ];
     }
 
     private function authorizeProject(
@@ -350,6 +395,9 @@ class TicketController extends Controller
             'position' => $ticket->position,
             'start_date' => $ticket->start_date?->toDateString(),
             'due_date' => $ticket->due_date?->toDateString(),
+            'comments_count' => (int) (array_key_exists('comments_count', $ticket->getAttributes())
+                ? $ticket->comments_count
+                : $ticket->comments()->count()),
             'schedule' => $ticket->allocations
                 ->sortBy('work_date')
                 ->map(fn ($allocation): array => [

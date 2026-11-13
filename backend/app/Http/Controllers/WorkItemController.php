@@ -301,6 +301,7 @@ class WorkItemController extends Controller
 
         $tickets = $workItem->tickets()
             ->with('allocations')
+            ->withCount('comments')
             ->orderBy('position')
             ->orderBy('id')
             ->get()
@@ -316,6 +317,7 @@ class WorkItemController extends Controller
                 'position' => $ticket->position,
                 'start_date' => $ticket->start_date?->toDateString(),
                 'due_date' => $ticket->due_date?->toDateString(),
+                'comments_count' => (int) $ticket->comments_count,
                 'schedule' => $ticket->allocations
                     ->sortBy('work_date')
                     ->map(fn ($allocation): array => [
