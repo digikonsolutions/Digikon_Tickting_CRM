@@ -29,6 +29,8 @@ return new class extends Migration
             $table->index(['user_id', 'entry_date']);
             $table->index('ticket_id');
             $table->index(['user_id', 'ended_at']);
+            // Used by the hourly stale-timer sweep.
+            $table->index(['ended_at', 'started_at']);
         });
     }
 
