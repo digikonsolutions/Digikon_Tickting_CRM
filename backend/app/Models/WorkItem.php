@@ -90,7 +90,7 @@ class WorkItem extends Model
      */
     public function scopeWithTicketProgress(Builder $query): Builder
     {
-        return $query->withCount(self::ticketProgressCounts())->with('nextTicket');
+        return $query->withCount(self::ticketProgressCounts())->with(['nextTicket.agency']);
     }
 
     /**
@@ -100,7 +100,7 @@ class WorkItem extends Model
     {
         $this->unsetRelation('nextTicket');
 
-        return $this->loadCount(self::ticketProgressCounts())->load('nextTicket');
+        return $this->loadCount(self::ticketProgressCounts())->load(['nextTicket.agency']);
     }
 
     public function hasTicketProgress(): bool

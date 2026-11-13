@@ -25,7 +25,11 @@ class UserAccountService
             $agencyId = $data['agency_id'] ?? null;
 
             if (Role::from($data['role']) === Role::AgencyOwner) {
-                $agencyId = Agency::create(['name' => $data['agency_name']])->id;
+                $agency = Agency::create([
+                    'name' => $data['agency_name'],
+                    'ticket_prefix' => Agency::generatePrefix($data['agency_name']),
+                ]);
+                $agencyId = $agency->id;
             }
 
             $user = User::create([

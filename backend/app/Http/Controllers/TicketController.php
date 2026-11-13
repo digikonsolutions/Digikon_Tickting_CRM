@@ -9,6 +9,7 @@ use App\Http\Requests\StoreTicketCommentRequest;
 use App\Http\Requests\StoreTicketRequest;
 use App\Http\Requests\UpdateTicketRequest;
 use App\Http\Requests\UpdateTicketStatusRequest;
+use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\TicketComment;
@@ -50,10 +51,17 @@ class TicketController extends Controller
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
+
+            $agency = Agency::query()->lockForUpdate()->findOrFail($lockedWorkItem->agency_id);
+            $nextNumber = $agency->ticket_sequence + 1;
+            $agency->update(['ticket_sequence' => $nextNumber]);
+
             $position = ((int) $lockedWorkItem->tickets()->max('position')) + 1;
 
             $ticket = $lockedWorkItem->tickets()->create([
                 ...$data,
+                'agency_id' => $agency->id,
+                'number' => $nextNumber,
                 'created_by' => $user->id,
                 'position' => $position,
                 'priority' => $data['priority'] ?? 'normal',
@@ -376,15 +384,81 @@ class TicketController extends Controller
         }
     }
 
+    public function showByKey(Request $request, string $key): JsonResponse
+    {
+        $lastHyphenPos = strrpos($key, '-');
+        abort_if($lastHyphenPos === false, 404);
+
+        $prefix = substr($key, 0, $lastHyphenPos);
+        $numberStr = substr($key, $lastHyphenPos + 1);
+        abort_unless(ctype_digit($numberStr), 404);
+
+        $agency = Agency::query()->where('ticket_prefix', $prefix)->first();
+        abort_unless($agency !== null, 404);
+
+        $ticket = Ticket::query()
+            ->with(['agency', 'allocations', 'creator', 'workItem.agency'])
+            ->where('agency_id', $agency->id)
+            ->where('number', (int) $numberStr)
+            ->first();
+
+        abort_unless($ticket !== null, 404);
+
+        $this->authorizeTicketView($request->user(), $ticket);
+
+        $project = $ticket->workItem;
+
+        return response()->json([
+            'ticket' => $this->ticketPayload($ticket),
+            'project' => [
+                'id' => $project->id,
+                'title' => $project->title,
+                'status' => $project->status,
+                'agency_name' => $project->agency?->name,
+            ],
+            'timeline' => [],
+        ]);
+    }
+
+    public function authorizeTicketView(User $user, Ticket $ticket): void
+    {
+        if ($user->role === Role::Admin) {
+            return;
+        }
+
+        $workItem = $ticket->workItem;
+
+        if ($user->role === Role::Employee && $workItem->employee_id === $user->id) {
+            if ($user->agency_id !== null && $user->agency?->status !== 'active') {
+                abort(404);
+            }
+
+            return;
+        }
+
+        if (
+            in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
+            && $user->agency_id !== null
+            && $user->agency_id === $ticket->agency_id
+            && $user->agency?->status === 'active'
+        ) {
+            return;
+        }
+
+        abort(404);
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function ticketPayload(Ticket $ticket): array
     {
-        $ticket->loadMissing(['allocations', 'creator']);
+        $ticket->loadMissing(['agency', 'allocations', 'creator']);
 
         return [
             'id' => $ticket->id,
+            'key' => $ticket->key,
+            'number' => $ticket->number,
             'work_item_id' => $ticket->work_item_id,
             'created_by' => $ticket->created_by,
             'creator' => $ticket->creator ? ['id' => $ticket->creator->id, 'name' => $ticket->creator->name] : null,

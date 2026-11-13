@@ -355,13 +355,15 @@ class WorkItemController extends Controller
         $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']);
 
         $tickets = $workItem->tickets()
-            ->with(['allocations', 'creator'])
+            ->with(['agency', 'allocations', 'creator'])
             ->withCount('comments')
             ->orderBy('position')
             ->orderBy('id')
             ->get()
             ->map(fn (Ticket $ticket): array => [
                 'id' => $ticket->id,
+                'key' => $ticket->key,
+                'number' => $ticket->number,
                 'work_item_id' => $ticket->work_item_id,
                 'created_by' => $ticket->created_by,
                 'creator' => $ticket->creator ? ['id' => $ticket->creator->id, 'name' => $ticket->creator->name] : null,
@@ -462,6 +464,7 @@ class WorkItemController extends Controller
             'tickets_open' => (int) $item->tickets_open,
             'next_ticket' => $nextTicket ? [
                 'id' => $nextTicket->id,
+                'key' => $nextTicket->key,
                 'title' => $nextTicket->title,
                 'status' => $nextTicket->status,
             ] : null,

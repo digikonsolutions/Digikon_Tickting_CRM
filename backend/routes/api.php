@@ -82,6 +82,8 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
 });
 
 Route::middleware('web')->group(function () {
+    Route::get('/tickets/key/{key}', [TicketController::class, 'showByKey'])
+        ->middleware(['auth']);
     Route::get('/tickets/{ticket}/comments', [TicketController::class, 'comments'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::post('/tickets/{ticket}/comments', [TicketController::class, 'comment'])
