@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Http\Requests\StoreWorkItemRequest;
-use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\User;
@@ -22,7 +21,7 @@ class WorkItemController extends Controller
     public function agencyIndex(Request $request): JsonResponse
     {
         $viewer = $request->user();
-        $agency = $this->activeAgency($viewer);
+        $agency = $viewer->agency;
         $filters = $request->validate([
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
@@ -82,7 +81,7 @@ class WorkItemController extends Controller
      */
     public function capacity(Request $request, WorkItemScheduler $scheduler): JsonResponse
     {
-        $agency = $this->activeAgency($request->user());
+        $agency = $request->user()->agency;
         $data = $request->validate([
             'assignment_id' => ['required', 'integer'],
             'from' => ['required', 'date_format:Y-m-d'],
@@ -122,7 +121,7 @@ class WorkItemController extends Controller
 
     public function agencyShow(Request $request, WorkItem $workItem): JsonResponse
     {
-        $agency = $this->activeAgency($request->user());
+        $agency = $request->user()->agency;
         abort_unless($workItem->agency_id === $agency->id, 404);
 
         return response()->json([
@@ -133,7 +132,7 @@ class WorkItemController extends Controller
     public function store(StoreWorkItemRequest $request, WorkItemScheduler $scheduler): JsonResponse
     {
         $creator = $request->user();
-        $agency = $this->activeAgency($creator);
+        $agency = $creator->agency;
         $data = $request->validated();
         $assignment = EmployeeAssignment::query()
             ->whereKey($data['assignment_id'])
@@ -226,7 +225,7 @@ class WorkItemController extends Controller
     public function cancel(Request $request, WorkItem $workItem): JsonResponse
     {
         $user = $request->user();
-        $agency = $this->activeAgency($user);
+        $agency = $user->agency;
 
         abort_unless(
             $workItem->agency_id === $agency->id
@@ -344,19 +343,6 @@ class WorkItemController extends Controller
             ->map(fn (WorkItem $item): array => $this->payload($item));
 
         return response()->json(['projects' => $items]);
-    }
-
-    private function activeAgency(User $user): Agency
-    {
-        abort_unless(
-            in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
-                && $user->agency_id !== null
-                && $user->agency?->status === 'active',
-            403,
-            'An active agency account is required to manage projects.'
-        );
-
-        return $user->agency;
     }
 
     private function ensureActiveEmployeeAgency(User $user): void

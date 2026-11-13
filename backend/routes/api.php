@@ -23,39 +23,39 @@ Route::middleware('web')->prefix('auth')->group(function () {
 
 Route::middleware('web')->prefix('agency')->group(function () {
     Route::get('/team', [AgencyUserController::class, 'agencyTeam'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/directory', [AgencyUserController::class, 'agencyDirectory'])
-        ->middleware(['auth', 'role:agency_owner,agency_member,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_member,agency_client', 'agency.active']);
     Route::patch('/profile', [AgencyUserController::class, 'updateAgencyProfile'])
-        ->middleware(['auth', 'role:agency_member,agency_client']);
+        ->middleware(['auth', 'role:agency_member,agency_client', 'agency.active']);
     Route::get('/users', [AgencyUserController::class, 'agencyUsers'])
-        ->middleware(['auth', 'role:agency_owner']);
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::post('/users', [AgencyUserController::class, 'createAgencyUser'])
-        ->middleware(['auth', 'role:agency_owner', 'throttle:auth-admin-signup']);
+        ->middleware(['auth', 'role:agency_owner', 'agency.active', 'throttle:auth-admin-signup']);
     Route::patch('/users/{agencyUser}', [AgencyUserController::class, 'updateAgencyUser'])
-        ->middleware(['auth', 'role:agency_owner']);
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::delete('/users/{agencyUser}', [AgencyUserController::class, 'deleteAgencyUser'])
-        ->middleware(['auth', 'role:agency_owner']);
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/employees/available', [EmployeeAssignmentController::class, 'available'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/assignments', [EmployeeAssignmentController::class, 'store'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/assignments', [EmployeeAssignmentController::class, 'index'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/assignments/{assignment}/usage', [EmployeeAssignmentController::class, 'usage'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/assignments/{assignment}', [EmployeeAssignmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/capacity', [WorkItemController::class, 'capacity'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/projects', [WorkItemController::class, 'agencyIndex'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/projects/{workItem}', [WorkItemController::class, 'agencyShow'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/projects', [WorkItemController::class, 'store'])
-        ->middleware(['auth', 'role:agency_owner,agency_client', 'throttle:project-create']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:project-create']);
     Route::patch('/projects/{workItem}/cancel', [WorkItemController::class, 'cancel'])
-        ->middleware(['auth', 'role:agency_owner,agency_client']);
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/projects/{workItem}/tickets', [TicketController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/projects/{workItem}/tickets', [TicketController::class, 'index'])

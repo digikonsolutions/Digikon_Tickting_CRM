@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveAgency;
 use App\Http\Middleware\EnsureRole;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => EnsureRole::class,
+            'agency.active' => EnsureActiveAgency::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

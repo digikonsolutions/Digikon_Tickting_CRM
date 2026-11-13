@@ -16,7 +16,6 @@ class AgencyUserController extends Controller
     public function createAgencyUser(AgencyCreateUserRequest $request, UserAccountService $accounts): JsonResponse
     {
         $creator = $request->user();
-        $this->ensureActiveAgencyOwner($creator);
         $user = $accounts->createInvitedUser([
             ...$request->validated(),
             'agency_id' => $creator->agency_id,
@@ -28,7 +27,6 @@ class AgencyUserController extends Controller
     public function agencyUsers(Request $request, UserAccountService $accounts): JsonResponse
     {
         $viewer = $request->user();
-        $this->ensureActiveAgencyOwner($viewer);
         $agencyRoles = $accounts->agencyManagedRoles();
 
         $users = User::query()
@@ -58,7 +56,6 @@ class AgencyUserController extends Controller
     public function updateAgencyUser(AgencyUpdateUserRequest $request, int $agencyUser, UserAccountService $accounts): JsonResponse
     {
         $manager = $request->user();
-        $this->ensureActiveAgencyOwner($manager);
         $user = $accounts->findManagedAgencyUser($manager, $agencyUser);
         $oldEmail = $user->email;
         $data = $request->validated();
@@ -78,7 +75,6 @@ class AgencyUserController extends Controller
     public function deleteAgencyUser(Request $request, int $agencyUser, UserAccountService $accounts): JsonResponse
     {
         $manager = $request->user();
-        $this->ensureActiveAgencyOwner($manager);
         $accounts->deleteUser($accounts->findManagedAgencyUser($manager, $agencyUser));
 
         return response()->json(['message' => 'The account was permanently deleted.']);
@@ -87,7 +83,6 @@ class AgencyUserController extends Controller
     public function agencyDirectory(Request $request, UserAccountService $accounts): JsonResponse
     {
         $member = $request->user();
-        abort_unless($member->agency_id !== null && $member->agency?->status === 'active', 403);
 
         $users = User::query()
             ->whereKeyNot($member->id)
@@ -115,12 +110,6 @@ class AgencyUserController extends Controller
     public function agencyTeam(Request $request): JsonResponse
     {
         $viewer = $request->user();
-        abort_unless(
-            in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true)
-                && $viewer->agency_id !== null
-                && $viewer->agency?->status === 'active',
-            403
-        );
 
         $employees = User::query()
             ->where('role', Role::Employee->value)
@@ -143,20 +132,8 @@ class AgencyUserController extends Controller
     public function updateAgencyProfile(AgencyUpdateProfileRequest $request, UserAccountService $accounts): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->agency_id !== null && $user->agency?->status === 'active', 403);
         $user->update($request->validated());
 
         return response()->json(['user' => $accounts->userPayload($user)]);
-    }
-
-    private function ensureActiveAgencyOwner(User $user): void
-    {
-        abort_unless(
-            $user->role === Role::AgencyOwner
-                && $user->agency_id !== null
-                && $user->agency?->status === 'active',
-            403,
-            'An active agency owner account is required to manage agency users.'
-        );
     }
 }

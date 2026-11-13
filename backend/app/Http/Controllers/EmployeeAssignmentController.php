@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
-use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Services\AssignmentService;
@@ -18,7 +17,7 @@ class EmployeeAssignmentController extends Controller
 {
     public function available(Request $request): JsonResponse
     {
-        $agency = $this->activeAgency($request->user());
+        $agency = $request->user()->agency;
         $employees = User::query()
             ->where('is_active', true)
             ->where('role', Role::Employee->value)
@@ -36,7 +35,7 @@ class EmployeeAssignmentController extends Controller
     public function store(Request $request): JsonResponse
     {
         $holder = $request->user();
-        $agency = $this->activeAgency($holder);
+        $agency = $holder->agency;
         $data = $request->validate([
             'employee_id' => ['required', 'integer', 'exists:users,id'],
         ]);
@@ -88,7 +87,7 @@ class EmployeeAssignmentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $viewer = $request->user();
-        $agency = $this->activeAgency($viewer);
+        $agency = $viewer->agency;
         $filters = $request->validate([
             'scope' => ['sometimes', 'in:agency'],
             'week' => ['sometimes', 'date_format:Y-m-d'],
@@ -181,19 +180,6 @@ class EmployeeAssignmentController extends Controller
                 ),
             404
         );
-    }
-
-    private function activeAgency(User $user): Agency
-    {
-        abort_unless(
-            in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
-                && $user->agency_id !== null
-                && $user->agency?->status === 'active',
-            403,
-            'An active agency account is required to manage employee assignments.'
-        );
-
-        return $user->agency;
     }
 
     /**
