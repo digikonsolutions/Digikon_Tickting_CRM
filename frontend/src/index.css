@@ -9,15 +9,15 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --color-primary-50: #f1f0fd;
-  --color-primary-100: #e3e1fa;
-  --color-primary-200: #c7c3f4;
-  --color-primary-500: #6458d8;
-  --color-primary-600: #5646c8;
-  --color-primary-700: #4538a8;
-  --color-primary-900: #1e1b4b;
-  --color-navy: #1b2559;
-  --color-navy-light: #2d2f7f;
+  --color-primary-50: #f0fdfa;
+  --color-primary-100: #ccfbf1;
+  --color-primary-200: #99f6e4;
+  --color-primary-500: #14b8a6;
+  --color-primary-600: #0d9488;
+  --color-primary-700: #0f766e;
+  --color-primary-900: #134e4a;
+  --color-navy: #134e4a;
+  --color-navy-light: #0f766e;
   --color-accent-400: #2dd4bf;
   --color-accent-50: #f0fdfa;
   --color-accent-600: #0d9488;
