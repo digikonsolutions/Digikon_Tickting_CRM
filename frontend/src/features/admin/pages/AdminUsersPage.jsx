@@ -33,9 +33,8 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
     }
   }, [role])
 
+  // Initial state is already loading/no error, and the routes remount this page per role (key={role}).
   useEffect(() => {
-    setIsLoading(true)
-    setError(null)
     let active = true
     authService.listAdminUsers({ page: 1, search: '', role })
       .then((response) => {
