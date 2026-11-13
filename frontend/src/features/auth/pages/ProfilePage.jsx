@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { ROLE_LABELS } from '../../../auth/roles'
 import { authService } from '../../../auth/authService'
@@ -58,6 +59,9 @@ export function ProfilePage() {
           <ApiErrorMessage error={error?.status === 422 ? null : error} />
           <Button type="submit" loading={isSaving} loadingText="Saving…">Save profile</Button>
         </form>
+      </Card>
+      <Card title="Notifications" description="Choose which updates reach you in the app and by email.">
+        <Link className="ui-button ui-button-secondary ui-button-sm" to="/settings/notifications">Notification settings</Link>
       </Card>
     </section>
   )

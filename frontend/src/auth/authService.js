@@ -273,6 +273,36 @@ export const authService = {
     const query = status ? `?status=${encodeURIComponent(status)}` : ''
     return request(`/admin/dashboard${query}`)
   },
+  // Notifications for the signed-in user. `signal` lets callers abort stale polls.
+  async getNotifications({ unread = false, cursor, signal } = {}) {
+    if (AUTH_MODE === 'mock') return { notifications: [], next_cursor: null, unread_count: 0 }
+    const query = new URLSearchParams()
+    if (unread) query.set('unread', '1')
+    if (cursor) query.set('cursor', cursor)
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return request(`/notifications${suffix}`, { signal })
+  },
+  async getNotificationUnreadCount({ signal } = {}) {
+    if (AUTH_MODE === 'mock') return { count: 0 }
+    return request('/notifications/unread-count', { signal })
+  },
+  async markNotificationRead(id) {
+    if (AUTH_MODE === 'mock') return { notification: { id }, unread_count: 0 }
+    return request(`/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' })
+  },
+  async markAllNotificationsRead() {
+    if (AUTH_MODE === 'mock') return { unread_count: 0 }
+    return request('/notifications/read-all', { method: 'POST' })
+  },
+  async getNotificationPreferences() {
+    if (AUTH_MODE === 'mock') return { preferences: [] }
+    return request('/notifications/preferences')
+  },
+  // `preferences` is [{type, in_app?, email?}]; locked rows always keep in-app on.
+  async updateNotificationPreferences(preferences) {
+    if (AUTH_MODE === 'mock') return { preferences }
+    return request('/notifications/preferences', { method: 'PUT', body: JSON.stringify({ preferences }) })
+  },
   async getAgencyProject(id) {
     if (AUTH_MODE === 'mock') return { project: null }
     return request(`/agency/projects/${encodeURIComponent(id)}`)

@@ -4,6 +4,7 @@ import { useAuth } from './useAuth'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon } from '../components/ui'
+import { NotificationBell } from '../features/notifications'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -92,6 +93,8 @@ export function AppLayout() {
       ? 'Project details'
       : ({
       '/profile': 'My profile',
+      '/notifications': 'Notifications',
+      '/settings/notifications': 'Notification settings',
       '/admin/users': 'Employees',
       '/admin/employees': 'Employees',
       '/admin/employees/new': 'Create Employee',
@@ -221,6 +224,7 @@ export function AppLayout() {
                 Create employee
               </Link>
             )}
+            <NotificationBell />
             <details className="header-user-menu">
               <summary aria-label="Open user menu" title="User menu">
                 <span className="header-menu-avatar" aria-hidden="true">{userInitial}</span>
@@ -228,6 +232,8 @@ export function AppLayout() {
               <div className="header-user-menu-popover">
                 <strong>{user.name}</strong>
                 <span>{ROLE_LABELS[user.role]}</span>
+                <Link to="/notifications">Notifications</Link>
+                <Link to="/settings/notifications">Notification settings</Link>
                 <button type="button" onClick={handleSignOut} disabled={isSigningOut}>
                   <Icon name="logout" size={17} />
                   {isSigningOut ? 'Signing out…' : 'Logout'}

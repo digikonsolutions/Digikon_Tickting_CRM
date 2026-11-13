@@ -19,6 +19,7 @@ import {
   AgencyUsersPage,
   ProjectDetailPage,
 } from '../features/agency'
+import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
 import { TicketPage } from '../features/tickets'
 import {
   ForgotPasswordPage,
@@ -53,6 +54,8 @@ export function AppRoutes() {
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route element={<AppLayout />}>
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/tickets/:key" element={<TicketPage />} />
           </Route>
