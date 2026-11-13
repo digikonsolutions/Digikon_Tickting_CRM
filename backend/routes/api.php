@@ -46,6 +46,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/assignments/{assignment}', [EmployeeAssignmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::get('/attention', [TicketController::class, 'attention'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/capacity', [WorkItemController::class, 'capacity'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/projects', [WorkItemController::class, 'agencyIndex'])

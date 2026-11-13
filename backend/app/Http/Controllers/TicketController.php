@@ -34,7 +34,7 @@ class TicketController extends Controller
 
         return response()->json([
             'tickets' => $workItem->tickets()
-                ->with(['agency', 'allocations', 'creator'])
+                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
                 ->withCount('comments')
                 ->orderBy('position')
                 ->orderBy('id')
@@ -205,10 +205,16 @@ class TicketController extends Controller
                 ]);
             }
 
+            // Compare relative order (stored positions are not necessarily 0-based) so only tickets
+            // that actually moved get a `reordered` event.
+            $previousOrder = $tickets->sortBy([['position', 'asc'], ['id', 'asc']])->pluck('id')->values()->all();
             foreach ($orderedIds as $position => $ticketId) {
                 $t = $tickets->firstWhere('id', $ticketId);
+                $from = array_search($ticketId, $previousOrder, true);
                 $t->update(['position' => $position]);
-                $recorder->record($t, 'reordered', [], $user);
+                if ($from !== $position) {
+                    $recorder->record($t, 'reordered', ['from_position' => $from + 1, 'to_position' => $position + 1], $user);
+                }
             }
 
             $prioritisedTicket = $tickets->firstWhere('id', $orderedIds[0]);
@@ -233,7 +239,7 @@ class TicketController extends Controller
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'workItem'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
             ->withCount('comments')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
             ->orderBy('work_item_id')
@@ -308,7 +314,7 @@ class TicketController extends Controller
         $filters = $request->validated();
 
         $tickets = Ticket::query()
-            ->with(['agency', 'workItem.agency', 'creator'])
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent'])
             ->withCount('comments')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['agency_id'] ?? null, fn ($query, $agencyId) => $query->where('agency_id', $agencyId))
@@ -355,6 +361,41 @@ class TicketController extends Controller
                 'total' => $tickets->total(),
             ],
         ]);
+    }
+
+    /**
+     * Tickets in the caller's agency that are waiting on the client (review or a question),
+     * longest-waiting first. Limited to 5 for the dashboard card; `total` is the full count.
+     */
+    public function attention(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = Ticket::query()
+            ->where('agency_id', $user->agency_id)
+            ->whereIn('status', ['in_review', 'waiting_on_client'])
+            ->whereHas('workItem', fn ($q) => $q->whereIn('status', ['scheduled', 'in_progress']));
+
+        $tickets = (clone $query)
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
+            ->withCount('comments')
+            ->orderBy(
+                TicketEvent::query()
+                    ->select('created_at')
+                    ->whereColumn('ticket_events.ticket_id', 'tickets.id')
+                    ->where('type', 'status_changed')
+                    ->orderByDesc('id')
+                    ->limit(1)
+            )
+            ->orderBy('id')
+            ->limit(5)
+            ->get()
+            ->map(fn (Ticket $ticket): array => [
+                ...$this->ticketPayload($ticket, $user),
+                'project_title' => $ticket->workItem->title,
+            ])
+            ->values();
+
+        return response()->json(['tickets' => $tickets, 'total' => $query->count()]);
     }
 
     public function comment(
@@ -433,7 +474,7 @@ class TicketController extends Controller
         abort_unless($agency !== null, 404);
 
         $ticket = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'workItem.agency'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.agency', 'workItem.assignment'])
             ->where('agency_id', $agency->id)
             ->where('number', (int) $numberStr)
             ->first();
@@ -669,7 +710,7 @@ class TicketController extends Controller
      */
     private function ticketPayload(Ticket $ticket, ?User $viewer = null): array
     {
-        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment']);
+        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent']);
 
         $workflow = app(TicketWorkflow::class);
         $allowedActions = $viewer ? $workflow->allowedActions($ticket, $viewer) : [];
@@ -681,28 +722,20 @@ class TicketController extends Controller
             default => null,
         };
 
-        $latestStatusEvent = $ticket->events()
-            ->where('type', 'status_changed')
-            ->latest('id')
-            ->first();
+        $latestStatusEvent = $ticket->latestStatusEvent;
 
         $waitingSince = $latestStatusEvent?->created_at?->toISOString()
             ?? $ticket->created_at?->toISOString();
 
+        // The latest status change is the one that moved the ticket into its current state, so its
+        // linked comment is the reason for blocked / waiting_on_client / changes_requested.
         $statusReason = null;
         if (in_array($ticket->status, ['blocked', 'waiting_on_client', 'changes_requested'], true)) {
-            $reasonEvent = $ticket->events()
-                ->where('type', 'status_changed')
-                ->whereIn('payload->to', ['blocked', 'waiting_on_client', 'changes_requested'])
-                ->latest('id')
-                ->first();
-
-            $commentId = $reasonEvent?->payload['comment_id'] ?? null;
+            $commentId = $latestStatusEvent?->payload['comment_id'] ?? null;
             if ($commentId) {
                 $statusReason = TicketComment::find($commentId)?->body;
             }
         }
-
         return [
             'id' => $ticket->id,
             'key' => $ticket->key,

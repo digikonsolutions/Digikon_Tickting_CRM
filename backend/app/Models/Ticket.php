@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Ticket extends Model
 {
@@ -78,6 +79,17 @@ class Ticket extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(TicketComment::class);
+    }
+
+    /**
+     * The latest status change; eager-loadable so list payloads avoid one query per ticket.
+     */
+    public function latestStatusEvent(): HasOne
+    {
+        return $this->hasOne(TicketEvent::class)->ofMany(
+            ['id' => 'max'],
+            fn ($query) => $query->where('type', 'status_changed')
+        );
     }
 
     public function events(): HasMany
