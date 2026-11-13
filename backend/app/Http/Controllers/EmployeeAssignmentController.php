@@ -88,18 +88,17 @@ class EmployeeAssignmentController extends Controller
     {
         $viewer = $request->user();
         $agency = $viewer->agency;
+        // Agency users only ever see the assignments they hold; there is no agency-wide view.
         $filters = $request->validate([
-            'scope' => ['sometimes', 'in:agency'],
+            'scope' => ['prohibited'],
             'week' => ['sometimes', 'date_format:Y-m-d'],
         ]);
-        $scopeAgency = ($filters['scope'] ?? null) === 'agency';
-        abort_if($scopeAgency && ! in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true), 403);
 
         $assignments = EmployeeAssignment::query()
             ->with(['employee', 'agency', 'holder'])
             ->where('status', 'active')
             ->where('agency_id', $agency->id)
-            ->when(! $scopeAgency, fn ($query) => $query->where('holder_id', $viewer->id))
+            ->where('holder_id', $viewer->id)
             ->orderByDesc('started_at')
             ->get()
             ->map(fn (EmployeeAssignment $assignment): array => $this->payload(
@@ -128,11 +127,7 @@ class EmployeeAssignmentController extends Controller
     public function destroy(Request $request, EmployeeAssignment $assignment, AssignmentService $assignments): JsonResponse
     {
         $user = $request->user();
-        abort_unless(
-            $assignment->agency_id === $user->agency_id
-                && ($assignment->holder_id === $user->id || $user->role === Role::AgencyOwner),
-            404
-        );
+        $this->authorizeAssignment($user, $assignment);
         $assignments->end($assignment);
 
         return response()->json(['message' => 'The employee assignment has ended.']);
@@ -172,12 +167,9 @@ class EmployeeAssignmentController extends Controller
 
     private function authorizeAssignment(User $viewer, EmployeeAssignment $assignment): void
     {
+        // Only the holder may read or end an assignment (owners and clients alike).
         abort_unless(
-            $assignment->agency_id === $viewer->agency_id
-                && (
-                    $assignment->holder_id === $viewer->id
-                    || in_array($viewer->role, [Role::AgencyOwner, Role::AgencyClient], true)
-                ),
+            $assignment->agency_id === $viewer->agency_id && $assignment->holder_id === $viewer->id,
             404
         );
     }

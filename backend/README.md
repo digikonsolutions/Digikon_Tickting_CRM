@@ -52,11 +52,11 @@ Available routes:
 | PATCH | `/api/agency/profile` | Agency-member or client may update their own display name |
 | GET | `/api/agency/employees/available` | Agency client/owner list of active same-agency and shared employees with no active holder |
 | POST | `/api/agency/assignments` | Hold an available employee exclusively for the current client or owner |
-| GET | `/api/agency/assignments` | List the caller's active assignments; clients and owners may use `?scope=agency` to see all agency assignments |
-| GET | `/api/agency/assignments/{assignment}/usage` | Read assignment usage within the caller's agency for a requested `?week=YYYY-MM-DD` |
-| DELETE | `/api/agency/assignments/{assignment}` | Holder ends its assignment; owners may end any assignment in their agency |
+| GET | `/api/agency/assignments` | List the caller's own active assignments (holder only; `scope` is rejected with 422) |
+| GET | `/api/agency/assignments/{assignment}/usage` | Read usage of an assignment the caller holds for a requested `?week=YYYY-MM-DD` (404 otherwise) |
+| DELETE | `/api/agency/assignments/{assignment}` | Holder ends their own assignment (owners and clients alike; 404 for anyone else's) |
 | GET | `/api/agency/projects` | Agency clients and owners page through projects in their agency. Query: `page`, `per_page` (default 25, max 100), `status` (`open`, `scheduled`, `in_progress`, `completed`, `cancelled`; `open` = scheduled + in progress), `assignment_id`, `search` (title, client or employee name). Returns `projects`, `pagination` and an agency-wide `summary` of counts by status that ignores filters and page |
-| GET | `/api/agency/capacity?assignment_id=&from=&to=` | Agency client/owner read per-day availability of a held employee (same rules as the scheduler) for a date range of up to 366 days |
+| GET | `/api/agency/capacity?assignment_id=&from=&to=` | Agency client/owner read per-day availability of an employee they hold (same rules as the scheduler) for a date range of up to 366 days |
 | GET | `/api/agency/projects/{workItem}` | Agency clients and owners read one project in their agency (404 for other agencies) |
 | POST | `/api/agency/projects` | Agency client/owner create a project using their active `assignment_id` |
 | PATCH | `/api/agency/projects/{workItem}/cancel` | Agency clients and owners cancel any open project in their agency |

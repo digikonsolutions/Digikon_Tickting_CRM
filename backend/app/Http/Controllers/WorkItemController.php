@@ -95,6 +95,7 @@ class WorkItemController extends Controller
             ->with('employee')
             ->whereKey($data['assignment_id'])
             ->where('agency_id', $agency->id)
+            ->where('holder_id', $request->user()->id)
             ->first();
         abort_unless($assignment !== null, 404);
 
