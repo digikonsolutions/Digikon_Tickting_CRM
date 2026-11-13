@@ -8,7 +8,26 @@ use Illuminate\Support\Facades\DB;
 
 class WorkItemScheduler
 {
-    private const DAILY_CAPACITY_UNITS = 600;
+    /**
+     * Capacity rules from config, exposed to API payloads so clients never hardcode them.
+     *
+     * @return array{daily_hours: int|float, weekly_hours: int|float}
+     */
+    public static function capacity(): array
+    {
+        return [
+            'daily_hours' => config('scheduling.daily_capacity_hours', 6),
+            'weekly_hours' => config('scheduling.weekly_capacity_hours', 36),
+        ];
+    }
+
+    /**
+     * Hours-per-day capacity in hundredths of an hour (config scheduling.daily_capacity_hours).
+     */
+    public static function dailyCapacityUnits(): int
+    {
+        return (int) round((float) config('scheduling.daily_capacity_hours', 6) * 100);
+    }
 
     /**
      * @return list<array{work_date: string, units: int}>
@@ -19,7 +38,7 @@ class WorkItemScheduler
         $plan = [];
         foreach ($this->eligibleDates($start, $due) as $workDate) {
             $bookedUnits = $bookedByDate[$workDate] ?? 0;
-            $availableUnits = max(0, self::DAILY_CAPACITY_UNITS - $bookedUnits);
+            $availableUnits = max(0, self::dailyCapacityUnits() - $bookedUnits);
             $allocatedUnits = min($availableUnits, $requestedUnits);
 
             if ($allocatedUnits > 0) {
@@ -41,7 +60,7 @@ class WorkItemScheduler
         $availableUnits = 0;
         foreach ($this->eligibleDates($start, $due) as $workDate) {
             $bookedUnits = $bookedByDate[$workDate] ?? 0;
-            $availableUnits += max(0, self::DAILY_CAPACITY_UNITS - $bookedUnits);
+            $availableUnits += max(0, self::dailyCapacityUnits() - $bookedUnits);
         }
 
         return $availableUnits;
@@ -64,7 +83,7 @@ class WorkItemScheduler
             $workDate = $date->toDateString();
             $reason = $this->skipReason($date, $context);
             $bookedUnits = $bookedByDate[$workDate] ?? 0;
-            $availableUnits = $reason === null ? max(0, self::DAILY_CAPACITY_UNITS - $bookedUnits) : 0;
+            $availableUnits = $reason === null ? max(0, self::dailyCapacityUnits() - $bookedUnits) : 0;
 
             $days[] = [
                 'date' => $workDate,
@@ -117,8 +136,8 @@ class WorkItemScheduler
     {
         $workDate = $date->toDateString();
 
-        if ($date->dayOfWeek === CarbonImmutable::SUNDAY) {
-            return 'sunday';
+        if (! in_array($date->dayOfWeekIso, config('scheduling.working_days', [1, 2, 3, 4, 5, 6]), true)) {
+            return $date->dayOfWeek === CarbonImmutable::SUNDAY ? 'sunday' : 'non_working_day';
         }
         if (in_array($workDate, $context['non_working_dates'], true)) {
             return 'non_working_day';

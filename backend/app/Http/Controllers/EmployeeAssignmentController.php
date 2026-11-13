@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Services\AssignmentService;
+use App\Services\WorkItemScheduler;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -120,6 +121,7 @@ class EmployeeAssignmentController extends Controller
 
         return response()->json([
             'assignment_id' => $assignment->id,
+            'capacity' => WorkItemScheduler::capacity(),
             ...$this->weeklyUsage($assignment, $week),
         ]);
     }
@@ -193,6 +195,7 @@ class EmployeeAssignmentController extends Controller
             'status' => $assignment->status,
             'started_at' => $assignment->started_at?->toISOString(),
             'ended_at' => $assignment->ended_at?->toISOString(),
+            'capacity' => WorkItemScheduler::capacity(),
         ];
 
         if ($weekDate !== null) {
@@ -205,11 +208,17 @@ class EmployeeAssignmentController extends Controller
     }
 
     /**
-     * @return array{week_start: string, week_end: string, used: string, remaining: string, days: list<array{date: string, used: string}>}
+     * `used` is every non-cancelled hour booked on this assignment that week (hours consumed).
+     * `remaining` is weekly capacity minus `used`. `bookable_remaining` is what the scheduler would
+     * still accept that week for the employee: it ignores completed/cancelled bookings, Sundays,
+     * non-working dates, today after the cutoff and days already past, and counts every agency's bookings.
+     *
+     * @return array<string, mixed>
      */
     private function weeklyUsage(EmployeeAssignment $assignment, CarbonImmutable $week): array
     {
-        $weekEnd = $week->addDays(5);
+        $workingDays = config('scheduling.working_days', [1, 2, 3, 4, 5, 6]);
+        $weekEnd = $week->addDays(max($workingDays) - 1);
         $usedByDay = DB::table('work_item_allocations')
             ->join('work_items', 'work_items.id', '=', 'work_item_allocations.work_item_id')
             ->where('work_items.assignment_id', $assignment->id)
@@ -222,18 +231,29 @@ class EmployeeAssignmentController extends Controller
         $days = [];
         $used = 0.0;
 
-        for ($offset = 0; $offset < 6; $offset++) {
-            $date = $week->addDays($offset)->toDateString();
+        foreach ($workingDays as $isoDay) {
+            $date = $week->addDays($isoDay - 1)->toDateString();
             $hours = (float) ($usedByDay[$date] ?? 0);
             $used += $hours;
             $days[] = ['date' => $date, 'used' => number_format($hours, 2, '.', '')];
+        }
+
+        $today = CarbonImmutable::now(config('app.timezone'))->toDateString();
+        $bookableUnits = 0;
+        if ($assignment->employee) {
+            foreach (app(WorkItemScheduler::class)->dailyAvailability($assignment->employee, $week, $weekEnd) as $day) {
+                if ($day['date'] >= $today) {
+                    $bookableUnits += (int) round((float) $day['available_hours'] * 100);
+                }
+            }
         }
 
         return [
             'week_start' => $week->toDateString(),
             'week_end' => $weekEnd->toDateString(),
             'used' => number_format($used, 2, '.', ''),
-            'remaining' => number_format(36 - $used, 2, '.', ''),
+            'remaining' => number_format(config('scheduling.weekly_capacity_hours', 36) - $used, 2, '.', ''),
+            'bookable_remaining' => WorkItemScheduler::unitsToHours($bookableUnits),
             'days' => $days,
         ];
     }

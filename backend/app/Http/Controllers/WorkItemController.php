@@ -295,12 +295,67 @@ class WorkItemController extends Controller
         ]);
     }
 
+    /**
+     * Everything the admin dashboard needs in one call: status counts, ticket total,
+     * scheduled hours per day for the next 7 days (aggregated in SQL) and the latest projects.
+     */
+    public function adminDashboard(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'status' => ['sometimes', 'in:scheduled,in_progress,completed,cancelled'],
+        ]);
+        $timezone = config('app.timezone');
+        $today = CarbonImmutable::now($timezone)->startOfDay();
+        $counts = WorkItem::query()
+            ->selectRaw('status, COUNT(*) AS aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $bookedByDate = DB::table('work_item_allocations')
+            ->join('work_items', 'work_items.id', '=', 'work_item_allocations.work_item_id')
+            ->whereNotIn('work_items.status', ['cancelled', 'completed'])
+            ->whereDate('work_item_allocations.work_date', '>=', $today->toDateString())
+            ->whereDate('work_item_allocations.work_date', '<=', $today->addDays(6)->toDateString())
+            ->selectRaw('DATE(work_item_allocations.work_date) AS work_date, SUM(work_item_allocations.hours) AS hours')
+            ->groupByRaw('DATE(work_item_allocations.work_date)')
+            ->pluck('hours', 'work_date');
+        $scheduledHours = collect(range(0, 6))->map(function (int $offset) use ($today, $bookedByDate): array {
+            $date = $today->addDays($offset)->toDateString();
+
+            return ['date' => $date, 'hours' => number_format((float) ($bookedByDate[$date] ?? 0), 2, '.', '')];
+        })->values();
+
+        $recent = WorkItem::query()
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->withTicketProgress()
+            ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(4)
+            ->get()
+            ->map(fn (WorkItem $item): array => $this->payload($item))
+            ->values();
+
+        return response()->json([
+            'today' => $today->toDateString(),
+            'projects' => [
+                'total' => (int) $counts->sum(),
+                'scheduled' => (int) ($counts['scheduled'] ?? 0),
+                'in_progress' => (int) ($counts['in_progress'] ?? 0),
+                'completed' => (int) ($counts['completed'] ?? 0),
+                'cancelled' => (int) ($counts['cancelled'] ?? 0),
+            ],
+            'tickets' => ['total' => Ticket::query()->count()],
+            'scheduled_hours' => $scheduledHours,
+            'recent_projects' => $recent,
+        ]);
+    }
     public function adminShow(WorkItem $workItem): JsonResponse
     {
         $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']);
 
         $tickets = $workItem->tickets()
-            ->with('allocations')
+            ->with(['allocations', 'creator'])
             ->withCount('comments')
             ->orderBy('position')
             ->orderBy('id')
@@ -309,6 +364,7 @@ class WorkItemController extends Controller
                 'id' => $ticket->id,
                 'work_item_id' => $ticket->work_item_id,
                 'created_by' => $ticket->created_by,
+                'creator' => $ticket->creator ? ['id' => $ticket->creator->id, 'name' => $ticket->creator->name] : null,
                 'title' => $ticket->title,
                 'description' => $ticket->description,
                 'estimated_hours' => $ticket->estimated_hours,
@@ -345,7 +401,7 @@ class WorkItemController extends Controller
             ->get()
             ->map(fn (WorkItem $item): array => $this->payload($item));
 
-        return response()->json(['projects' => $items]);
+        return response()->json(['projects' => $items, 'capacity' => WorkItemScheduler::capacity()]);
     }
 
     private function ensureActiveEmployeeAgency(User $user): void

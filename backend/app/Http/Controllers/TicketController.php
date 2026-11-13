@@ -387,6 +387,7 @@ class TicketController extends Controller
             'id' => $ticket->id,
             'work_item_id' => $ticket->work_item_id,
             'created_by' => $ticket->created_by,
+            'creator' => $ticket->creator ? ['id' => $ticket->creator->id, 'name' => $ticket->creator->name] : null,
             'title' => $ticket->title,
             'description' => $ticket->description,
             'estimated_hours' => $ticket->estimated_hours,
