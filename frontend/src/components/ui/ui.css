@@ -1174,3 +1174,63 @@
   .ae-team-grid { grid-template-columns: 1fr; }
   .ae-week-picker { justify-content: center; }
 }
+
+/* Agency project detail (mirrors .admin-project-* look) */
+.project-detail-page { display: grid; gap: 1.25rem; min-width: 0; }
+.project-detail-page .ui-card { border-radius: var(--radius-card); }
+.project-overview { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(14rem, .8fr); gap: 1.5rem; }
+.project-overview-details > p { margin: 0; color: var(--color-text); font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; }
+.project-overview-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1.25rem; margin: 1.2rem 0 0; }
+.project-overview-details dl > div { min-width: 0; }
+.project-overview-details dt { color: var(--color-muted); font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.project-overview-details dd { margin: .25rem 0 0; color: var(--color-heading); font-size: .84rem; font-weight: 600; overflow-wrap: anywhere; }
+.project-ticket-progress { align-self: center; border: 1px solid var(--color-border); border-radius: .85rem; padding: 1rem; background: var(--color-page); }
+.project-ticket-progress > div { display: flex; justify-content: space-between; gap: .5rem; color: var(--color-heading); font-size: .8rem; }
+.project-ticket-progress > div span { color: var(--color-muted); white-space: nowrap; }
+.project-ticket-progress progress { display: block; width: 100%; height: .6rem; margin-top: .75rem; accent-color: var(--color-accent-600); }
+.project-tickets-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.project-tickets-header h2 { margin: 0; color: var(--color-heading); font-size: 1rem; }
+.project-tickets-header p { margin: .3rem 0 0; color: var(--color-muted); font-size: .78rem; }
+.project-ticket-list { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
+.project-ticket-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .75rem; min-width: 0; border: 1px solid var(--color-border); border-radius: .85rem; padding: .9rem; }
+.project-ticket-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .5rem .75rem; min-width: 0; }
+.project-ticket-title { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .75rem; min-width: 0; }
+.project-ticket-title h3 { margin: .15rem 0 0; color: var(--color-heading); font-size: .9rem; font-weight: 700; overflow-wrap: anywhere; }
+.project-ticket-title p { margin: .45rem 0 0; color: var(--color-muted); font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
+.project-ticket-position { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: .65rem; background: var(--color-page); color: var(--color-muted); font-size: .75rem; font-weight: 700; }
+.project-ticket-badges { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .35rem; color: var(--color-text); font-size: .74rem; }
+.project-ticket-dates { grid-column: 1 / -1; margin: 0; padding-left: 2.75rem; color: var(--color-text); font-size: .7rem; font-weight: 600; }
+.project-ticket-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .35rem; }
+.project-detail-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+.project-modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.assignment-empty { margin: 0; color: var(--color-muted); font-size: .85rem; }
+.agency-projects-page { display: grid; gap: 1.25rem; min-width: 0; }
+.assignment-range-capacity { margin: 0; color: var(--color-muted); font-size: .8rem; }
+.form-error { margin: 0; color: var(--color-danger-700); font-size: .8rem; font-weight: 600; }
+
+/* Inline text-style link/button (used outside auth cards) */
+.inline-link { display: inline; border: 0; padding: 0; background: none; color: var(--color-accent-600); cursor: pointer; font: inherit; font-weight: 650; text-decoration: none; }
+.inline-link:hover { text-decoration: underline; text-underline-offset: .15em; }
+.inline-link:focus-visible { outline: 2px solid var(--color-accent-600); outline-offset: 2px; }
+
+/* Access-restricted / 404 pages */
+.status-page { display: grid; min-height: 100vh; place-items: center; padding: 1rem; background: var(--color-page); }
+.status-card { width: min(100%, 28rem); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 2rem; background: var(--color-card); box-shadow: var(--shadow-card); text-align: center; }
+.status-card h1 { margin: .25rem 0 .5rem; color: var(--color-heading); font-size: 1.4rem; }
+.status-card .eyebrow { margin: 0; color: var(--color-accent-600); font-size: .75rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.status-card .page-copy { margin: 0 0 1.25rem; color: var(--color-muted); font-size: .9rem; }
+.primary-button { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--color-accent-600); border-radius: var(--radius-control); padding: .6rem 1.1rem; background: var(--color-accent-600); color: #fff; cursor: pointer; font-size: .88rem; font-weight: 650; text-decoration: none; }
+.primary-button:hover { filter: brightness(1.06); }
+.primary-button:focus-visible { outline: 2px solid var(--color-accent-600); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  .project-overview { grid-template-columns: 1fr; }
+  .project-ticket-progress { align-self: stretch; }
+  .project-tickets-header { align-items: flex-start; flex-direction: column; }
+  .project-overview-details dl { gap: .8rem; }
+  .project-ticket-card { grid-template-columns: 1fr; padding: .7rem; }
+  .project-ticket-main { grid-template-columns: 1fr; }
+  .project-ticket-badges { justify-content: flex-start; padding-left: 2.75rem; }
+  .project-ticket-dates { padding-left: 2.75rem; }
+  .project-ticket-actions { justify-content: flex-start; }
+}
