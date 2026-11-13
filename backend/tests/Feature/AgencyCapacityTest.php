@@ -116,7 +116,9 @@ class AgencyCapacityTest extends TestCase
         $monday = $this->nextMonday();
         $url = $this->capacityUrl($assignment, $monday, $monday->addDays(2));
 
-        $this->actingAs($owner)->getJson($url)->assertOk();
+        $this->actingAs($client)->getJson($url)->assertOk();
+        // Assignments are private to their holder, even for the agency owner.
+        $this->actingAs($owner)->getJson($url)->assertNotFound();
 
         $otherAgency = Agency::create(['name' => 'Other agency']);
         $outsider = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $otherAgency->id]);

@@ -191,12 +191,9 @@ class EmployeeAssignmentTest extends TestCase
         $this->actingAs($owner)->getJson('/api/agency/assignments')
             ->assertOk()
             ->assertJsonCount(0, 'assignments');
-        $this->getJson('/api/agency/assignments?scope=agency')
-            ->assertOk()
-            ->assertJsonCount(2, 'assignments');
-        $this->actingAs($clientA)->getJson('/api/agency/assignments?scope=agency')
-            ->assertOk()
-            ->assertJsonCount(2, 'assignments');
+        // The agency-wide view no longer exists for any agency role.
+        $this->getJson('/api/agency/assignments?scope=agency')->assertUnprocessable();
+        $this->actingAs($clientA)->getJson('/api/agency/assignments?scope=agency')->assertUnprocessable();
 
         $monday = CarbonImmutable::now(config('app.timezone'))->next(CarbonImmutable::MONDAY);
         $this->actingAs($clientA)->postJson('/api/agency/projects', [
@@ -211,20 +208,100 @@ class EmployeeAssignmentTest extends TestCase
             'assignment_id' => $assignmentA,
             'employee_id' => $employeeA->id,
         ]);
-        $this->getJson('/api/agency/assignments/'.$assignmentA.'/usage?week='.$monday->toDateString())
+        $this->actingAs($clientA)->getJson('/api/agency/assignments/'.$assignmentA.'/usage?week='.$monday->toDateString())
             ->assertOk()
             ->assertJsonPath('used', '7.00')
             ->assertJsonPath('remaining', '29.00')
             ->assertJsonCount(6, 'days')
             ->assertJsonPath('days.0.used', '6.00')
             ->assertJsonPath('days.1.used', '1.00');
+        // Another holder in the same agency, and the owner, cannot read it.
         $this->actingAs($clientB)
             ->getJson('/api/agency/assignments/'.$assignmentA.'/usage')
-            ->assertOk();
+            ->assertNotFound();
+        $this->actingAs($owner)
+            ->getJson('/api/agency/assignments/'.$assignmentA.'/usage')
+            ->assertNotFound();
 
         $this->actingAs($admin)->getJson('/api/admin/assignments?per_page=1')
             ->assertOk()
             ->assertJsonCount(1, 'assignments')
             ->assertJsonPath('pagination.total', 2);
+    }
+
+    public function test_agency_users_cannot_list_read_or_end_assignments_held_by_someone_else(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $clientA = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $clientB = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $employeeA = User::factory()->create(['role' => Role::Employee]);
+        $employeeB = User::factory()->create(['role' => Role::Employee]);
+        $assignmentA = $this->actingAs($clientA)
+            ->postJson('/api/agency/assignments', ['employee_id' => $employeeA->id])->assertCreated()->json('assignment.id');
+        $monday = CarbonImmutable::now(config('app.timezone'))->startOfWeek()->addWeeks(2);
+        $capacity = '/api/agency/capacity?assignment_id='.$assignmentA.'&from='.$monday->toDateString().'&to='.$monday->addDay()->toDateString();
+
+        foreach ([$clientB, $owner] as $intruder) {
+            $this->actingAs($intruder)->getJson('/api/agency/assignments')
+                ->assertOk()->assertJsonCount(0, 'assignments');
+            $this->getJson('/api/agency/assignments/'.$assignmentA.'/usage')->assertNotFound();
+            $this->getJson($capacity)->assertNotFound();
+            $this->deleteJson('/api/agency/assignments/'.$assignmentA)->assertNotFound();
+        }
+        $this->assertDatabaseHas('employee_assignments', ['id' => $assignmentA, 'status' => 'active']);
+
+        // The holder keeps full access.
+        $this->actingAs($clientA)->getJson($capacity)->assertOk();
+        $this->getJson('/api/agency/assignments')->assertOk()->assertJsonCount(1, 'assignments');
+        $this->deleteJson('/api/agency/assignments/'.$assignmentA)->assertOk();
+        $this->assertDatabaseHas('employee_assignments', ['id' => $assignmentA, 'status' => 'ended']);
+    }
+
+    public function test_an_owner_sees_and_ends_only_the_assignments_they_hold(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $ownerEmployee = User::factory()->create(['role' => Role::Employee]);
+        $clientEmployee = User::factory()->create(['role' => Role::Employee]);
+        $clientAssignment = $this->actingAs($client)
+            ->postJson('/api/agency/assignments', ['employee_id' => $clientEmployee->id])->assertCreated()->json('assignment.id');
+        $ownerAssignment = $this->actingAs($owner)
+            ->postJson('/api/agency/assignments', ['employee_id' => $ownerEmployee->id])->assertCreated()->json('assignment.id');
+
+        $this->getJson('/api/agency/assignments')
+            ->assertOk()
+            ->assertJsonCount(1, 'assignments')
+            ->assertJsonPath('assignments.0.id', $ownerAssignment);
+        $this->getJson('/api/agency/assignments/'.$ownerAssignment.'/usage')->assertOk();
+        $this->deleteJson('/api/agency/assignments/'.$clientAssignment)->assertNotFound();
+        $this->deleteJson('/api/agency/assignments/'.$ownerAssignment)->assertOk();
+
+        $this->assertDatabaseHas('employee_assignments', ['id' => $clientAssignment, 'status' => 'active']);
+        $this->assertDatabaseHas('employee_assignments', ['id' => $ownerAssignment, 'status' => 'ended']);
+    }
+
+    public function test_other_agencies_stay_isolated_and_admins_keep_full_access(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $other = Agency::create(['name' => 'Other']);
+        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $outsiderOwner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $other->id]);
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $employee = User::factory()->create(['role' => Role::Employee]);
+        $assignment = $this->actingAs($client)
+            ->postJson('/api/agency/assignments', ['employee_id' => $employee->id])->assertCreated()->json('assignment.id');
+
+        $this->actingAs($outsiderOwner)->getJson('/api/agency/assignments')->assertOk()->assertJsonCount(0, 'assignments');
+        $this->getJson('/api/agency/assignments/'.$assignment.'/usage')->assertNotFound();
+        $this->deleteJson('/api/agency/assignments/'.$assignment)->assertNotFound();
+
+        $this->actingAs($admin)->getJson('/api/admin/assignments')
+            ->assertOk()->assertJsonPath('pagination.total', 1);
+        $this->deleteJson('/api/admin/assignments/'.$assignment)->assertOk();
+        $this->assertDatabaseHas('employee_assignments', ['id' => $assignment, 'status' => 'ended']);
+
+        $this->getJson('/api/agency/assignments')->assertForbidden();
     }
 }
