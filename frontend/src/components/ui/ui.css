@@ -262,7 +262,7 @@
 .admin-dashboard .ui-eyebrow { color: var(--color-accent-600); }
 .admin-dashboard .ui-card {
   border-color: var(--color-border);
-  border-radius: var(--color-radius-card);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 .admin-dashboard .ui-card-body { min-width: 0; }
