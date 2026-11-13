@@ -117,6 +117,7 @@ class UserAccountService
 
             if (array_key_exists('is_active', $data) && ! $user->is_active) {
                 DB::table('sessions')->where('user_id', $user->id)->delete();
+                $this->releaseHeldAssignments($user);
 
                 if ($user->role === Role::Employee) {
                     EmployeeAssignment::query()
@@ -146,10 +147,26 @@ class UserAccountService
     public function deleteUser(User $user): void
     {
         DB::transaction(function () use ($user): void {
+            // Free the employees this user holds (and release their booked hours) before the
+            // assignment rows are removed by the foreign-key cascade.
+            $this->releaseHeldAssignments($user);
             DB::table('sessions')->where('user_id', $user->id)->delete();
             DB::table(config('auth.passwords.users.table'))->where('email', $user->email)->delete();
             $user->delete();
         });
+    }
+
+    /**
+     * Assignments are only manageable by their holder (and admins), so an account that can no
+     * longer act must not keep an employee held.
+     */
+    private function releaseHeldAssignments(User $holder): void
+    {
+        EmployeeAssignment::query()
+            ->where('holder_id', $holder->id)
+            ->where('status', 'active')
+            ->get()
+            ->each(fn (EmployeeAssignment $assignment) => $this->assignments->end($assignment));
     }
 
     /**

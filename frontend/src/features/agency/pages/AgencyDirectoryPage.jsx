@@ -24,7 +24,7 @@ export function AgencyDirectoryPage() {
       )))
     } catch (error) {
       setDirectoryError(error)
-    } finally {
+    } finally { 
       setIsLoading(false)
     }
   }, [user.email, user.id])
