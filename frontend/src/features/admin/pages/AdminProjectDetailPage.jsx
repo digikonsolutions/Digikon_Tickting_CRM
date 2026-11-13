@@ -5,6 +5,7 @@ import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Icon, PageHeader, PriorityBadge, Spinner, StatusBadge } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
+import { TicketCommentsToggle } from '../../comments'
 
 function formatSchedule(schedule = []) {
   if (!schedule.length) return 'No scheduled hours'
@@ -118,6 +119,7 @@ export function AdminProjectDetailPage() {
                       <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
                     </div>
                     <p className="admin-project-ticket-schedule">{formatSchedule(ticket.schedule)}</p>
+                    <TicketCommentsToggle ticketId={ticket.id} ticketTitle={ticket.title} count={ticket.comments_count ?? 0} />
                   </div>
                 </li>
               ))}
