@@ -19,7 +19,7 @@ export function KpiCard({
           <p className="ui-kpi-eyebrow">{title}</p>
           {icon && <span className="ui-kpi-hero-icon"><Icon name={icon} size={20} /></span>}
         </div>
-        <div className="ui-kpi-hero-body">
+        <div>
           <strong className="ui-kpi-hero-value">{value}</strong>
           {subtext && <p className="ui-kpi-hero-subtext">{subtext}</p>}
         </div>

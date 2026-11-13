@@ -1239,3 +1239,9 @@
 .due-tone-danger { color: var(--color-danger-700); font-weight: 600; }
 .due-tone-warning { color: var(--color-warning-700); font-weight: 600; }
 .due-tone-neutral { color: var(--color-muted); }
+
+/* Previously unstyled hooks */
+.ui-button-md { min-height: 2.75rem; padding: .65rem 1rem; font-size: .9rem; }
+.welcome-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.admin-hero-substats { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .75rem; color: var(--color-card); font-size: .78rem; opacity: .9; }
+.ui-kpi-hero-icon { display: grid; width: 2rem; height: 2rem; flex: 0 0 auto; place-items: center; border-radius: .65rem; background: rgb(255 255 255 / 18%); color: #fff; }

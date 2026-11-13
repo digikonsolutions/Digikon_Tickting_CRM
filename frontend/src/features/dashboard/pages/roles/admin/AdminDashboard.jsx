@@ -190,7 +190,7 @@ export const AdminDashboard = () => {
             ? <div className="admin-dashboard-loading" role="status"><Spinner /> Loading workspace data…</div>
             : (
             <div className="admin-hero-content">
-              <div className="admin-hero-copy">
+              <div>
                 <p className="admin-hero-eyebrow">Project delivery</p>
                 <strong className="admin-hero-number">{projectsTotal}</strong>
                 <p className="admin-hero-caption">Projects across all agencies</p>

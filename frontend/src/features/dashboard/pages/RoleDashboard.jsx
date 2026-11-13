@@ -38,7 +38,7 @@ export function RoleDashboard({
         <button type="button" className="inline-link" onClick={onRetryAdditionalStats}>Retry loading employee stats</button>
       )}
       <div className="dashboard-columns">
-        <SectionCard title={ticketsTitle} description="Recently scheduled and assigned work" className="span-main">
+        <SectionCard title={ticketsTitle} description="Recently scheduled and assigned work">
           {tickets.error
             ? <p role="alert" className="form-error">Could not load assigned work. <button type="button" className="inline-link" onClick={tickets.reload}>Try again</button></p>
             : <ProjectList tickets={(tickets.data ?? []).slice(0, 5)} isLoading={tickets.isLoading} showAgency={showAgency} />}
