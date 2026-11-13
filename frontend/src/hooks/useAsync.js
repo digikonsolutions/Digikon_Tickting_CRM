@@ -8,13 +8,10 @@ export function useAsync(loader) {
   const requestId = useRef(0)
   const isMounted = useRef(true)
 
-  const run = useCallback(async () => {
+  // The single code path that runs the loader.
+  const execute = useCallback(async () => {
     const id = ++requestId.current
     const isCurrent = () => isMounted.current && id === requestId.current
-
-    setState((current) => (
-      current.isLoading && current.error === null ? current : { ...current, isLoading: true, error: null }
-    ))
     try {
       const data = await loader()
       if (isCurrent()) setState({ data, error: null, isLoading: false })
@@ -23,14 +20,20 @@ export function useAsync(loader) {
     }
   }, [loader])
 
+  // Existing data stays visible while reloading.
+  const reload = useCallback(() => {
+    if (isMounted.current) setState((current) => ({ ...current, isLoading: true, error: null }))
+    return execute()
+  }, [execute])
+
   useEffect(() => {
     isMounted.current = true
-    run()
+    execute()
     return () => {
       isMounted.current = false
       requestId.current += 1
     }
-  }, [run])
+  }, [execute])
 
-  return { ...state, reload: run }
+  return { ...state, reload }
 }
