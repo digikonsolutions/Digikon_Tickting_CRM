@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Models\WorkItem;
 use App\Notifications\SetPasswordNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,7 +128,8 @@ class UserAccountService
      */
     public function updateManagedUser(User $user, array $data, string $oldEmail, bool $passwordSetupEmailSent): void
     {
-        DB::transaction(function () use ($user, $data, $oldEmail, $passwordSetupEmailSent): void {
+        $affectedClients = collect();
+        DB::transaction(function () use ($user, $data, $oldEmail, $passwordSetupEmailSent, &$affectedClients): void {
             $user->fill($data)->save();
 
             if ($passwordSetupEmailSent) {
@@ -145,6 +147,15 @@ class UserAccountService
                 $this->releaseHeldAssignments($user);
 
                 if ($user->role === Role::Employee) {
+                    $affectedClients = WorkItem::query()
+                        ->where('employee_id', $user->id)
+                        ->whereIn('status', ['scheduled', 'in_progress'])
+                        ->with('client')
+                        ->get()
+                        ->pluck('client')
+                        ->filter()
+                        ->unique('id');
+
                     EmployeeAssignment::query()
                         ->where('employee_id', $user->id)
                         ->where('status', 'active')
@@ -178,6 +189,10 @@ class UserAccountService
                 }
             }
         });
+
+        if (isset($affectedClients) && $affectedClients->isNotEmpty()) {
+            app(\App\Services\WorkflowNotificationService::class)->employeeDeactivated($user, $affectedClients);
+        }
     }
 
     public function deleteUser(User $user): void

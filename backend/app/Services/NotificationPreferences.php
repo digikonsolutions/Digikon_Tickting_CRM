@@ -8,8 +8,8 @@ use App\Models\User;
 /**
  * Per-user delivery preferences for each notification type.
  *
- * Defaults (when a row is missing): in-app on for everything; email on for needs_input and
- * rescheduled only. `needs_input` in-app can never be turned off (`locked`).
+ * Defaults (when a row is missing): in-app on for everything; email on for needs_input,
+ * rescheduled, project, and assignment. `needs_input` in-app can never be turned off (`locked`).
  */
 class NotificationPreferences
 {
@@ -48,6 +48,18 @@ class NotificationPreferences
             'label' => 'New tickets',
             'description' => 'A new ticket was added to your work.',
             'email_default' => false,
+            'locked' => false,
+        ],
+        'project' => [
+            'label' => 'Project updates',
+            'description' => 'Projects created, cancelled, or completed.',
+            'email_default' => true,
+            'locked' => false,
+        ],
+        'assignment' => [
+            'label' => 'Team assignments',
+            'description' => 'Employee holds and assignment updates.',
+            'email_default' => true,
             'locked' => false,
         ],
     ];
@@ -105,6 +117,9 @@ class NotificationPreferences
     {
         foreach ($changes as $change) {
             $type = $change['type'];
+            if (! isset(self::TYPES[$type])) {
+                continue;
+            }
             $meta = self::TYPES[$type];
             $current = collect($this->forUser($user))->firstWhere('type', $type);
 

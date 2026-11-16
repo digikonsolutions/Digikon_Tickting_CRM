@@ -222,6 +222,8 @@ class WorkItemController extends Controller
             return $item;
         });
 
+        app(\App\Services\WorkflowNotificationService::class)->projectCreated($item->fresh()->load(['employee', 'agency']), $creator);
+
         return response()->json([
             'project' => $this->payload($item->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
         ], 201);
@@ -267,6 +269,8 @@ class WorkItemController extends Controller
                 $recorder->record($openTicket, 'cancelled', ['cause' => 'project'], $user);
             }
         });
+
+        app(\App\Services\WorkflowNotificationService::class)->projectCancelled($workItem->fresh()->load(['employee', 'client']), $user);
 
         return response()->json([
             'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),

@@ -103,6 +103,8 @@ class AdminUserController extends Controller
             }
         });
 
+        app(\App\Services\WorkflowNotificationService::class)->agencyStatusChanged($agency, $status, $request->user());
+
         return response()->json([
             'agency' => [
                 'id' => $agency->id,

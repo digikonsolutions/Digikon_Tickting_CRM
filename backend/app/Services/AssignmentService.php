@@ -13,7 +13,7 @@ class AssignmentService
         $this->recorder ??= app(TicketEventRecorder::class);
     }
 
-    public function end(EmployeeAssignment $assignment): void
+    public function end(EmployeeAssignment $assignment, ?\App\Models\User $actor = null): void
     {
         DB::transaction(function () use ($assignment): void {
             $locked = EmployeeAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
@@ -53,5 +53,10 @@ class AssignmentService
                 'ended_at' => now(config('app.timezone')),
             ]);
         });
+
+        app(\App\Services\WorkflowNotificationService::class)->assignmentEnded(
+            $assignment->fresh()->load(['employee', 'holder', 'agency']),
+            $actor ?? auth()->user()
+        );
     }
 }

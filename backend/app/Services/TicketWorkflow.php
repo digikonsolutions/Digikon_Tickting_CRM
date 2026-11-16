@@ -215,6 +215,11 @@ class TicketWorkflow
             }
             if ($lockedWorkItem->status !== $projectBefore) {
                 app(ActivityLogger::class)->projectStatusChanged($actor, $lockedWorkItem, $projectBefore, $lockedWorkItem->status, $lockedTicket);
+                $projectItem = $lockedWorkItem->fresh()->load(['client']);
+                $newStatus = $lockedWorkItem->status;
+                DB::afterCommit(function () use ($projectItem, $projectBefore, $newStatus, $actor): void {
+                    app(\App\Services\WorkflowNotificationService::class)->projectStatusChanged($projectItem, $projectBefore, $newStatus, $actor);
+                });
             }
 
             $this->planner->plan($lockedWorkItem, null, [

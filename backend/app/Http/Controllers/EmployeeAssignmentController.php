@@ -80,6 +80,8 @@ class EmployeeAssignmentController extends Controller
             ]);
         }
 
+        app(\App\Services\WorkflowNotificationService::class)->assignmentHeld($assignment->load(['employee', 'agency']), $holder);
+
         return response()->json([
             'assignment' => $this->payload($assignment->load(['employee', 'agency', 'holder'])),
         ], 201);
