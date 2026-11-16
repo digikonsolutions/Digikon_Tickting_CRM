@@ -6,6 +6,8 @@ use App\Http\Controllers\AgencyUserController;
 use App\Http\Controllers\EmployeeAssignmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\AdminEmployeeActivityController;
+use App\Http\Controllers\EmployeeHeartbeatController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
@@ -88,6 +90,8 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::get('/admin/assignments', [EmployeeAssignmentController::class, 'adminIndex']);
     Route::delete('/admin/assignments/{assignment}', [EmployeeAssignmentController::class, 'adminDestroy']);
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);
+    Route::get('/admin/employees/{id}/activity', [AdminEmployeeActivityController::class, 'activity'])->whereNumber('id');
+    Route::get('/admin/employees/{id}/performance', [AdminEmployeeActivityController::class, 'performance'])->whereNumber('id');
 });
 
 Route::middleware('web')->group(function () {
@@ -114,6 +118,7 @@ Route::middleware('web')->group(function () {
 });
 
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
+    Route::post('/employee/heartbeat', [EmployeeHeartbeatController::class, 'store'])->middleware('throttle:heartbeat');
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
 });

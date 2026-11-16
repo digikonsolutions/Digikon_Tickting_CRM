@@ -16,6 +16,7 @@ use App\Models\TicketComment;
 use App\Models\TicketEvent;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Services\ActivityLogger;
 use App\Services\Attachments\AttachmentPresenter;
 use App\Services\TicketAccess;
 use App\Services\TicketEventRecorder;
@@ -437,6 +438,7 @@ class TicketController extends Controller
             $user,
             $isInternal ? 'internal' : 'public'
         );
+        app(ActivityLogger::class)->ticketCommented($user, $ticket, $isInternal);
 
         return response()->json(['comment' => $this->commentPayload($comment->setRelation('user', $user))], 201);
     }

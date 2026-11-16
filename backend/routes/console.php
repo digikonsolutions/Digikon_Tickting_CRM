@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Closes timers that ran past the cap. Needs `php artisan schedule:work` (or a cron entry) to run.
 Schedule::command('time:stop-stale-timers')->hourly();
+
+// Closes work sessions whose heartbeats stopped and prunes old activity rows.
+Schedule::command('activity:maintain')->everyFiveMinutes();

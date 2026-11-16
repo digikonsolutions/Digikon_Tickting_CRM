@@ -180,6 +180,8 @@ class TicketWorkflow
             $toStatus = $def['to'];
             $lockedTicket->update(['status' => $toStatus]);
 
+            app(ActivityLogger::class)->ticketStatusChanged($actor, $lockedTicket, $fromStatus, $toStatus);
+
             // The employee is no longer actively working on it: stop any running timer.
             if (in_array($toStatus, ['blocked', 'waiting_on_client', 'in_review', 'done'], true)) {
                 app(TimeTracker::class)->stopForTickets([$lockedTicket->id], 'status_'.$toStatus);
@@ -198,6 +200,7 @@ class TicketWorkflow
             );
 
             // Project status updates
+            $projectBefore = $lockedWorkItem->status;
             if ($toStatus === 'in_progress' && $lockedWorkItem->status === 'scheduled') {
                 $lockedWorkItem->update(['status' => 'in_progress']);
             }
@@ -209,6 +212,9 @@ class TicketWorkflow
 
             if (! $hasOpenTickets && $hasDoneTickets) {
                 $lockedWorkItem->update(['status' => 'completed']);
+            }
+            if ($lockedWorkItem->status !== $projectBefore) {
+                app(ActivityLogger::class)->projectStatusChanged($actor, $lockedWorkItem, $projectBefore, $lockedWorkItem->status, $lockedTicket);
             }
 
             $this->planner->plan($lockedWorkItem, null, [

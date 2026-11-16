@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AgencyUpdateProfileRequest;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\UserAccountService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,12 +41,16 @@ class SessionController extends Controller
         }
 
         $request->session()->regenerate();
+        app(ActivityLogger::class)->login($user);
 
         return response()->json(['user' => $accounts->userPayload($user)]);
     }
 
     public function logout(Request $request): JsonResponse
     {
+        if ($request->user()) {
+            app(ActivityLogger::class)->logout($request->user());
+        }
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
