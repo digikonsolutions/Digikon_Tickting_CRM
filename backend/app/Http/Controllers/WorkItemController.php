@@ -14,6 +14,7 @@ use App\Services\TimeTracker;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -128,7 +129,7 @@ class WorkItemController extends Controller
         abort_unless($workItem->agency_id === $agency->id, 404);
 
         return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true),
         ]);
     }
 
@@ -206,6 +207,7 @@ class WorkItemController extends Controller
                 'start_date' => $start->toDateString(),
                 'due_date' => $due->toDateString(),
                 'status' => 'scheduled',
+                ...Arr::only($data, WorkItem::BRIEF_FIELDS),
             ]);
 
             foreach ($plan as $allocation) {
@@ -397,7 +399,7 @@ class WorkItemController extends Controller
             ])->values();
 
         return response()->json([
-            'project' => $this->payload($workItem),
+            'project' => $this->payload($workItem, withAccess: true),
             'tickets' => $tickets,
         ]);
     }
@@ -413,7 +415,7 @@ class WorkItemController extends Controller
             ->orderBy('start_date')
             ->orderBy('id')
             ->get()
-            ->map(fn (WorkItem $item): array => $this->payload($item));
+            ->map(fn (WorkItem $item): array => $this->payload($item, withAccess: true));
 
         return response()->json(['projects' => $items, 'capacity' => WorkItemScheduler::capacity()]);
     }
@@ -441,7 +443,27 @@ class WorkItemController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function payload(WorkItem $item): array
+    /**
+     * The optional project brief. Access details are decrypted only for single-project reads, never in lists.
+     *
+     * @return array<string, mixed>
+     */
+    private function briefPayload(WorkItem $item, bool $withAccess): array
+    {
+        // Read attributes one by one: toArray() would decrypt access_details for every project in a list.
+        $brief = [];
+        foreach (array_diff(WorkItem::BRIEF_FIELDS, ['access_details']) as $field) {
+            $brief[$field] = $item->getAttribute($field);
+        }
+        $brief['has_access_details'] = $item->getRawOriginal('access_details') !== null;
+        if ($withAccess) {
+            $brief['access_details'] = $item->access_details;
+        }
+
+        return $brief;
+    }
+
+    private function payload(WorkItem $item, bool $withAccess = false): array
     {
         // List endpoints preload progress via withTicketProgress(); single-item
         // endpoints fall back to one extra set of queries here.
@@ -467,6 +489,7 @@ class WorkItemController extends Controller
                 'name' => $item->employee->name,
                 'role' => $item->employee->role->value,
             ] : null,
+            'brief' => $this->briefPayload($item, $withAccess),
             'estimated_hours' => $item->estimated_hours,
             'start_date' => $item->start_date->toDateString(),
             'due_date' => $item->due_date->toDateString(),

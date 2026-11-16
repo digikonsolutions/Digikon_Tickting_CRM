@@ -7,9 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class WorkItem extends Model
 {
+    /** Optional project brief fields (validated by BriefRules). */
+    public const BRIEF_FIELDS = [
+        'objective', 'deliverables', 'target_url', 'staging_url', 'repo_url', 'platform', 'tech_stack',
+        'brand_assets_url', 'access_details', 'reference_links', 'acceptance_criteria', 'budget',
+        'brief_priority', 'contact_name', 'contact_email',
+    ];
+
     protected $fillable = [
         'agency_id',
         'client_id',
@@ -21,6 +29,21 @@ class WorkItem extends Model
         'start_date',
         'due_date',
         'status',
+        'objective',
+        'deliverables',
+        'target_url',
+        'staging_url',
+        'repo_url',
+        'platform',
+        'tech_stack',
+        'brand_assets_url',
+        'access_details',
+        'reference_links',
+        'acceptance_criteria',
+        'budget',
+        'brief_priority',
+        'contact_name',
+        'contact_email',
     ];
 
     protected function casts(): array
@@ -29,6 +52,10 @@ class WorkItem extends Model
             'estimated_hours' => 'decimal:2',
             'start_date' => 'date',
             'due_date' => 'date',
+            'deliverables' => 'array',
+            'reference_links' => 'array',
+            // Access details are encrypted at rest with the application key.
+            'access_details' => 'encrypted',
         ];
     }
 
@@ -50,6 +77,11 @@ class WorkItem extends Model
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(EmployeeAssignment::class, 'assignment_id');
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 
     public function allocations(): HasMany

@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BriefRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateTicketRequest extends FormRequest
 {
+    use BriefRules;
+
     public function authorize(): bool
     {
         return true;
@@ -14,7 +17,10 @@ class UpdateTicketRequest extends FormRequest
 
     public function rules(): array
     {
+        $ticket = $this->route('ticket');
+
         return [
+            ...$this->ticketBriefRules($ticket?->work_item_id, $ticket?->id),
             'title' => ['sometimes', 'required', 'string', 'max:160'],
             'description' => ['sometimes', 'required', 'string'],
             'estimated_hours' => ['sometimes', 'required', 'numeric', 'decimal:0,2', 'min:0.01'],

@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AdminEmployeeActivityController;
 use App\Http\Controllers\EmployeeHeartbeatController;
+use App\Http\Controllers\ProjectAttachmentController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
@@ -146,4 +147,16 @@ Route::middleware('web')->group(function () {
     Route::get('/time/week', [TimeController::class, 'week'])->middleware(['auth', 'role:employee']);
     Route::patch('/time/{entry}', [TimeController::class, 'update'])->middleware(['auth', 'role:employee,admin']);
     Route::delete('/time/{entry}', [TimeController::class, 'destroy'])->middleware(['auth', 'role:employee,admin']);
+});
+
+// Files on a project brief (private disk, authorised per request).
+Route::middleware('web')->group(function () {
+    Route::get('/projects/{workItem}/attachments', [ProjectAttachmentController::class, 'index'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
+    Route::post('/projects/{workItem}/attachments', [ProjectAttachmentController::class, 'store'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin', 'throttle:attachments']);
+    Route::get('/project-attachments/{attachment}/download', [ProjectAttachmentController::class, 'download'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
+    Route::delete('/project-attachments/{attachment}', [ProjectAttachmentController::class, 'destroy'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
 });

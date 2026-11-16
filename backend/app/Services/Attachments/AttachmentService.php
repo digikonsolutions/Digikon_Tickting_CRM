@@ -2,9 +2,11 @@
 
 namespace App\Services\Attachments;
 
+use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
 use App\Models\User;
+use App\Models\WorkItem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -26,11 +28,11 @@ class AttachmentService
     }
 
     /** @return array<string, list<string>> extension => allowed content MIME types */
-    public function allowedTypes(): array
+    public function allowedTypes(?bool $archives = null): array
     {
         $types = config('attachments.allowed', []);
 
-        return config('attachments.allow_archives') ? $types + config('attachments.archives', []) : $types;
+        return ($archives ?? config('attachments.allow_archives')) ? $types + config('attachments.archives', []) : $types;
     }
 
     /** Safe text for display and for Content-Disposition: no paths, control characters or markup. */
@@ -49,7 +51,7 @@ class AttachmentService
      * Checks a file against the configured rules. Returns an error message, or null when acceptable.
      * The MIME type is detected from the file CONTENT, never trusted from the client.
      */
-    public function problem(UploadedFile $file): ?string
+    public function problem(UploadedFile $file, ?bool $archives = null): ?string
     {
         $name = self::sanitizeName((string) $file->getClientOriginalName());
 
@@ -65,7 +67,7 @@ class AttachmentService
         }
 
         $extension = strtolower(pathinfo((string) $file->getClientOriginalName(), PATHINFO_EXTENSION));
-        $allowed = $this->allowedTypes();
+        $allowed = $this->allowedTypes($archives);
         if ($extension === '' || ! isset($allowed[$extension])) {
             return "{$name}: files of this type are not allowed.";
         }
@@ -113,8 +115,32 @@ class AttachmentService
         ]);
     }
 
-    public function isInlineSafe(TicketAttachment $attachment): bool
+    /** Stores a file on a project brief (polymorphic ttachments table). */
+    public function storeForProject(WorkItem $project, User $uploader, UploadedFile $file): Attachment
     {
-        return in_array($attachment->mime_type, config('attachments.inline_mimes', []), true);
+        $extension = strtolower(pathinfo((string) $file->getClientOriginalName(), PATHINFO_EXTENSION));
+        $disk = $this->disk();
+        $path = Storage::disk($disk)->putFileAs("projects/{$project->id}", $file, (string) Str::uuid().'.'.$extension);
+        if ($path === false) {
+            throw new RuntimeException('The file could not be stored.');
+        }
+
+        return $project->attachments()->create([
+            'uploaded_by' => $uploader->id,
+            'uploader_name' => $uploader->name,
+            'original_name' => self::sanitizeName((string) $file->getClientOriginalName()),
+            'path' => $path,
+            'disk' => $disk,
+            'mime' => $this->detectMime($file->getRealPath()),
+            'size' => (int) $file->getSize(),
+            'sha256' => hash_file('sha256', $file->getRealPath()),
+        ]);
+    }
+
+    public function isInlineSafe(TicketAttachment|Attachment $attachment): bool
+    {
+        $mime = $attachment instanceof Attachment ? $attachment->mime : $attachment->mime_type;
+
+        return in_array($mime, config('attachments.inline_mimes', []), true);
     }
 }

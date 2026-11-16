@@ -497,6 +497,15 @@ class TicketController extends Controller
 
         return response()->json([
             'ticket' => $this->ticketPayload($ticket, $request->user()),
+            // Linked tickets, resolved only within the same project (the ids were validated on save).
+            'related_tickets' => empty($ticket->related_ticket_ids) ? [] : Ticket::query()
+                ->with('agency')
+                ->where('work_item_id', $ticket->work_item_id)
+                ->whereIn('id', $ticket->related_ticket_ids)
+                ->orderBy('number')
+                ->get()
+                ->map(fn (Ticket $related): array => ['id' => $related->id, 'key' => $related->key, 'title' => $related->title, 'status' => $related->status])
+                ->values(),
             'project' => [
                 'id' => $project->id,
                 'title' => $project->title,
@@ -752,6 +761,16 @@ class TicketController extends Controller
             'description' => $ticket->description,
             'estimated_hours' => $ticket->estimated_hours,
             'priority' => $ticket->priority,
+            'brief' => [
+                'steps_to_reproduce' => $ticket->steps_to_reproduce,
+                'expected_result' => $ticket->expected_result,
+                'actual_result' => $ticket->actual_result,
+                'affected_url' => $ticket->affected_url,
+                'environment' => $ticket->environment,
+                'severity' => $ticket->severity,
+                'due_preference' => $ticket->due_preference,
+                'related_ticket_ids' => $ticket->related_ticket_ids ?? [],
+            ],
             'status' => $ticket->status,
             'position' => $ticket->position,
             'start_date' => $ticket->start_date?->toDateString(),

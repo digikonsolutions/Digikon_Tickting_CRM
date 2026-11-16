@@ -23,6 +23,14 @@ class Ticket extends Model
         'position',
         'start_date',
         'due_date',
+        'steps_to_reproduce',
+        'expected_result',
+        'actual_result',
+        'affected_url',
+        'environment',
+        'severity',
+        'due_preference',
+        'related_ticket_ids',
     ];
 
     protected $appends = [
@@ -38,6 +46,7 @@ class Ticket extends Model
             'position' => 'integer',
             'start_date' => 'date',
             'due_date' => 'date',
+            'related_ticket_ids' => 'array',
         ];
     }
 

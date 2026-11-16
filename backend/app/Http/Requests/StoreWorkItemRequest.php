@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BriefRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWorkItemRequest extends FormRequest
 {
+    use BriefRules;
+
     public function authorize(): bool
     {
         return true;
@@ -14,6 +17,7 @@ class StoreWorkItemRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...$this->projectBriefRules(),
             'title' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:5000'],
             'estimated_hours' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:'.config('scheduling.max_project_hours', 180)],

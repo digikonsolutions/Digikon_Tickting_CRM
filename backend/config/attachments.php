@@ -38,6 +38,10 @@ return [
         'zip' => ['application/zip', 'application/x-zip-compressed'],
     ],
 
+    // Project briefs accept zip files (design bundles, exports). Downloads are always forced, never inline.
+    'brief_allow_archives' => (bool) env('ATTACHMENTS_BRIEF_ALLOW_ARCHIVES', true),
+    'max_files_per_project' => (int) env('ATTACHMENTS_MAX_FILES_PER_PROJECT', 50),
+
     // Only these may be displayed inline (image previews); everything else is always a download.
     'inline_mimes' => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
 ];
