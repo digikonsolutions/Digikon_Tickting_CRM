@@ -47,7 +47,7 @@ function NameCard({ user, updateUser }) {
 
   return (
     <Card className="ui-form-card" title="Profile details" description="Your role and agency can only be changed by an administrator or your agency owner.">
-      <form className="ui-form" onSubmit={saveProfile} aria-label="Profile details">
+      <form className="ui-form" onSubmit={saveProfile} aria-label="Profile details" noValidate>
         <FormSection title="You">
           <Input
             id="profile-name"
@@ -132,7 +132,7 @@ function PasswordCard() {
 
   return (
     <Card className="ui-form-card" title="Change password" description="You stay signed in on this device. Any other device is signed out.">
-      <form className="ui-form" onSubmit={changePassword} aria-label="Change password" autoComplete="off">
+      <form className="ui-form" onSubmit={changePassword} aria-label="Change password" autoComplete="off" noValidate>
         <FormSection>
           <Input
             id="current-password"

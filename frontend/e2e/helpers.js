@@ -37,7 +37,8 @@ export async function expectShellName(page, name) {
   await page.locator('details.header-user-menu > summary').click()
 }
 
-export const nameField = (page) => page.getByLabel('Name', { exact: true })
-export const currentPasswordField = (page) => page.getByLabel('Current password')
-export const newPasswordField = (page) => page.getByLabel('New password', { exact: true })
-export const confirmPasswordField = (page) => page.getByLabel('Confirm new password')
+// getByRole uses the accessible name; getByLabel's exact match would include the required-field marker.
+export const nameField = (page) => page.getByRole('textbox', { name: 'Name', exact: true })
+export const currentPasswordField = (page) => page.getByRole('textbox', { name: 'Current password', exact: true })
+export const newPasswordField = (page) => page.getByRole('textbox', { name: 'New password', exact: true })
+export const confirmPasswordField = (page) => page.getByRole('textbox', { name: 'Confirm new password', exact: true })

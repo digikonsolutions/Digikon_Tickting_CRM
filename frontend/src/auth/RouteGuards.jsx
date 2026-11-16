@@ -46,6 +46,8 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'building', section: 'People' },
     { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users', section: 'People' },
   ],
+  [ROLES.TEAM_LEAD]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
+  [ROLES.QA]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   [ROLES.EMPLOYEE]: [{ to: '/my-work', label: 'My work', icon: 'ticket' }],
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
