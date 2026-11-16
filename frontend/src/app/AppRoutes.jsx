@@ -87,6 +87,7 @@ export function AppRoutes() {
             <Route path="/agency/users" element={<AgencyUsersPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
+            <Route path="/agency/employees/:id/activity" element={<AdminEmployeePage scope="agency" />} />
             <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
             <Route path="/agency/time" element={<TimeSummaryPage scope="agency" />} />
           </Route>

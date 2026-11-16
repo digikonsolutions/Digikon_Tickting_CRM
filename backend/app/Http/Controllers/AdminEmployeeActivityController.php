@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ActivityEvent;
 use App\Enums\Role;
 use App\Models\EmployeeActivityLog;
+use App\Models\EmployeeAssignment;
 use App\Models\TicketEvent;
 use App\Models\User;
 use App\Models\WorkSession;
@@ -14,12 +15,41 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-/** Admin-only views of one employee's recorded work activity. */
+/**
+ * Views of one employee's recorded work activity. Routes limit this to admins and agency owners:
+ * admins see any employee; an owner sees only an employee currently assigned to the owner's own
+ * agency, and only what was recorded since that assignment started. Anyone else gets 404.
+ */
 class AdminEmployeeActivityController extends Controller
 {
-    private function employee(int $id): User
+    /** Start of the visible period for the viewer, or null for no limit. */
+    private ?CarbonImmutable $since = null;
+
+    private function employee(Request $request, int $id): User
     {
-        return User::query()->where('role', Role::Employee->value)->findOrFail($id);
+        $viewer = $request->user();
+        $query = User::query()->where('role', Role::Employee->value);
+
+        if ($viewer->role === Role::Admin) {
+            return $query->findOrFail($id);
+        }
+
+        abort_unless($viewer->role === Role::AgencyOwner && $viewer->agency_id !== null, 403);
+        $assignment = EmployeeAssignment::query()
+            ->where('employee_id', $id)
+            ->where('agency_id', $viewer->agency_id)
+            ->where('status', 'active')
+            ->latest('started_at')
+            ->first();
+        abort_if($assignment === null, 404);
+        $this->since = CarbonImmutable::instance($assignment->started_at);
+
+        return $query->findOrFail($id);
+    }
+
+    private function showsConnection(Request $request): bool
+    {
+        return $request->user()->role === Role::Admin;
     }
 
     private function tz(): string
@@ -38,6 +68,9 @@ class AdminEmployeeActivityController extends Controller
         ]);
         $to = CarbonImmutable::parse($data['to'] ?? 'today', $this->tz())->endOfDay();
         $from = CarbonImmutable::parse($data['from'] ?? $to->subDays($defaultDays - 1)->toDateString(), $this->tz())->startOfDay();
+        if ($this->since !== null && $from->lessThan($this->since)) {
+            $from = $this->since;
+        }
         abort_if($from->diffInDays($to) > $maxDays, 422, "The date range may not exceed {$maxDays} days.");
 
         return [$from, $to];
@@ -45,8 +78,9 @@ class AdminEmployeeActivityController extends Controller
 
     public function activity(Request $request, int $id): JsonResponse
     {
-        $employee = $this->employee($id);
+        $employee = $this->employee($request, $id);
         [$from, $to] = $this->range($request, 14, 366);
+        $connection = $this->showsConnection($request);
         $filters = $request->validate([
             'event_type' => ['sometimes', Rule::in(ActivityEvent::values())],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
@@ -63,14 +97,15 @@ class AdminEmployeeActivityController extends Controller
         return response()->json([
             'employee' => ['id' => $employee->id, 'name' => $employee->name],
             'events' => $page->getCollection()->map(fn (EmployeeActivityLog $log): array => [
+                // Connection details are for administrators only.
                 'id' => $log->id,
                 'event_type' => $log->event_type,
                 'occurred_at' => $log->occurred_at->toISOString(),
                 'ticket' => $log->ticket ? ['id' => $log->ticket->id, 'key' => $log->ticket->key, 'title' => $log->ticket->title] : null,
                 'project' => $log->workItem ? ['id' => $log->workItem->id, 'title' => $log->workItem->title] : null,
                 'metadata' => $log->metadata,
-                'ip_address' => $log->ip_address,
-                'user_agent' => $log->user_agent,
+                'ip_address' => $connection ? $log->ip_address : null,
+                'user_agent' => $connection ? $log->user_agent : null,
             ])->values(),
             'pagination' => [
                 'current_page' => $page->currentPage(),
@@ -83,7 +118,7 @@ class AdminEmployeeActivityController extends Controller
 
     public function performance(Request $request, int $id): JsonResponse
     {
-        $employee = $this->employee($id);
+        $employee = $this->employee($request, $id);
         [$from, $to] = $this->range($request, 14);
         $tz = $this->tz();
         $fromDate = $from->toDateString();

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Enums\Role;
+use App\Services\MonitoringPolicy;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 
@@ -35,7 +36,10 @@ class SetPasswordNotification extends ResetPassword
             ->line('This link expires in '.config('auth.passwords.'.config('auth.defaults.passwords').'.expire').' minutes.');
 
         if ($this->isEmployee) {
-            $message->line('Please note: your work activity in ClientHub (sign-ins, ticket updates and active time) is recorded for administrators. Keystrokes, screens and page content are never recorded.');
+            // The same text and version the employee accepts at first sign-in.
+            foreach (app(MonitoringPolicy::class)->disclosureLines() as $line) {
+                $message->line($line);
+            }
         }
 
         return $message->line('If you did not expect this email, you can ignore it.');

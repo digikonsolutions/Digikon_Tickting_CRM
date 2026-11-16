@@ -68,7 +68,7 @@ class UserAccountService
     {
         $user->loadMissing('agency');
 
-        return [
+        $payload = [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
@@ -76,6 +76,14 @@ class UserAccountService
             'agency_id' => $user->agency_id,
             'agency_name' => $user->agency?->name,
         ];
+
+        // Employees must accept the monitoring notice before using the app.
+        $policy = app(MonitoringPolicy::class);
+        if ($policy->requiresConsent($user)) {
+            $payload['monitoring_consent_required'] = ! $policy->hasConsented($user);
+        }
+
+        return $payload;
     }
 
     /** The password policy shared by password reset and the signed-in change-password flow. */

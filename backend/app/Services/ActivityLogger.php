@@ -18,14 +18,23 @@ use Illuminate\Support\Facades\DB;
  */
 class ActivityLogger
 {
+    public function __construct(private readonly MonitoringPolicy $policy)
+    {
+    }
+
     private function now(): CarbonImmutable
     {
         return CarbonImmutable::now();
     }
 
+    /** Only employees who accepted the current notice are ever recorded. */
     private function tracks(?User $user): bool
     {
-        return $user !== null && $user->role === Role::Employee;
+        if ($user === null || $user->role !== Role::Employee) {
+            return false;
+        }
+
+        return $this->policy->hasConsented($user);
     }
 
     /**
@@ -33,7 +42,13 @@ class ActivityLogger
      */
     private function log(User $user, ActivityEvent $event, ?int $workItemId = null, ?int $ticketId = null, ?array $metadata = null, ?CarbonImmutable $at = null): void
     {
+        // Collection limit: an event whose category is not in the disclosure is dropped, never stored.
+        if (! $this->policy->allows($event->category())) {
+            return;
+        }
+
         $request = request();
+        $withConnection = $this->policy->allows('connection');
         EmployeeActivityLog::create([
             'employee_id' => $user->id,
             'event_type' => $event->value,
@@ -41,8 +56,8 @@ class ActivityLogger
             'ticket_id' => $ticketId,
             'metadata' => $metadata,
             'occurred_at' => $at ?? $this->now(),
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent() ? mb_substr($request->userAgent(), 0, 255) : null,
+            'ip_address' => $withConnection ? $request->ip() : null,
+            'user_agent' => $withConnection && $request->userAgent() ? mb_substr($request->userAgent(), 0, 255) : null,
         ]);
     }
 
@@ -56,7 +71,9 @@ class ActivityLogger
         DB::transaction(function () use ($user): void {
             $this->closeOpenSessions($user, 'superseded');
             $this->log($user, ActivityEvent::Login);
-            $this->startSession($user);
+            if ($this->policy->allows('work_sessions')) {
+                $this->startSession($user);
+            }
         });
     }
 
@@ -105,6 +122,10 @@ class ActivityLogger
      */
     public function heartbeat(User $user, bool $idle): array
     {
+        if (! $this->tracks($user) || ! $this->policy->allows('work_sessions')) {
+            return ['active_seconds' => 0, 'idle_seconds' => 0];
+        }
+
         return DB::transaction(function () use ($user, $idle): array {
             $now = $this->now();
             $timeout = (int) config('activity.session_timeout_minutes') * 60;
