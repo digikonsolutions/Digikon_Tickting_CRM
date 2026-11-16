@@ -231,6 +231,11 @@ export function AgencyEmployeesPage() {
                   })}
                 </div>
 
+                {isOwner && (
+                  <Link className="ui-button ui-button-secondary ui-button-sm" to={`/agency/employees/${assignment.employee.id}/activity`}>
+                    Work activity
+                  </Link>
+                )}
                 <Button
                   type="button"
                   variant="ghost"

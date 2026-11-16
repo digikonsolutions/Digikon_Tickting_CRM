@@ -41,12 +41,12 @@ function describe(event) {
 }
 
 // Paged list of recorded events for one employee, with an event-type filter.
-export function ActivityTimeline({ employeeId, range }) {
+export function ActivityTimeline({ employeeId, range, scope = 'admin' }) {
   const [eventType, setEventType] = useState('')
   const [page, setPage] = useState(1)
   const load = useCallback(
-    () => authService.getEmployeeActivity(employeeId, { ...range, eventType, page }),
-    [employeeId, range, eventType, page],
+    () => authService.getEmployeeActivity(employeeId, { ...range, eventType, page, scope }),
+    [employeeId, range, eventType, page, scope],
   )
   const { data, error, isLoading, reload } = useAsync(load)
   const events = data?.events ?? []

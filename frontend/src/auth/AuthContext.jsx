@@ -18,6 +18,7 @@ async function fetchSession() {
         role: user.role,
         agency_id: user.agency_id ?? null,
         agency_name: user.agency_name ?? null,
+        monitoring_consent_required: Boolean(user.monitoring_consent_required),
       },
       error: '',
     }
@@ -78,6 +79,7 @@ export function AuthProvider({ children }) {
       role: nextUser.role,
       agency_id: nextUser.agency_id ?? null,
       agency_name: nextUser.agency_name ?? null,
+      monitoring_consent_required: Boolean(nextUser.monitoring_consent_required),
     })
     setAuthError('')
   }

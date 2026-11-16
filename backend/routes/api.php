@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AdminEmployeeActivityController;
 use App\Http\Controllers\EmployeeHeartbeatController;
+use App\Http\Controllers\MonitoringConsentController;
 use App\Http\Controllers\ProjectAttachmentController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
@@ -77,6 +78,11 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    // Monitoring: agency owners only, and only for employees currently assigned to their own agency.
+    Route::get('/employees/{id}/activity', [AdminEmployeeActivityController::class, 'activity'])
+        ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
+    Route::get('/employees/{id}/performance', [AdminEmployeeActivityController::class, 'performance'])
+        ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
 });
 
 Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
@@ -120,6 +126,8 @@ Route::middleware('web')->group(function () {
 
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::post('/employee/heartbeat', [EmployeeHeartbeatController::class, 'store'])->middleware('throttle:heartbeat');
+    Route::get('/employee/monitoring-policy', [MonitoringConsentController::class, 'show']);
+    Route::post('/employee/monitoring-policy/accept', [MonitoringConsentController::class, 'accept']);
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
 });

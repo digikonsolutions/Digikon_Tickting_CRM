@@ -27,6 +27,8 @@ class EmployeeActivityTest extends TestCase
         $this->u['lead'] = User::factory()->create(['role' => Role::TeamLead]);
         $this->u['employee']->forceFill(['password' => 'Passw0rd!Passw0rd'])->save();
         $this->ticket = $this->makeTicket('other', 'Landing page', 4);
+        // Nothing is recorded before the employee accepts the notice; see MonitoringConsentTest.
+        app(\App\Services\MonitoringPolicy::class)->accept($this->u['employee'], '127.0.0.1');
     }
 
     protected function tearDown(): void

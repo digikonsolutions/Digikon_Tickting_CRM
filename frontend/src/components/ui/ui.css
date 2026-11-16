@@ -1,4 +1,4 @@
-.ui-button {
+﻿.ui-button {
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
@@ -1481,7 +1481,7 @@
   .files-queue-state { grid-column: 1; }
 }
 
-/* ── Time tracking ─────────────────────────────────────────────── */
+/* â”€â”€ Time tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .timer-pill-slot { display: flex; align-items: center; justify-content: flex-end; min-width: 11.5rem; min-height: 2.25rem; }
 .timer-pill { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--brand-ring); border-radius: 999px; background: var(--brand-soft); color: var(--brand); }
 .timer-pill-link { display: inline-flex; align-items: center; gap: .45rem; padding: .35rem .6rem .35rem .75rem; color: inherit; font-size: .8125rem; font-weight: 600; text-decoration: none; }
@@ -1541,7 +1541,7 @@
 .time-summary-scroll { overflow-x: auto; }
 @media (max-width: 480px) { .time-form-duration { grid-template-columns: 1fr 1fr; } .timesheet-totals { grid-template-columns: 1fr; } }
 
-/* ── Briefs: optional project and ticket detail ────────────────── */
+/* â”€â”€ Briefs: optional project and ticket detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .brief-fields { border: 1px solid var(--color-border); border-radius: .6rem; background: var(--color-card); }
 .brief-fields > summary { padding: .65rem .85rem; cursor: pointer; font-weight: 600; }
 .brief-fields > summary span { color: var(--color-muted); font-weight: 400; }
@@ -1562,9 +1562,14 @@
 .brief-secret { margin: 0; padding: .5rem .65rem; overflow-x: auto; border-radius: .5rem; background: var(--color-surface, #f1f5f9); font-size: .85rem; white-space: pre-wrap; }
 @media (min-width: 720px) { .brief-fields-grid { grid-template-columns: 1fr 1fr; } .brief-fields-grid > :is(.ui-field, div):has(textarea) { grid-column: 1 / -1; } }
 
-/* ── Employee activity (admin) ─────────────────────────────────── */
-.activity-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .75rem; margin-bottom: 1rem; padding: .5rem .85rem; border: 1px solid var(--brand-ring); border-radius: .6rem; background: var(--brand-soft); color: var(--brand); font-size: .875rem; }
-.activity-notice p { flex: 1 1 18rem; margin: 0; }
+/* â”€â”€ Employee activity (admin) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.monitoring-consent { display: grid; min-height: 100vh; place-items: start center; padding: 2rem 1rem; }
+.monitoring-consent > * { width: min(42rem, 100%); }
+.monitoring-consent-body h1 { margin: 0 0 .5rem; font-size: 1.4rem; }
+.monitoring-consent-body h2 { margin: 1.1rem 0 .35rem; font-size: 1rem; }
+.monitoring-consent-body ul { margin: 0; padding-left: 1.2rem; }
+.monitoring-consent-version { color: var(--color-muted); font-size: .8125rem; }
+.monitoring-consent-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .employee-activity-body { display: grid; gap: 1rem; }
 .hours-chart { margin: 0 0 1rem; }
 .hours-chart figcaption { margin-bottom: .35rem; font-size: .875rem; font-weight: 600; }

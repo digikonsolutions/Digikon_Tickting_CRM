@@ -16,14 +16,14 @@ const TABS = [
 const LOGIN_LABELS = { late: 'Late', early: 'Early', on_time: 'On time' }
 
 // Admin-only page for one employee. Employees themselves never see any of this.
-export function AdminEmployeePage() {
+export function AdminEmployeePage({ scope = 'admin' }) {
   const { id } = useParams()
   const [tab, setTab] = useState('overview')
   const [range, setRange] = useState(() => ({ from: addDays(todayStr(), -13), to: todayStr() }))
   const valid = Boolean(range.from && range.to && range.from <= range.to)
   const load = useCallback(
-    () => (valid ? authService.getEmployeePerformance(id, range) : Promise.resolve(null)),
-    [id, range, valid],
+    () => (valid ? authService.getEmployeePerformance(id, { ...range, scope }) : Promise.resolve(null)),
+    [id, range, valid, scope],
   )
   const { data, error, isLoading, reload } = useAsync(load)
   const totals = data?.totals
@@ -31,10 +31,12 @@ export function AdminEmployeePage() {
   return (
     <section className="page employee-activity-page">
       <PageHeader
-        eyebrow="Administration"
+        eyebrow={scope === 'admin' ? 'Administration' : 'Agency workspace'}
         title={data?.employee?.name ?? 'Employee'}
-        subtitle="Work activity and performance. Visible to administrators only."
-        action={<Link className="ui-button ui-button-secondary ui-button-sm" to="/admin/employees">Back to employees</Link>}
+        subtitle={scope === 'admin'
+          ? 'Work activity and performance. Visible to administrators and the employee\'s agency owner only.'
+          : 'Work activity and performance since this specialist joined your agency. Visible to you and administrators only.'}
+        action={<Link className="ui-button ui-button-secondary ui-button-sm" to={scope === 'admin' ? '/admin/employees' : '/agency/employees'}>{scope === 'admin' ? 'Back to employees' : 'Back to specialists'}</Link>}
       />
 
       <Card>
@@ -116,7 +118,7 @@ export function AdminEmployeePage() {
             </div>
           </Card>
 
-          <ActivityTimeline employeeId={id} range={range} />
+          <ActivityTimeline employeeId={id} range={range} scope={scope} />
         </div>
       )}
 

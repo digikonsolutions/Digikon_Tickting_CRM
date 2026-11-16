@@ -14,6 +14,21 @@ enum ActivityEvent: string
     case ProjectStatusChanged = 'project_status_changed';
     case IdleDetected = 'idle_detected';
 
+    /**
+     * The disclosure category (a key of config/monitoring.php `categories`) this event belongs to.
+     * ActivityLogger refuses to write an event whose category the disclosure does not list.
+     */
+    public function category(): string
+    {
+        return match ($this) {
+            self::Login, self::Logout => 'sign_ins',
+            self::SessionStart, self::SessionEnd => 'work_sessions',
+            self::IdleDetected => 'idle_status',
+            self::TicketStatusChanged, self::TicketCommentAdded => 'ticket_activity',
+            self::ProjectStatusChanged => 'project_activity',
+        };
+    }
+
     /** @return list<string> */
     public static function values(): array
     {

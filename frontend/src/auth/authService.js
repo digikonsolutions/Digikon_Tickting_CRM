@@ -367,21 +367,30 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { interval_seconds: 60, idle_after_minutes: 5 }
     return request('/employee/heartbeat', { method: 'POST', body: JSON.stringify({ idle }), signal })
   },
-  // Admin only.
-  async getEmployeeActivity(id, { from, to, eventType, page = 1 } = {}) {
+  // Employee consent notice. Returns the notice text only, never any recorded activity.
+  async getMonitoringPolicy() {
+    if (AUTH_MODE === 'mock') return { policy: { version: '0', title: '', summary: '', categories: [], not_collected: [], viewers: '', retention: '' }, consent: { accepted: true } }
+    return request('/employee/monitoring-policy')
+  },
+  async acceptMonitoringPolicy(policyVersion) {
+    if (AUTH_MODE === 'mock') return { consent: { accepted: true } }
+    return request('/employee/monitoring-policy/accept', { method: 'POST', body: JSON.stringify({ policy_version: policyVersion }) })
+  },
+  // Admins and agency owners only. Owners use the /agency route, which is limited to their own agency's employees.
+  async getEmployeeActivity(id, { from, to, eventType, page = 1, scope = 'admin' } = {}) {
     if (AUTH_MODE === 'mock') return { employee: { id, name: '' }, events: [], pagination: { current_page: 1, last_page: 1, per_page: 50, total: 0 } }
     const query = new URLSearchParams({ page: String(page) })
     if (from) query.set('from', from)
     if (to) query.set('to', to)
     if (eventType) query.set('event_type', eventType)
-    return request(`/admin/employees/${encodeURIComponent(id)}/activity?${query}`)
+    return request(`/${scope}/employees/${encodeURIComponent(id)}/activity?${query}`)
   },
-  async getEmployeePerformance(id, { from, to } = {}) {
+  async getEmployeePerformance(id, { from, to, scope = 'admin' } = {}) {
     if (AUTH_MODE === 'mock') return { employee: { id, name: '' }, days: [], weeks: [], totals: {} }
     const query = new URLSearchParams()
     if (from) query.set('from', from)
     if (to) query.set('to', to)
-    return request(`/admin/employees/${encodeURIComponent(id)}/performance?${query}`)
+    return request(`/${scope}/employees/${encodeURIComponent(id)}/performance?${query}`)
   },
   // Files on a project brief.
   async listProjectAttachments(projectId) {

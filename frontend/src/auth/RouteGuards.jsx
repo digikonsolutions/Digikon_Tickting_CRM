@@ -6,14 +6,17 @@ import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
 import { TimerPill } from '../features/time'
-import { ActivityNotice, useHeartbeat } from '../features/activity'
+import { MonitoringConsent, useHeartbeat } from '../features/activity'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
   const location = useLocation()
   if (isLoading) return <p role="status">Checking your session…</p>
   if (authError) return <p role="alert">{authError} <button type="button" onClick={refreshSession}>Retry</button></p>
-  return user ? <Outlet /> : <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  // Employees see nothing else until they accept the monitoring notice.
+  if (user.role === ROLES.EMPLOYEE && user.monitoring_consent_required) return <MonitoringConsent />
+  return <Outlet />
 }
 
 export function PublicOnlyRoute() {
@@ -255,7 +258,6 @@ export function AppLayout() {
         </header>
         <main className="dashboard-content">
           <ApiErrorMessage error={signOutError} />
-          {user.role === ROLES.EMPLOYEE && <ActivityNotice userId={user.id} />}
           <Outlet />
         </main>
       </div>
