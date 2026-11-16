@@ -8,6 +8,7 @@ import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBa
 import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { WaitingChip } from '../../tickets'
+import { BRIEF_LIMITS, FilePicker, ProjectBriefView, ProjectFiles, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -21,6 +22,8 @@ export function ProjectDetailPage() {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [mutationError, setMutationError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [ticketFiles, setTicketFiles] = useState([])
+  const [fileNotice, setFileNotice] = useState(null)
   const loadData = useCallback(async () => {
     const [projectResponse, ticketResponse] = await Promise.all([
       authService.getAgencyProject(id),
@@ -75,10 +78,23 @@ export function ProjectDetailPage() {
       description: String(formData.get('description')).trim(),
       estimated_hours: Number(formData.get('estimated_hours')),
       priority: String(formData.get('priority')),
+      ...readTicketBrief(formData),
     }
-    await mutate(() => editor.ticket
-      ? authService.updateTicket(editor.ticket.id, payload)
-      : authService.createProjectTicket(id, payload))
+    const files = ticketFiles
+    await mutate(async () => {
+      if (editor.ticket) return authService.updateTicket(editor.ticket.id, payload)
+      const result = await authService.createProjectTicket(id, payload)
+      if (files.length) {
+        try {
+          await authService.uploadTicketAttachments(result.ticket.id, { files })
+        } catch (reason) {
+          showToast(`Ticket created, but the files were not uploaded: ${uploadErrorMessage(reason)}`, 'error')
+        }
+      }
+      return result
+    })
+    setTicketFiles([])
+    setFileNotice(null)
   }
 
   async function moveTicket(ticket, direction) {
@@ -136,13 +152,15 @@ export function ProjectDetailPage() {
           </div>
         </div>
       </Card>
+      <ProjectBriefView brief={project.brief} />
+      <ProjectFiles projectId={project.id} />
       <Card
         title="Tickets"
         description="Tickets are slices of the project's scheduled hours and dates."
         header={(
           <div className="project-tickets-header">
             <div><h2>Tickets</h2><p>Tickets are slices of the project's scheduled hours and dates.</p></div>
-            {canEdit && <Button type="button" onClick={() => setEditor({ ticket: null })}>Add ticket</Button>}
+            {canEdit && <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add ticket</Button>}
           </div>
         )}
       >
@@ -208,6 +226,8 @@ export function ProjectDetailPage() {
           <Select name="priority" label="Priority" defaultValue={editor?.ticket?.priority ?? 'normal'}>
             {PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
           </Select>
+          <TicketBriefFields key={editor?.ticket?.id ?? 'new'} errors={mutationError?.errors} defaults={editor?.ticket?.brief} otherTickets={tickets.filter((item) => item.id !== editor?.ticket?.id && item.status !== 'cancelled')} />
+          {!editor?.ticket && <FilePicker files={ticketFiles} onChange={setTicketFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isSaving} limits={{ ...BRIEF_LIMITS, extensions: BRIEF_LIMITS.extensions.filter((extension) => extension !== 'zip') }} />}
           {mutationError?.status === 422 && <p className="form-error" role="alert">{mutationError.message}</p>}
           <div className="project-modal-actions">
             <Button type="button" variant="secondary" disabled={isSaving} onClick={() => setEditor(null)}>Cancel</Button>

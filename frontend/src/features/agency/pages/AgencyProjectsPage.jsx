@@ -7,6 +7,7 @@ import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Textarea, useToast } from '../../../components/ui'
 import { DEFAULT_CAPACITY } from '../../../lib/constants'
 import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
+import { FilePicker, ProjectBriefFields, readProjectBrief, uploadErrorMessage } from '../../briefs'
 
 const CAPACITY_DEBOUNCE_MS = 300
 const PROJECTS_PER_PAGE = 25
@@ -34,6 +35,8 @@ export function AgencyProjectsPage({ viewAs }) {
   })
   const [selectedAssignment, setSelectedAssignment] = useState('')
   const [createError, setCreateError] = useState(null)
+  const [briefFiles, setBriefFiles] = useState([])
+  const [fileNotice, setFileNotice] = useState(null)
   const { showToast } = useToast()
   const [isCreating, setIsCreating] = useState(false)
   const [page, setPage] = useState(1)
@@ -101,16 +104,28 @@ export function AgencyProjectsPage({ viewAs }) {
     setCreateError(null)
     setIsCreating(true)
     try {
-      await authService.createAgencyProject({
+      const created = await authService.createAgencyProject({
         title: String(formData.get('title')).trim(),
         description: String(formData.get('description')).trim(),
         estimated_hours: Number(formData.get('estimated_hours')),
         start_date: String(formData.get('start_date')),
         due_date: String(formData.get('due_date')),
         assignment_id: Number(selectedAssignment),
+        ...readProjectBrief(formData),
       })
-      showToast('Project created and work hours scheduled.')
+      let uploadProblem = null
+      if (briefFiles.length) {
+        try {
+          await authService.uploadProjectAttachments(created.project.id, briefFiles)
+        } catch (reason) {
+          uploadProblem = uploadErrorMessage(reason)
+        }
+      }
+      if (uploadProblem) showToast(`Project created, but the files were not uploaded: ${uploadProblem} Add them from the project page.`, 'error')
+      else showToast('Project created and work hours scheduled.')
       form.reset()
+      setBriefFiles([])
+      setFileNotice(null)
       setSelectedAssignment('')
       setCapacity({ key: null, hours: null, error: null })
       if (page !== 1) setPage(1)
@@ -202,6 +217,8 @@ export function AgencyProjectsPage({ viewAs }) {
               <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>
             ))}
           </Select>
+          <ProjectBriefFields errors={createError?.errors} />
+          <FilePicker files={briefFiles} onChange={setBriefFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isCreating} />
           {selectedAssignment && isCheckingCapacity && (
             <p className="assignment-range-capacity" role="status">Checking specialist capacity…</p>
           )}

@@ -11,6 +11,7 @@ import { formatDate, formatElapsed, formatHours } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { getWaitingLabel } from '../../../lib/ticketStatus'
 import { FilesTab } from '../components/FilesTab'
+import { TicketBriefView } from '../../briefs'
 import { TimeProgress, TimeTab, TimerButton, useTimerChanged } from '../../time'
 
 const TABS = [
@@ -303,6 +304,7 @@ export function TicketPage() {
             {tab === 'overview' && (
               <div className="ticket-overview">
                 <PlainText text={ticket.description || 'No description provided.'} />
+                <TicketBriefView brief={ticket.brief} related={data.related_tickets} />
                 <dl className="ticket-facts">
                   <div><dt>{labels.dueDate}</dt><dd>{formatDate(ticket.due_date)}</dd></div>
                   <div><dt>Estimated hours</dt><dd>{formatHours(ticket.estimated_hours)}</dd></div>

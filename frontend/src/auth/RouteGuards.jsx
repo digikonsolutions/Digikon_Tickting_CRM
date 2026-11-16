@@ -6,6 +6,7 @@ import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
 import { TimerPill } from '../features/time'
+import { ActivityNotice, useHeartbeat } from '../features/activity'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -72,6 +73,8 @@ export function AppLayout() {
   const [signOutError, setSignOutError] = useState(null)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isNavOpen, setIsNavOpen] = useState(false)
+  // Silent for employees only: no panel, no indicator. Everything it records is visible to admins alone.
+  useHeartbeat(user.role === ROLES.EMPLOYEE)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
       return window.localStorage.getItem('clienthub:sidebar-collapsed') === 'true'
@@ -92,6 +95,8 @@ export function AppLayout() {
   const pageTitle = visibleItems.find((item) => location.pathname === item.to)?.label
     ?? (location.pathname.startsWith('/tickets/')
       ? 'Ticket'
+      : /^\/admin\/employees\/\d+$/.test(location.pathname)
+      ? 'Employee'
       : location.pathname.startsWith('/admin/projects/')
       ? 'Project details'
       : ({
@@ -250,6 +255,7 @@ export function AppLayout() {
         </header>
         <main className="dashboard-content">
           <ApiErrorMessage error={signOutError} />
+          {user.role === ROLES.EMPLOYEE && <ActivityNotice userId={user.id} />}
           <Outlet />
         </main>
       </div>

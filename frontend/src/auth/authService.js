@@ -362,6 +362,45 @@ export const authService = {
   attachmentUrl(id, { inline = false } = {}) {
     return `${API_URL}/attachments/${encodeURIComponent(id)}/download${inline ? '?inline=1' : ''}`
   },
+  // Work activity. The heartbeat only says whether the tab was idle; the server measures the time.
+  async sendHeartbeat({ idle = false, signal } = {}) {
+    if (AUTH_MODE === 'mock') return { interval_seconds: 60, idle_after_minutes: 5 }
+    return request('/employee/heartbeat', { method: 'POST', body: JSON.stringify({ idle }), signal })
+  },
+  // Admin only.
+  async getEmployeeActivity(id, { from, to, eventType, page = 1 } = {}) {
+    if (AUTH_MODE === 'mock') return { employee: { id, name: '' }, events: [], pagination: { current_page: 1, last_page: 1, per_page: 50, total: 0 } }
+    const query = new URLSearchParams({ page: String(page) })
+    if (from) query.set('from', from)
+    if (to) query.set('to', to)
+    if (eventType) query.set('event_type', eventType)
+    return request(`/admin/employees/${encodeURIComponent(id)}/activity?${query}`)
+  },
+  async getEmployeePerformance(id, { from, to } = {}) {
+    if (AUTH_MODE === 'mock') return { employee: { id, name: '' }, days: [], weeks: [], totals: {} }
+    const query = new URLSearchParams()
+    if (from) query.set('from', from)
+    if (to) query.set('to', to)
+    return request(`/admin/employees/${encodeURIComponent(id)}/performance?${query}`)
+  },
+  // Files on a project brief.
+  async listProjectAttachments(projectId) {
+    if (AUTH_MODE === 'mock') return { attachments: [], limits: null, can_upload: false }
+    return request(`/projects/${encodeURIComponent(projectId)}/attachments`)
+  },
+  async uploadProjectAttachments(projectId, files, { onProgress, signal } = {}) {
+    if (AUTH_MODE === 'mock') return { attachments: [] }
+    const form = new FormData()
+    files.forEach((file) => form.append('files[]', file, file.name))
+    return uploadForm(`/projects/${encodeURIComponent(projectId)}/attachments`, form, { onProgress, signal })
+  },
+  async deleteProjectAttachment(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The file was removed.' }
+    return request(`/project-attachments/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+  projectAttachmentUrl(id, { inline = false } = {}) {
+    return `${API_URL}/project-attachments/${encodeURIComponent(id)}/download${inline ? '?inline=1' : ''}`
+  },
   // Time tracking. Only the assigned specialist logs; admins correct entries with a reason.
   async getActiveTimer({ signal } = {}) {
     if (AUTH_MODE === 'mock') return { entry: null, server_time: new Date().toISOString() }

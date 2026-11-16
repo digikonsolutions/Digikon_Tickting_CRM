@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAuth } from '../../../auth/useAuth'
 import { useAsync } from '../../../hooks/useAsync'
-import { Button, Card, RelativeTime, Skeleton, StatusBadge, TicketKey } from '../../../components/ui'
+import { Button, Card, Icon, RelativeTime, Skeleton, StatusBadge, TicketKey } from '../../../components/ui'
 
 // Dashboard card for agency users: tickets that are waiting on them, longest-waiting first.
 export function NeedsAttentionCard() {
@@ -14,7 +14,7 @@ export function NeedsAttentionCard() {
   const hidden = Math.max(0, (data?.total ?? 0) - tickets.length)
 
   return (
-    <Card className="needs-attention-card">
+    <Card className={`needs-attention-card${data && !tickets.length ? ' is-clear' : ''}`}>
       <div className="admin-card-heading">
         <div>
           <h2>Needs your attention</h2>
@@ -27,7 +27,13 @@ export function NeedsAttentionCard() {
         </p>
       )}
       {isLoading && !data && <Skeleton variant="row" />}
-      {data && !tickets.length && <p className="needs-attention-empty">Nothing is waiting on you right now.</p>}
+      {data && !tickets.length && (
+        <div className="needs-attention-empty" role="status">
+          <span className="needs-attention-empty-icon" aria-hidden="true"><Icon name="check" size={22} /></span>
+          <strong>You're all caught up</strong>
+          <p>Nothing is waiting on you right now.</p>
+        </div>
+      )}
       {tickets.length > 0 && (
         <ul className="needs-attention-list">
           {tickets.map((ticket) => (

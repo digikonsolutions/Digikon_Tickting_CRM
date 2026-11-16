@@ -120,6 +120,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
       label: 'Actions',
       render: (_value, user) => user.can_manage ? (
         <div className="agency-user-actions">
+          {user.role === 'employee' && <Link className="ui-button ui-button-secondary ui-button-sm" to={`/admin/employees/${user.id}`}>Activity</Link>}
           <Button type="button" variant="secondary" size="sm" onClick={() => { setEditError(null); setEditingUser(user) }}>Edit</Button>
           <Button type="button" variant="secondary" size="sm" onClick={() => setAction({ kind: 'status', user })}>
             {user.is_active ? 'Deactivate' : 'Reactivate'}
