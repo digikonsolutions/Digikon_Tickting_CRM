@@ -1,0 +1,24 @@
+:root { --brand: #0f766e; --brand-soft: #ccfbf1; --text: #0f172a; --muted: #64748b; --border: #e2e8f0; --bg: #ffffff; --danger: #b91c1c; }
+@media (prefers-color-scheme: dark) { :root { --text: #e2e8f0; --muted: #94a3b8; --border: #334155; --bg: #0f172a; --brand-soft: #134e4a; } }
+* { box-sizing: border-box; }
+body { width: 300px; margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+main { display: grid; gap: 12px; padding: 16px; }
+header { display: flex; align-items: center; gap: 12px; }
+.mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; background: var(--brand); color: #fff; font-weight: 800; }
+h1 { margin: 0; font-size: 16px; }
+#state { margin: 0; color: var(--muted); font-size: 12px; }
+#state.ok { color: var(--brand); font-weight: 600; }
+#state.bad { color: var(--danger); font-weight: 600; }
+.switch { display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; }
+.switch input { width: 18px; height: 18px; accent-color: var(--brand); }
+.hint { margin: 0; color: var(--muted); font-size: 12px; }
+dl { display: grid; gap: 6px; margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+dl div { display: flex; justify-content: space-between; }
+dt { color: var(--muted); }
+dd { margin: 0; font-weight: 600; }
+.actions { display: flex; gap: 8px; }
+button { flex: 1; min-height: 36px; border: 0; border-radius: 8px; background: var(--brand); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+button.secondary { border: 1px solid var(--border); background: transparent; color: var(--text); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+a { color: var(--brand); font-size: 12px; }

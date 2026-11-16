@@ -151,6 +151,14 @@ async function uploadForm(path, formData, { onProgress, signal } = {}) {
   })
 }
 
+function historyQuery(filters) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') query.set(key, String(value))
+  }
+  return query.toString()
+}
+
 function mockUser(email) {
   const localPart = email.split('@')[0].toLowerCase()
   const role = Object.values(ROLES).find((candidate) => localPart.startsWith(candidate.replaceAll('_', '.'))) ?? ROLES.EMPLOYEE
@@ -177,6 +185,17 @@ export const authService = {
       method: 'PATCH',
       body: JSON.stringify(data),
     })
+  },
+  // Profile photo (jpg, png, webp). Only the photo changes; the name and other fields are untouched.
+  async uploadProfilePhoto(file, current = {}) {
+    if (AUTH_MODE === 'mock') return { user: { ...current, photo_url: URL.createObjectURL(file) } }
+    const form = new FormData()
+    form.append('photo', file, file.name)
+    return uploadForm('/auth/profile/photo', form)
+  },
+  async deleteProfilePhoto(current = {}) {
+    if (AUTH_MODE === 'mock') return { user: { ...current, photo_url: null } }
+    return request('/auth/profile/photo', { method: 'DELETE' })
   },
   // Signed-in password change. The server ends every other session and keeps this one.
   async changePassword({ currentPassword, password, passwordConfirmation }) {
@@ -413,6 +432,15 @@ export const authService = {
     if (to) query.set('to', to)
     return request(`/${scope}/employees/${encodeURIComponent(id)}/performance?${query}`)
   },
+  // Browser tab history: administrators only, read-only (there is deliberately no write method here).
+  async getBrowserHistorySummary(filters = {}) {
+    if (AUTH_MODE === 'mock') return { totals: { visits: 0, unique_domains: 0, tabs_opened: 0, seconds: 0 }, top_domains: [], daily: [] }
+    return request(`/admin/browser-history/summary?${historyQuery(filters)}`)
+  },
+  async getBrowserHistoryEvents(filters = {}, { page = 1, perPage = 50 } = {}) {
+    if (AUTH_MODE === 'mock') return { events: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
+    return request(`/admin/browser-history/events?${historyQuery(filters)}&page=${page}&per_page=${perPage}`)
+  },
   // Files on a project brief.
   async listProjectAttachments(projectId) {
     if (AUTH_MODE === 'mock') return { attachments: [], limits: null, can_upload: false }
@@ -482,6 +510,18 @@ export const authService = {
   async createAgencyProject(data) {
     if (AUTH_MODE === 'mock') return { project: { id: Date.now(), ...data, status: 'scheduled', schedule: [] } }
     return request('/agency/projects', { method: 'POST', body: JSON.stringify(data) })
+  },
+  // Agency owners only. Never sends `status`: it follows ticket completion or the cancel action.
+  async updateAgencyProject(id, data) {
+    if (AUTH_MODE === 'mock') return { project: { id, ...data } }
+    return request(`/agency/projects/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  // The project's employee timeline (agency owners, own agency only).
+  async getProjectActivity(id, { eventType, page = 1 } = {}) {
+    if (AUTH_MODE === 'mock') return { employee: { id: 0, name: '', photo_url: null }, project: { id, title: '' }, events: [], pagination: { current_page: 1, last_page: 1, per_page: 50, total: 0 } }
+    const query = new URLSearchParams({ page: String(page) })
+    if (eventType) query.set('event_type', eventType)
+    return request(`/agency/projects/${encodeURIComponent(id)}/activity?${query}`)
   },
   async cancelAgencyProject(id) {
     if (AUTH_MODE === 'mock') return { project: { id, status: 'cancelled' } }

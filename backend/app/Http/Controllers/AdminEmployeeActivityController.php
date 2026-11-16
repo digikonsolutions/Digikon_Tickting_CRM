@@ -96,7 +96,7 @@ class AdminEmployeeActivityController extends Controller
             ->paginate($filters['per_page'] ?? 50);
 
         return response()->json([
-            'employee' => ['id' => $employee->id, 'name' => $employee->name],
+            'employee' => ['id' => $employee->id, 'name' => $employee->name, 'photo_url' => $employee->photoUrl()],
             'events' => $page->getCollection()->map(fn (EmployeeActivityLog $log): array => $this->eventPayload($log, $connection))->values(),
             'pagination' => $this->paginationPayload($page),
         ]);
@@ -127,13 +127,17 @@ class AdminEmployeeActivityController extends Controller
         $this->since = CarbonImmutable::instance($assignment->started_at);
 
         [$from, $to] = $this->range($request, 30, 366);
-        $filters = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
+        $filters = $request->validate([
+            'event_type' => ['sometimes', Rule::in(ActivityEvent::values())],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
         $employee = $workItem->employee()->firstOrFail();
 
         $page = EmployeeActivityLog::query()
             ->where('employee_id', $employee->id)
             ->where('work_item_id', $workItem->id)
             ->whereBetween('occurred_at', [$from, $to])
+            ->when($filters['event_type'] ?? null, fn ($query, $type) => $query->where('event_type', $type))
             ->with(['ticket:id,agency_id,number,title', 'ticket.agency:id,ticket_prefix'])
             ->orderByDesc('occurred_at')->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 50);

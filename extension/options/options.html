@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClientHub Tab History settings</title>
+    <style>
+      :root { --brand: #0f766e; --text: #0f172a; --muted: #64748b; --border: #cbd5e1; --bg: #f8fafc; --card: #fff; --danger: #b91c1c; }
+      @media (prefers-color-scheme: dark) { :root { --text: #e2e8f0; --muted: #94a3b8; --border: #334155; --bg: #0b1220; --card: #0f172a; } }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      main { display: grid; gap: 16px; max-width: 40rem; margin: 0 auto; padding: 32px 16px; }
+      section { display: grid; gap: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+      h1 { margin: 0; font-size: 22px; } h2 { margin: 0; font-size: 16px; }
+      p, ul { margin: 0; color: var(--muted); } ul { padding-left: 1.2rem; }
+      label { display: grid; gap: 6px; font-weight: 600; }
+      input { min-height: 40px; border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; background: transparent; color: inherit; font: inherit; }
+      button { justify-self: start; min-height: 40px; border: 0; border-radius: 8px; padding: 0 18px; background: var(--brand); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+      #message { min-height: 1.4em; color: var(--brand); font-weight: 600; } #message.bad { color: var(--danger); }
+      :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ClientHub Tab History</h1>
+      <section>
+        <h2>Connect to ClientHub</h2>
+        <p>Enter the address of the ClientHub API. You must be signed in to ClientHub in this browser; the extension uses that sign-in and never stores your password.</p>
+        <form id="form">
+          <label>ClientHub API address
+            <input id="api" type="url" required placeholder="https://clienthub.example.com/api" autocomplete="off" />
+          </label>
+          <button type="submit">Save and allow access</button>
+        </form>
+        <p id="message" role="status"></p>
+      </section>
+      <section>
+        <h2>What is recorded</h2>
+        <ul>
+          <li>When tabs are opened, closed or switched, and which pages you navigate to.</li>
+          <li>The page address <em>without</em> anything after “?” or “#”, the page title, and time spent.</li>
+          <li>Only after you accepted the work activity notice in ClientHub. You can switch tracking off in the toolbar popup at any time.</li>
+        </ul>
+        <h2>What is never recorded</h2>
+        <ul>
+          <li>Page content, text you type, form fields or passwords. Private (incognito) windows. Non-web pages such as settings or local files.</li>
+        </ul>
+      </section>
+    </main>
+    <script src="options.js" type="module"></script>
+  </body>
+</html>

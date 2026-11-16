@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
-import { Alert, Button, Card, EmptyState, Icon, Pagination, RelativeTime, Select, Skeleton } from '../../../components/ui'
+import { Alert, Avatar, Button, Card, EmptyState, Icon, Pagination, RelativeTime, Select, Skeleton } from '../../../components/ui'
 import { useAsync } from '../../../hooks/useAsync'
 import { getTicketStatusLabel } from '../../../lib/ticketStatus'
 
@@ -16,6 +16,9 @@ const EVENT_TYPES = [
   ['project_status_changed', 'Project status changes'],
   ['idle_detected', 'Idle periods'],
 ]
+
+// A project's own timeline only holds its ticket and project events.
+const PROJECT_EVENT_TYPES = EVENT_TYPES.filter(([value]) => ['', 'ticket_status_changed', 'ticket_comment_added', 'project_status_changed'].includes(value))
 
 const ICONS = {
   login: 'user', logout: 'logout', session_start: 'clock', session_end: 'clock',
@@ -40,23 +43,32 @@ function describe(event) {
   }
 }
 
-// Paged list of recorded events for one employee, with an event-type filter.
-export function ActivityTimeline({ employeeId, range, scope = 'admin' }) {
+// Paged list of recorded events for one employee, with an event-type filter. With `projectId` the same list
+// is filtered to one project (Agency Owner -> Project Details) and headed by the employee's name and photo.
+export function ActivityTimeline({ employeeId, range, scope = 'admin', projectId = null, title = 'Activity timeline' }) {
   const [eventType, setEventType] = useState('')
   const [page, setPage] = useState(1)
   const load = useCallback(
-    () => authService.getEmployeeActivity(employeeId, { ...range, eventType, page, scope }),
-    [employeeId, range, eventType, page, scope],
+    () => (projectId
+      ? authService.getProjectActivity(projectId, { eventType, page })
+      : authService.getEmployeeActivity(employeeId, { ...range, eventType, page, scope })),
+    [employeeId, range, eventType, page, scope, projectId],
   )
   const { data, error, isLoading, reload } = useAsync(load)
   const events = data?.events ?? []
   const pagination = data?.pagination ?? { current_page: page, last_page: 1, total: 0 }
 
   return (
-    <Card title="Activity timeline" description={`${pagination.total} event${pagination.total === 1 ? '' : 's'} in this range.`}>
+    <Card title={title} description={`${pagination.total} event${pagination.total === 1 ? '' : 's'}${projectId ? ' on this project' : ' in this range'}.`}>
+      {projectId && data?.employee && (
+        <div className="activity-employee">
+          <Avatar name={data.employee.name} src={data.employee.photo_url} size="md" />
+          <strong>{data.employee.name}</strong>
+        </div>
+      )}
       <div className="activity-filter">
         <Select label="Event type" value={eventType} onChange={(event) => { setEventType(event.target.value); setPage(1) }}>
-          {EVENT_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          {(projectId ? PROJECT_EVENT_TYPES : EVENT_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
       </div>
       {error && (

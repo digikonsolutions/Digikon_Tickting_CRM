@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { ROLE_LABELS } from '../../../auth/roles'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../components/ApiErrorMessage'
-import { Alert, Badge, Card, FormActions, FormSection, Input, PageHeader, useToast } from '../../../components/ui'
+import { Alert, Avatar, Badge, Button, Card, FormActions, FormSection, Input, PageHeader, useToast } from '../../../components/ui'
 import { normalizeName, PASSWORD_HINT } from '../../../lib/password'
 
 // Errors the form already shows next to a field must not be repeated in the generic box. Anything else
@@ -187,12 +187,107 @@ function PasswordCard() {
   )
 }
 
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const PHOTO_MAX_BYTES = 4 * 1024 * 1024
+
+// Pick, preview, then save. The server validates again (type sniffed from content, size); this only gives
+// quick feedback. Saving a photo never touches the name or any other profile field.
+function PhotoCard({ user, updateUser }) {
+  const { showToast } = useToast()
+  const inputRef = useRef(null)
+  const [file, setFile] = useState(null)
+  const [error, setError] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
+  // Derived from the chosen file; the effect only releases the old object URL.
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+
+  function choose(event) {
+    const picked = event.target.files?.[0]
+    event.target.value = ''
+    setError(null)
+    if (!picked) return
+    if (!PHOTO_TYPES.includes(picked.type)) {
+      setError({ message: 'Choose a JPG, PNG or WEBP image.' })
+      return
+    }
+    if (picked.size > PHOTO_MAX_BYTES) {
+      setError({ message: 'That image is larger than 4 MB. Choose a smaller one.' })
+      return
+    }
+    setFile(picked)
+  }
+
+  function discard() {
+    setFile(null)
+    setError(null)
+  }
+
+  async function save() {
+    if (!file || isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      const { user: updated } = await authService.uploadProfilePhoto(file, user)
+      updateUser({ photo_url: updated.photo_url })
+      discard()
+      showToast('Your photo was updated.')
+    } catch (reason) {
+      setError({ message: reason.errors?.photo?.[0] ?? reason.message })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function remove() {
+    setIsSaving(true)
+    setError(null)
+    try {
+      await authService.deleteProfilePhoto(user)
+      updateUser({ photo_url: null })
+      showToast('Your photo was removed.')
+    } catch (reason) {
+      setError({ message: reason.message })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <Card className="ui-form-card" title="Profile photo" description="Shown in the header, sidebar and timelines. JPG, PNG or WEBP, up to 4 MB.">
+      <div className="profile-photo">
+        <Avatar name={user.name} src={preview ?? user.photo_url} size="xl" />
+        <div className="profile-photo-actions">
+          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" className="sr-only" aria-label="Choose a photo" onChange={choose} />
+          {file ? (
+            <>
+              <p className="profile-photo-note">Preview. Not saved yet.</p>
+              <div className="profile-photo-buttons">
+                <Button type="button" loading={isSaving} loadingText="Saving…" onClick={save}>Save photo</Button>
+                <Button type="button" variant="secondary" disabled={isSaving} onClick={discard}>Cancel</Button>
+              </div>
+            </>
+          ) : (
+            <div className="profile-photo-buttons">
+              <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()}>{user.photo_url ? 'Change photo' : 'Upload photo'}</Button>
+              {user.photo_url && <Button type="button" variant="ghost" loading={isSaving} onClick={remove}>Remove</Button>}
+            </div>
+          )}
+          {error && <Alert variant="error">{error.message}</Alert>}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export function ProfilePage() {
   const { user, updateUser } = useAuth()
 
   return (
     <section className="page">
       <PageHeader eyebrow="Account" title="My profile" subtitle="Update how your name appears and keep your account secure." />
+      <PhotoCard user={user} updateUser={updateUser} />
       <NameCard user={user} updateUser={updateUser} />
       <PasswordCard />
       <Card title="Notifications" description="Choose which updates reach you in the app and by email.">

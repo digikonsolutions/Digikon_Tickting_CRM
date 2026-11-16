@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClientHub Tab History</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark">C</span>
+        <div>
+          <h1>Tab History</h1>
+          <p id="state" role="status">Checking…</p>
+        </div>
+      </header>
+
+      <label class="switch">
+        <input id="enabled" type="checkbox" />
+        <span>Track tab activity</span>
+      </label>
+      <p class="hint" id="hint"></p>
+
+      <dl>
+        <div><dt>Waiting to send</dt><dd id="queue">0</dd></div>
+        <div><dt>Last sync</dt><dd id="last">—</dd></div>
+      </dl>
+
+      <div class="actions">
+        <button id="sync" type="button">Sync now</button>
+        <button id="clear" type="button" class="secondary">Discard unsent</button>
+      </div>
+      <a id="options" href="#">Settings</a>
+    </main>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

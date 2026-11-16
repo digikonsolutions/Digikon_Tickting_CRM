@@ -44,6 +44,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
     { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
+    { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'People' },
     { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'building', section: 'People' },
@@ -197,7 +198,9 @@ export function AppLayout() {
         </nav>
         <div className="sidebar-user">
           <Link className="sidebar-user-profile" to="/profile" title="My profile" onClick={() => setIsNavOpen(false)}>
-            <span className="sidebar-user-avatar" aria-hidden="true">{userInitial}</span>
+            {user.photo_url
+              ? <img className="sidebar-user-avatar" src={user.photo_url} alt="" />
+              : <span className="sidebar-user-avatar" aria-hidden="true">{userInitial}</span>}
             <span className="sidebar-user-details">
               <strong>{user.name}</strong>
               <Badge variant={user.role === ROLES.ADMIN ? 'primary' : 'slate'}>{ROLE_LABELS[user.role]}</Badge>
@@ -243,7 +246,9 @@ export function AppLayout() {
             <NotificationBell />
             <details className="header-user-menu">
               <summary aria-label="Open user menu" title="User menu">
-                <span className="header-menu-avatar" aria-hidden="true">{userInitial}</span>
+                {user.photo_url
+                  ? <img className="header-menu-avatar" src={user.photo_url} alt="" />
+                  : <span className="header-menu-avatar" aria-hidden="true">{userInitial}</span>}
               </summary>
               <div className="header-user-menu-popover">
                 <strong>{user.name}</strong>

@@ -21,6 +21,7 @@ import {
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
 import { AdminEmployeePage } from '../features/activity'
+import { AdminHistoryPage } from '../features/history'
 import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
 import {
@@ -70,6 +71,7 @@ export function AppRoutes() {
             <Route path="/admin/time" element={<TimeSummaryPage scope="admin" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
             <Route path="/admin/employees/:id" element={<AdminEmployeePage />} />
+            <Route path="/admin/history" element={<AdminHistoryPage />} />
             <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
             <Route path="/admin/agency-owners/new" element={<AdminCreateUserPage role={ROLES.AGENCY_OWNER} />} />

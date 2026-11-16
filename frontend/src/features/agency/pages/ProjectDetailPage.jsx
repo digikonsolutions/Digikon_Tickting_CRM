@@ -8,7 +8,8 @@ import { Alert, Button, Card, EmptyState, FieldRow, FormActions, FormSection, In
 import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { WaitingChip } from '../../tickets'
-import { BRIEF_LIMITS, FilePicker, ProjectBriefView, ProjectFiles, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
+import { BRIEF_LIMITS, FilePicker, ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
+import { ActivityTimeline } from '../../activity'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -19,6 +20,7 @@ export function ProjectDetailPage() {
   const { showToast } = useToast()
   const labels = getAgencyLabels(user.role)
   const [editor, setEditor] = useState(null)
+  const [projectEditor, setProjectEditor] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [mutationError, setMutationError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -41,6 +43,10 @@ export function ProjectDetailPage() {
   // active, whoever holds it, so the payload's assignment_status is the source of truth.
   const canManage = project?.assignment_status === 'active'
   const canEdit = canManage && ['scheduled', 'in_progress'].includes(project?.status)
+  // Follow-up tickets can still be created once a project is completed (it stays completed).
+  const canAddTicket = canManage && ['scheduled', 'in_progress', 'completed'].includes(project?.status)
+  const isOwner = user.role === 'agency_owner'
+  const isOpen = ['scheduled', 'in_progress'].includes(project?.status)
   const projectTicketHours = tickets
     .filter((ticket) => ticket.status !== 'cancelled')
     .reduce((sum, ticket) => sum + Number(ticket.estimated_hours), 0)
@@ -97,6 +103,51 @@ export function ProjectDetailPage() {
     setFileNotice(null)
   }
 
+  async function openProjectEditor() {
+    setMutationError(null)
+    setProjectEditor({ assignments: [] })
+    // Only open projects can change specialist, so only then is the list needed.
+    if (isOpen) {
+      try {
+        const { assignments } = await authService.listMyAssignments()
+        setProjectEditor({ assignments })
+      } catch {
+        // The specialist select then only offers the current one.
+      }
+    }
+  }
+
+  async function saveProject(event) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const payload = {
+      title: String(formData.get('title')).trim(),
+      description: String(formData.get('description')).trim(),
+      ...readProjectBrief(formData),
+    }
+    // Hours, dates and specialist reschedule the project, so they are only sent when they changed.
+    if (isOpen) {
+      const hours = Number(formData.get('estimated_hours'))
+      if (hours !== Number(project.estimated_hours)) payload.estimated_hours = hours
+      if (String(formData.get('start_date')) !== project.start_date) payload.start_date = String(formData.get('start_date'))
+      if (String(formData.get('due_date')) !== project.due_date) payload.due_date = String(formData.get('due_date'))
+      const assignment = Number(formData.get('assignment_id'))
+      if (assignment && assignment !== project.assignment_id) payload.assignment_id = assignment
+    }
+    setMutationError(null)
+    setIsSaving(true)
+    try {
+      await authService.updateAgencyProject(id, payload)
+      setProjectEditor(null)
+      showToast('Project updated.')
+      await reload()
+    } catch (reason) {
+      setMutationError(reason)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   async function moveTicket(ticket, direction) {
     const index = tickets.findIndex((item) => item.id === ticket.id)
     const target = index + direction
@@ -130,7 +181,12 @@ export function ProjectDetailPage() {
         eyebrow="Project"
         title={project.title}
         subtitle={`${project.employee?.name ?? 'Specialist'} · due ${formatDate(project.due_date)}`}
-        action={<Link className="ui-button ui-button-secondary ui-button-sm" to={user.role === 'agency_client' ? '/agency/my-projects' : '/agency/projects'}>Back to projects</Link>}
+        action={(
+          <div className="project-header-actions">
+            {isOwner && <Button type="button" size="sm" onClick={openProjectEditor}>Edit project</Button>}
+            <Link className="ui-button ui-button-secondary ui-button-sm" to={user.role === 'agency_client' ? '/agency/my-projects' : '/agency/projects'}>Back to projects</Link>
+          </div>
+        )}
       />
       <ApiErrorMessage error={mutationError} />
       <Card title="Project overview">
@@ -160,7 +216,7 @@ export function ProjectDetailPage() {
         header={(
           <div className="project-tickets-header">
             <div><h2>Tickets</h2><p>Tickets are slices of the project's scheduled hours and dates.</p></div>
-            {canEdit && <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add ticket</Button>}
+            {canAddTicket && <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>{project.status === 'completed' ? 'Create ticket' : 'Add ticket'}</Button>}
           </div>
         )}
       >
@@ -204,8 +260,9 @@ export function ProjectDetailPage() {
               </li>
             ))}
           </ol>
-          : <EmptyState title="No tickets yet" action={canEdit ? <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add the first ticket</Button> : null}>Break the project’s hours into tickets so work can be planned.</EmptyState>}
+          : <EmptyState title="No tickets yet" action={canAddTicket ? <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add the first ticket</Button> : null}>Break the project’s hours into tickets so work can be planned.</EmptyState>}
       </Card>
+      {isOwner && project.employee && <ActivityTimeline projectId={project.id} title="Specialist timeline" />}
       {canEdit && ['scheduled', 'in_progress'].includes(project.status) && (
         <div className="project-detail-actions">
           {!['completed', 'cancelled'].includes(project.status) && (
@@ -239,6 +296,44 @@ export function ProjectDetailPage() {
           {mutationError?.status === 422 && !mutationError.errors && <Alert variant="error">{mutationError.message}</Alert>}
           <FormActions submitLabel={editor?.ticket ? 'Save changes' : 'Create ticket'} loadingLabel="Saving…" loading={isSaving} onCancel={() => setEditor(null)} />
         </form>
+      </Modal>
+      <Modal
+        open={Boolean(projectEditor)}
+        onClose={() => !isSaving && setProjectEditor(null)}
+        title="Edit project"
+        footer={null}
+      >
+        {projectEditor && (
+          <form className="ui-form" onSubmit={saveProject}>
+            <FormSection title="Basics">
+              <Input name="title" label="Title" maxLength="160" defaultValue={project.title} required error={mutationError?.errors?.title?.[0]} />
+              <Textarea name="description" label="Description" rows="4" maxLength="5000" defaultValue={project.description} required error={mutationError?.errors?.description?.[0]} />
+            </FormSection>
+            <FormSection
+              title="Planning"
+              description={isOpen ? 'Changing hours, dates or specialist re-plans the remaining schedule.' : 'Hours, dates and specialist are locked once a project is completed or cancelled. The status does not change when you edit.'}
+            >
+              <FieldRow>
+                <Input name="estimated_hours" label="Project hours" type="number" inputMode="decimal" min="0.01" step="0.01" defaultValue={project.estimated_hours} disabled={!isOpen} error={mutationError?.errors?.estimated_hours?.[0]} />
+                <Select name="assignment_id" label="Specialist" defaultValue={String(project.assignment_id)} disabled={!isOpen} error={mutationError?.errors?.assignment_id?.[0]}>
+                  {!projectEditor.assignments.some((assignment) => assignment.id === project.assignment_id) && <option value={project.assignment_id}>{project.employee?.name ?? 'Current specialist'}</option>}
+                  {projectEditor.assignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>)}
+                </Select>
+              </FieldRow>
+              <FieldRow>
+                <Input name="start_date" label="Start date" type="date" defaultValue={project.start_date} disabled={!isOpen} error={mutationError?.errors?.start_date?.[0]} />
+                <Input name="due_date" label="Deadline" type="date" defaultValue={project.due_date} disabled={!isOpen} error={mutationError?.errors?.due_date?.[0]} />
+              </FieldRow>
+              <p className="project-edit-status">Status: <StatusBadge status={project.status} /> — unchanged by editing.</p>
+            </FormSection>
+            <FormSection title="Brief" description="Optional details, including the project priority.">
+              <ProjectBriefFields key={project.id} errors={mutationError?.errors} defaults={project.brief} />
+            </FormSection>
+            {mutationError && !mutationError.errors?.title && Object.keys(mutationError.errors ?? {}).length === 0 && <Alert variant="error">{mutationError.message}</Alert>}
+            {mutationError?.errors?.status && <Alert variant="error">{mutationError.errors.status[0]}</Alert>}
+            <FormActions submitLabel="Save changes" loadingLabel="Saving…" loading={isSaving} onCancel={() => setProjectEditor(null)} />
+          </form>
+        )}
       </Modal>
       <Modal
         open={confirmCancel}
