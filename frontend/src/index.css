@@ -2,14 +2,18 @@
 @import "tailwindcss";
 @import "./components/ui/ui.css";
 
+/* ==========================================================================
+   Design tokens. One teal brand; everything else is neutral slate plus the
+   status colours. Prefer these in every stylesheet instead of raw values.
+   ========================================================================== */
 :root {
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #334155;
-  background: #f8fafc;
+  color: var(--color-text);
+  background: var(--color-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  /* Semantic brand tokens (teal). Prefer these in new CSS. */
+  /* Brand (teal) */
   --brand: #0d9488;
   --brand-hover: #0f766e;
   --brand-soft: #f0fdfa;
@@ -18,7 +22,48 @@
   --brand-shadow-hover: 0 6px 16px rgb(13 148 136 / 26%);
   --focus-ring: #14b8a6;
 
-  /* Legacy names kept so existing rules keep working; all teal. */
+  /* Neutrals. Text and muted text keep at least 4.5:1 on every surface below. */
+  --color-white: #fff;
+  --color-page: #f8fafc;
+  --color-card: #fff;
+  --color-surface-sunken: #f1f5f9;
+  --color-surface-hover: #f8fafc;
+  --color-brand-tint: #f6fcfb;
+  --color-border: #e2e8f0;
+  --color-border-soft: #edf0f5;
+  --color-border-strong: #cbd5e1;
+  --color-input-border: #8493a8; /* 3:1 against white, as required for control boundaries */
+  --color-text: #334155;
+  --color-text-soft: #475569;
+  --color-heading: #0f172a;
+  --color-muted: #5a6a80;
+  --color-placeholder: #6b7686;
+  --color-subtle: #94a3b8; /* decorative only (icons, dividers), never text */
+
+  /* Status colours */
+  --color-success-50: #ecfdf5;
+  --color-success-200: #a7f3d0;
+  --color-success-700: #047857;
+  --color-warning-50: #fffbeb;
+  --color-warning-200: #fde68a;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #b45309;
+  --color-danger-50: #fef2f2;
+  --color-danger-200: #fecaca;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-info-50: #f0f9ff;
+  --color-info-200: #bae6fd;
+  --color-info-700: #0369a1;
+  --color-violet-50: #f5f3ff;
+  --color-violet-200: #ddd6fe;
+  --color-violet-700: #6d28d9;
+  --color-orange-50: #fff7ed;
+  --color-orange-200: #fed7aa;
+  --color-orange-700: #c2410c;
+
+  /* Teal scale (legacy names kept; all resolve to the brand) */
   --color-primary-50: var(--brand-soft);
   --color-primary-100: #ccfbf1;
   --color-primary-200: #99f6e4;
@@ -28,6 +73,7 @@
   --color-primary-900: #134e4a;
   --color-navy: #134e4a;
   --color-navy-light: #0f766e;
+  --color-accent-300: #5eead4;
   --color-accent-400: #2dd4bf;
   --color-accent-50: #f0fdfa;
   --color-accent-600: #0d9488;
@@ -37,38 +83,51 @@
   --color-auth-bg-end: #f8fafc;
   --color-auth-panel-start: #ecfdf5;
   --color-auth-panel-end: #f0fdfa;
-  --color-page: #f8fafc;
-  --color-card: #ffffff;
-  --color-border: #e2e8f0;
-  --color-surface-hover: #f8fafc;
   --color-sidebar-active: color-mix(in srgb, var(--color-accent-400) 12%, transparent);
-  --color-text: #334155;
-  --color-heading: #0f172a;
-  --color-muted: #64748b;
-  --color-success-50: #ecfdf5;
-  --color-success-200: #a7f3d0;
-  --color-success-700: #047857;
-  --color-warning-50: #fffbeb;
-  --color-warning-200: #fde68a;
-  --color-warning-700: #b45309;
-  --color-danger-50: #fef2f2;
-  --color-danger-200: #fecaca;
-  --color-danger-700: #b91c1c;
-  --color-info-50: #f0f9ff;
-  --color-info-200: #bae6fd;
-  --color-info-700: #0369a1;
-  --color-violet-50: #f5f3ff;
-  --color-violet-200: #ddd6fe;
-  --color-violet-700: #6d28d9;
-  --radius-card: 1rem;
+
+  /* Spacing (4px base) */
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+
+  /* Radius */
+  --radius-sm: .5rem;
   --radius-control: .75rem;
+  --radius-card: 1rem;
+  --radius-pill: 9999px;
+
+  /* Shadow */
+  --shadow-sm: 0 .25rem .75rem rgb(15 23 42 / 5%);
   --shadow-card: 0 1rem 2.5rem rgb(15 23 42 / 6%);
   --shadow-card-hover: 0 1.25rem 3rem rgb(15 23 42 / 9%);
+  --shadow-overlay: 0 24px 64px rgb(15 23 42 / 22%);
   --shadow-accent: 0 .6rem 1.25rem rgb(13 148 136 / 20%);
+
+  /* Type scale */
+  --text-xs: .75rem;
+  --text-sm: .8125rem;
+  --text-base: .875rem;
+  --text-md: .9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+
+  /* Controls: every button, input and select is 44px tall. */
+  --control-height: 2.75rem;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; color: var(--color-text); background: var(--color-page); }
+body { margin: 0; min-width: 320px; color: var(--color-text); background: var(--color-page); font-size: var(--text-md); line-height: var(--leading-normal); }
+h1, h2, h3, h4 { color: var(--color-heading); line-height: var(--leading-tight); }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

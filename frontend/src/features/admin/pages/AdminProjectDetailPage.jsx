@@ -3,14 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Icon, PageHeader, PriorityBadge, Spinner, StatusBadge, TicketKey } from '../../../components/ui'
-import { formatDate, formatDateRange, formatHours } from '../../../lib/format'
+import { Button, Card, Icon, PageHeader, PriorityBadge, ScheduleSummary, Spinner, StatusBadge, TicketKey } from '../../../components/ui'
+import { formatDateRange, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
-
-function formatSchedule(schedule = []) {
-  if (!schedule.length) return 'No scheduled hours'
-  return schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(' · ')
-}
 
 export function AdminProjectDetailPage() {
   const { id } = useParams()
@@ -119,7 +114,7 @@ export function AdminProjectDetailPage() {
                       {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
                       <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
                     </div>
-                    <p className="admin-project-ticket-schedule">{formatSchedule(ticket.schedule)}</p>
+                    <ScheduleSummary className="admin-project-ticket-schedule" schedule={ticket.schedule} />
                     <p className="project-ticket-footer"><WaitingChip ticket={ticket} role="admin" /> <Link to={`/tickets/${ticket.key}`}>Open ticket</Link> <span>{ticket.comments_count ?? 0} comment{ticket.comments_count === 1 ? '' : 's'}</span></p>
                   </div>
                 </li>

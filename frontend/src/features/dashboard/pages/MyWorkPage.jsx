@@ -27,8 +27,6 @@ function hasCommentActions(ticket) {
   return (ticket.allowed_actions ?? []).some((action) => action.requires_comment)
 }
 
-const PRIORITY_DOT = { urgent: '#dc2626', high: '#f59e0b', normal: '#0d9488', low: '#94a3b8' }
-
 function weekDates() {
   const mon = toDateStr(mondayOf())
   return WORKING_WEEKDAYS.map((label, i) => {
@@ -131,8 +129,7 @@ export function MyWorkPage() {
         <div className="mw-ticket-left">
           <div className="mw-ticket-title-row">
             <span
-              className="mw-priority-dot"
-              style={{ background: PRIORITY_DOT[ticket.priority] || PRIORITY_DOT.normal }}
+              className={`mw-priority-dot mw-priority-${['urgent', 'high', 'low'].includes(ticket.priority) ? ticket.priority : 'normal'}`}
               title={ticket.priority}
               aria-label={`Priority: ${ticket.priority}`}
             />
@@ -410,7 +407,7 @@ export function MyWorkPage() {
         {(actionError || error) && (
           <Alert variant="error" title="Something went wrong">
             {String(actionError?.message ?? error?.message ?? actionError ?? error)}
-            <div style={{ marginTop: 8 }}>
+            <div className="ui-retry">
               <Button type="button" variant="secondary" size="sm" onClick={() => { setActionError(null); reload() }}>
                 Try again
               </Button>

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Modal, PageHeader, Table } from '../../../components/ui'
+import { Button, Card, Modal, PageHeader, Pagination, Table } from '../../../components/ui'
 
 const PER_PAGE = 25
 
@@ -54,13 +54,7 @@ export function AdminAssignmentsPage() {
       <Card title="Assignment directory" description={`${pagination.total} assignments total.`}>
         {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
         <Table columns={columns} rows={assignments} loading={isLoading} emptyTitle="No assignments found" emptyText="Employee assignments will appear here." />
-        <div className="admin-users-pagination">
-          <span>Page {pagination.current_page} of {pagination.last_page}</span>
-          <div>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoading || page >= pagination.last_page} onClick={() => setPage((value) => value + 1)}>Next</Button>
-          </div>
-        </div>
+        <Pagination page={pagination.current_page} lastPage={pagination.last_page} total={pagination.total} noun="assignment" loading={isLoading} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
       </Card>
       <Modal
         open={Boolean(confirm)}

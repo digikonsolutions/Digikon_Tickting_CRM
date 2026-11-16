@@ -4,7 +4,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
-  Alert, Button, Card, CommentForm, DayStrip, EmptyState, Modal, NeedsInputBanner, PlainText,
+  Alert, Button, Card, CommentForm, DayStrip, EmptyState, FormActions, Modal, NeedsInputBanner, PlainText,
   PriorityBadge, RelativeTime, Skeleton, StatusBadge, StatusStepper, Tabs, TicketKey, Textarea, Timeline, useToast,
 } from '../../../components/ui'
 import { formatDate, formatElapsed, formatHours } from '../../../lib/format'
@@ -114,10 +114,7 @@ function ActionDialog({ ticket, action, onClose, onDone }) {
           disabled={isSending}
           required
         />
-        <div className="project-modal-actions">
-          <Button type="button" variant="secondary" disabled={isSending} onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSending} loadingText="Sending…" disabled={!comment.trim()}>{action.label}</Button>
-        </div>
+        <FormActions submitLabel={action.label} loadingLabel="Sending…" loading={isSending} disabled={!comment.trim()} disabledReason="Write a short comment first." onCancel={onClose} />
       </form>
     </Modal>
   )

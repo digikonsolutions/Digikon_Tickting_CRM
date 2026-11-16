@@ -70,7 +70,7 @@ export function Modal({ open, onClose, title, children, footer, labelledBy, clas
       >
         <header className="ui-modal-header">
           <h2 id={labelledBy ?? 'ui-modal-title'}>{title}</h2>
-          <Button type="button" variant="ghost" size="sm" aria-label="Close dialog" onClick={onClose}>×</Button>
+          <Button type="button" variant="ghost" size="sm" aria-label="Close dialog" onClick={onClose}><span aria-hidden="true">×</span></Button>
         </header>
         <div className="ui-modal-body">{children}</div>
         {footer && <footer className="ui-modal-footer">{footer}</footer>}

@@ -1,98 +1,72 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
+import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Input, PageHeader, StatusBadge, Table } from '../../../components/ui'
-import { formatDate, formatHours } from '../../../lib/format'
+import { Button, Card, FilterChips, Input, PageHeader, Pagination, ProjectCardList } from '../../../components/ui'
 
-const formatSchedule = (schedule = []) => schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ')
+const STATUS_FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
 
 export function AdminProjectsPage() {
-  const [projects, setProjects] = useState([])
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 })
+  const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  const loadProjects = useCallback(async (page, query) => {
-    try {
-      const response = await authService.listAdminProjects({ page, search: query })
-      setProjects(response.projects)
-      setPagination(response.pagination)
-    } catch (reason) {
-      setError(reason)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    let active = true
-    authService.listAdminProjects({ page: 1, search: '' })
-      .then((response) => {
-        if (!active) return
-        setProjects(response.projects)
-        setPagination(response.pagination)
-      })
-      .catch((reason) => {
-        if (active) setError(reason)
-      })
-      .finally(() => {
-        if (active) setIsLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
+  const [status, setStatus] = useState('')
+  const load = useCallback(() => authService.listAdminProjects({ page, search, status: status || undefined }), [page, search, status])
+  const { data, error, isLoading, reload } = useAsync(load)
+  const projects = data?.projects ?? []
+  const pagination = data?.pagination ?? { current_page: page, last_page: 1, total: 0 }
+  const filtered = Boolean(search || status)
 
   function submitSearch(event) {
     event.preventDefault()
-    const query = searchInput.trim()
-    setSearch(query)
-    setError(null)
-    setIsLoading(true)
-    loadProjects(1, query)
+    setSearch(searchInput.trim())
+    setPage(1)
   }
-
-  const columns = [
-    { key: 'title', label: 'Project', render: (title, project) => <Link className="admin-project-detail-link" to={`/admin/projects/${project.id}`}>{title}</Link> },
-    { key: 'description', label: 'Description' },
-    { key: 'agency_name', label: 'Agency' },
-    { key: 'client', label: 'Client', render: (client) => client?.name ?? 'Account removed' },
-    { key: 'employee', label: 'Employee', render: (employee) => employee?.name ?? 'Unassigned' },
-    { key: 'estimated_hours', label: 'Hours', render: formatHours },
-    { key: 'due_date', label: 'Due date', render: formatDate },
-    { key: 'status', label: 'Status', render: (status) => <StatusBadge status={status} /> },
-    { key: 'schedule', label: 'Daily schedule', render: formatSchedule },
-  ]
 
   return (
     <section className="page">
       <PageHeader eyebrow="Administration" title="All projects" subtitle="View projects, client agencies, assignments, schedules, and progress across the system." />
-      <Card title="Project directory" description={`${pagination.total} project${pagination.total === 1 ? '' : 's'} total. Read-only.`}>
-        <form className="admin-users-search" onSubmit={submitSearch}>
+      <Card title="Project directory" description={`${pagination.total} project${pagination.total === 1 ? '' : 's'}${filtered ? ' match' : ' total'}. Read-only.`}>
+        <form className="ui-toolbar" onSubmit={submitSearch} role="search">
           <Input
             id="admin-project-search"
             label="Search projects"
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search project, client, employee, or agency"
+            placeholder="Project, client, specialist or agency"
           />
-          <Button type="submit" variant="secondary" loading={isLoading} loadingText="Searching…">Search</Button>
+          <Button type="submit" variant="secondary" loading={isLoading && Boolean(searchInput)} loadingText="Searching…">Search</Button>
         </form>
+        <FilterChips label="Filter by status" options={STATUS_FILTERS} value={status} disabled={isLoading} onChange={(value) => { setStatus(value); setPage(1) }} />
         <ApiErrorMessage error={error} />
-        {error && <Button type="button" variant="secondary" onClick={() => { setError(null); setIsLoading(true); loadProjects(pagination.current_page, search) }}>Try again</Button>}
-        <Table columns={columns} rows={projects} loading={isLoading} emptyTitle="No projects found" emptyText="Projects will appear here when an agency creates them." />
-        <div className="admin-users-pagination">
-          <span>Page {pagination.current_page} of {pagination.last_page}</span>
-          <div>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoading || pagination.current_page <= 1} onClick={() => { setIsLoading(true); loadProjects(pagination.current_page - 1, search) }}>Previous</Button>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoading || pagination.current_page >= pagination.last_page} onClick={() => { setIsLoading(true); loadProjects(pagination.current_page + 1, search) }}>Next</Button>
-          </div>
-        </div>
+        {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
+        {isLoading && !data
+          ? <p role="status">Loading projects…</p>
+          : (
+            <ProjectCardList
+              projects={projects}
+              routeFor={(project) => `/admin/projects/${project.id}`}
+              showAgency
+              emptyTitle={filtered ? 'No matching projects' : 'No projects found'}
+              emptyText={filtered ? 'Try a different status or search.' : 'Projects will appear here when an agency creates them.'}
+            />
+          )}
+        <Pagination
+          page={pagination.current_page}
+          lastPage={pagination.last_page}
+          total={pagination.total}
+          noun="project"
+          loading={isLoading}
+          onPrevious={() => setPage((value) => value - 1)}
+          onNext={() => setPage((value) => value + 1)}
+        />
       </Card>
     </section>
   )

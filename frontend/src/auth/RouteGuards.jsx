@@ -3,7 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react
 import { useAuth } from './useAuth'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
-import { Badge, Button, Icon } from '../components/ui'
+import { Badge, Button, Icon, Loader } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
 import { TimerPill } from '../features/time'
 import { ActivityNotice, useHeartbeat } from '../features/activity'
@@ -11,22 +11,22 @@ import { ActivityNotice, useHeartbeat } from '../features/activity'
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
   const location = useLocation()
-  if (isLoading) return <p role="status">Checking your session…</p>
-  if (authError) return <p role="alert">{authError} <button type="button" onClick={refreshSession}>Retry</button></p>
+  if (isLoading) return <Loader label="Checking your session…" />
+  if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
   return user ? <Outlet /> : <Navigate to="/login" replace state={{ from: location.pathname }} />
 }
 
 export function PublicOnlyRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
-  if (isLoading) return <p role="status">Checking your session…</p>
-  if (authError) return <p role="alert">{authError} <button type="button" onClick={refreshSession}>Retry</button></p>
+  if (isLoading) return <Loader label="Checking your session…" />
+  if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
   return user ? <Navigate to={ROLE_HOME[user.role]} replace /> : <Outlet />
 }
 
 export function HomeRedirect() {
   const { user, isLoading, authError, refreshSession } = useAuth()
-  if (isLoading) return <p role="status">Checking your session…</p>
-  if (authError) return <p role="alert">{authError} <button type="button" onClick={refreshSession}>Retry</button></p>
+  if (isLoading) return <Loader label="Checking your session…" />
+  if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
   return <Navigate to={user ? ROLE_HOME[user.role] : '/login'} replace />
 }
 
@@ -97,7 +97,7 @@ export function AppLayout() {
       ? 'Ticket'
       : /^\/admin\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
-      : location.pathname.startsWith('/admin/projects/')
+      : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/')
       ? 'Project details'
       : ({
       '/profile': 'My profile',

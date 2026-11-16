@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
-import { Button, Card, DueText, EmptyState, Icon, PageHeader, Spinner, StatusBadge } from '../../../../../components/ui'
+import { Button, Card, DueText, EmptyState, Icon, KpiCard, PageHeader, Spinner, StatusBadge } from '../../../../../components/ui'
 import { getDueInfo } from '../../../../../lib/format'
 
 const PROJECT_FILTERS = [
@@ -79,28 +79,15 @@ function ProjectRow({ project }) {
 
 function StatCard({ label, value, hint, icon, tone, sparkline, sparklineLabel }) {
   return (
-    <article className={`admin-stat-card admin-stat-card-${tone}`}>
-      <div className="admin-stat-topline">
-        <span className="admin-stat-icon"><Icon name={icon} size={19} /></span>
-        <span className="admin-stat-label">{label}</span>
-      </div>
-      <strong className="admin-stat-value">{value}</strong>
+    <KpiCard title={label} value={value} subtext={hint} icon={icon} tone={tone}>
       {sparkline && (
-        <svg
-          className="admin-stat-sparkline"
-          viewBox="0 0 168 40"
-          role="img"
-          aria-label={sparklineLabel}
-          preserveAspectRatio="none"
-        >
+        <svg className="ui-kpi-sparkline" viewBox="0 0 168 40" role="img" aria-label={sparklineLabel} preserveAspectRatio="none">
           <path d={sparkline} />
         </svg>
       )}
-      <span className="admin-stat-hint">{hint}</span>
-    </article>
+    </KpiCard>
   )
 }
-
 export const AdminDashboard = () => {
   const [activeFilter, setActiveFilter] = useState('all')
   const dashboard = useAsync(loadDashboard)
@@ -183,7 +170,7 @@ export const AdminDashboard = () => {
 
       {!dashboard.isLoading && !dashboard.error && (
         <>
-          <div className="admin-dashboard-metrics">
+          <div className="dashboard-kpis">
             <StatCard
               label="Active projects"
               value={activeCount}

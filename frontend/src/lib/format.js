@@ -52,6 +52,12 @@ export function formatDate(dateStr) {
   return date ? shortDate(date, { weekday: true }) : '—'
 }
 
+// "Nov 21" (no weekday); the year is added only when it is not the current year.
+export function formatShortDate(dateStr) {
+  const date = parseLocal(dateStr)
+  return date ? shortDate(date, { weekday: false }) : '—'
+}
+
 // "Nov 10 – Nov 14"
 export function formatDateRange(start, due) {
   const startDate = parseLocal(start)

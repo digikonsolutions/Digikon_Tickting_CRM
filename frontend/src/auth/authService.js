@@ -550,10 +550,11 @@ export const authService = {
     const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
     return request(`/admin/assignments?${query.toString()}`)
   },
-  async listAdminProjects({ page = 1, search = '', perPage = 25 } = {}) {
+  async listAdminProjects({ page = 1, search = '', perPage = 25, status } = {}) {
     if (AUTH_MODE === 'mock') return { projects: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
     const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
     if (search) query.set('search', search)
+    if (status) query.set('status', status)
     return request(`/admin/projects?${query.toString()}`)
   },
   async getAdminProject(id) {

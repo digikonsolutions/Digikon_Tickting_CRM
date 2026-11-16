@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, Input, Modal, PageHeader, Table, useToast } from '../../../components/ui'
+import { Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
 
 export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [users, setUsers] = useState([])
@@ -165,46 +165,21 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
           emptyTitle="No users found"
           emptyText={search ? 'Try another name or email address.' : 'Accounts will appear here when they are created.'}
         />
-        <div className="admin-users-pagination">
-          <span>Page {pagination.current_page} of {pagination.last_page}</span>
-          <div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={isLoading || pagination.current_page <= 1}
-              onClick={() => loadUsers(pagination.current_page - 1, search)}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={isLoading || pagination.current_page >= pagination.last_page}
-              onClick={() => loadUsers(pagination.current_page + 1, search)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+        <Pagination page={pagination.current_page} lastPage={pagination.last_page} total={pagination.total} noun="account" loading={isLoading} onPrevious={() => loadUsers(pagination.current_page - 1, search)} onNext={() => loadUsers(pagination.current_page + 1, search)} />
       </Card>
       <Modal
         open={Boolean(editingUser)}
         onClose={() => setEditingUser(null)}
         title="Edit account"
-        footer={(
-          <>
-            <Button type="button" variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
-            <Button type="submit" form="admin-user-edit-form" loading={isSaving} loadingText="Saving…">Save changes</Button>
-          </>
-        )}
       >
         {editingUser && (
-          <form id="admin-user-edit-form" className="admin-user-form" onSubmit={saveUser}>
-            <Input id="edit-admin-user-name" label="Name" name="name" defaultValue={editingUser.name} maxLength="120" required error={editError?.errors?.name?.[0]} />
-            <Input id="edit-admin-user-email" label="Email address" name="email" type="email" defaultValue={editingUser.email} maxLength="254" required error={editError?.errors?.email?.[0]} />
+          <form id="admin-user-edit-form" className="ui-form" onSubmit={saveUser}>
+            <FormSection>
+              <Input id="edit-admin-user-name" label="Name" name="name" defaultValue={editingUser.name} maxLength="120" required error={editError?.errors?.name?.[0]} />
+              <Input id="edit-admin-user-email" label="Email address" name="email" type="email" defaultValue={editingUser.email} maxLength="254" required error={editError?.errors?.email?.[0]} />
+            </FormSection>
             <ApiErrorMessage error={editError?.status === 422 ? null : editError} />
+            <FormActions submitLabel="Save changes" loadingLabel="Saving…" loading={isSaving} onCancel={() => setEditingUser(null)} />
           </form>
         )}
       </Modal>

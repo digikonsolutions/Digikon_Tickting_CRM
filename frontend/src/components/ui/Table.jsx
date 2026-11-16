@@ -20,7 +20,7 @@ export function Table({ columns, rows = [], loading = false, error, emptyTitle =
           {rows.map((row, rowIndex) => (
             <tr key={row.id ?? row.key ?? rowIndex}>
               {columns.map((column) => (
-                <td key={column.key}>
+                <td key={column.key} data-label={column.label}>
                   {column.render ? column.render(row[column.key], row) : row[column.key]}
                 </td>
               ))}

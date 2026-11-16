@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
-import { Alert, Button, EmptyState, Input, Modal, Skeleton, Textarea, useToast } from '../../../components/ui'
+import { Alert, Button, EmptyState, FormActions, Input, Modal, Skeleton, Textarea, useToast } from '../../../components/ui'
 import { useAsync } from '../../../hooks/useAsync'
 import { formatDate } from '../../../lib/format'
 import { formatMinutes } from '../timeEvents'
@@ -47,12 +47,7 @@ function EntryDialog({ entry, mode, isAdmin, onClose, onDone }) {
         {isAdmin && (
           <Textarea label="Reason for this change" rows="2" maxLength="255" value={reason} onChange={(event) => setReason(event.target.value)} disabled={isSending} required />
         )}
-        <div className="project-modal-actions">
-          <Button type="button" variant="secondary" disabled={isSending} onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant={isDelete ? 'danger' : 'primary'} loading={isSending} disabled={isAdmin && reason.trim().length < 3}>
-            {isDelete ? 'Remove' : 'Save'}
-          </Button>
-        </div>
+        <FormActions submitLabel={isDelete ? 'Remove' : 'Save'} variant={isDelete ? 'danger' : 'primary'} loading={isSending} disabled={isAdmin && reason.trim().length < 3} disabledReason="Give a reason of at least 3 characters." onCancel={onClose} />
       </form>
     </Modal>
   )

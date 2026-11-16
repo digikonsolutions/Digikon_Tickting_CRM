@@ -1,28 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Button, Card, Input, PageHeader, Select, StatusBadge, Table, Textarea, useToast } from '../../../components/ui'
+import {
+  Alert, Button, Card, FieldRow, FilterChips, FormActions, FormSection, Input, PageHeader, Pagination,
+  ProjectCardList, Select, Textarea, useToast,
+} from '../../../components/ui'
 import { DEFAULT_CAPACITY } from '../../../lib/constants'
-import { formatDate, formatHours, toDateStr, todayStr } from '../../../lib/format'
+import { formatHours, toDateStr, todayStr } from '../../../lib/format'
 import { FilePicker, ProjectBriefFields, readProjectBrief, uploadErrorMessage } from '../../briefs'
 
 const CAPACITY_DEBOUNCE_MS = 300
 const PROJECTS_PER_PAGE = 25
 const STATUS_FILTERS = [
-  { value: '', label: 'All statuses' },
+  { value: '', label: 'All' },
   { value: 'open', label: 'Open' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'in_progress', label: 'In progress' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
 ]
-
-function scheduleLabel(schedule = []) {
-  return schedule.map(({ work_date, hours }) => `${formatDate(work_date)}: ${formatHours(hours)}`).join(', ') || 'No schedule'
-}
 
 export function AgencyProjectsPage({ viewAs }) {
   const { user } = useAuth()
@@ -41,10 +40,12 @@ export function AgencyProjectsPage({ viewAs }) {
   const [isCreating, setIsCreating] = useState(false)
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const loadAssignments = useCallback(() => authService.listMyAssignments(), [])
   const loadProjects = useCallback(
-    () => authService.listAgencyProjects({ page, perPage: PROJECTS_PER_PAGE, status: statusFilter || undefined }),
-    [page, statusFilter],
+    () => authService.listAgencyProjects({ page, perPage: PROJECTS_PER_PAGE, status: statusFilter || undefined, search: search || undefined }),
+    [page, statusFilter, search],
   )
   const assignmentsState = useAsync(loadAssignments)
   const projectsState = useAsync(loadProjects)
@@ -84,12 +85,24 @@ export function AgencyProjectsPage({ viewAs }) {
   const isCheckingCapacity = Boolean(capacityKey) && capacity.key !== capacityKey
   const capacityResult = capacityKey && capacity.key === capacityKey ? capacity : null
   const remaining = capacityResult?.hours ?? null
+  const hours = Number(formValues.estimated_hours)
+  const datesInvalid = Boolean(formValues.start_date && formValues.due_date && formValues.due_date < formValues.start_date)
   const canSchedule = selectedAssignment
     && remaining !== null
-    && Number(formValues.estimated_hours) > 0
-    && Number(formValues.estimated_hours) <= remaining
-    && formValues.due_date >= formValues.start_date
+    && hours > 0
+    && hours <= remaining
+    && !datesInvalid
   const fieldError = (field) => createError?.errors?.[field]?.[0]
+
+  // Why the submit button is disabled, said in words next to it.
+  let disabledReason = null
+  if (!isLoading && assignments.length === 0) disabledReason = 'Add a specialist first, then you can create a project.'
+  else if (!selectedAssignment) disabledReason = 'Choose a specialist to check their availability.'
+  else if (datesInvalid) disabledReason = 'The due date must be on or after the start date.'
+  else if (isCheckingCapacity) disabledReason = 'Checking the specialist’s capacity…'
+  else if (capacityResult?.error) disabledReason = 'Capacity could not be checked. Try changing the dates.'
+  else if (remaining !== null && hours > remaining) disabledReason = `Reduce the hours to ${formatHours(remaining)} or fewer, or extend the dates.`
+  else if (!(hours > 0)) disabledReason = 'Enter the estimated hours.'
 
   function updateFormValue(field, value) {
     setFormValues((current) => ({ ...current, [field]: value }))
@@ -137,16 +150,22 @@ export function AgencyProjectsPage({ viewAs }) {
     }
   }
 
-  const columns = useMemo(() => [
-    { key: 'title', label: 'Project', render: (title, project) => <Link to={`/agency/projects/${project.id}`}>{title}</Link> },
-    { key: 'description', label: 'Description' },
-    { key: 'client', label: isClient ? 'Client' : 'Created by', render: (client) => client?.name ?? 'Account removed' },
-    { key: 'employee', label: 'Specialist', render: (employee) => employee?.name ?? 'Unassigned' },
-    { key: 'estimated_hours', label: 'Hours', render: formatHours },
-    { key: 'due_date', label: 'Due date', render: formatDate },
-    { key: 'status', label: 'Status', render: (status) => <StatusBadge status={status} /> },
-    { key: 'schedule', label: 'Daily schedule', render: scheduleLabel },
-  ], [isClient])
+  function submitSearch(event) {
+    event.preventDefault()
+    setSearch(searchInput.trim())
+    setPage(1)
+  }
+
+  const capacityCallout = (() => {
+    if (!selectedAssignment) return null
+    if (isCheckingCapacity) return <Alert variant="info" className="ui-form-callout">Checking {selectedHold?.employee?.name ?? 'the specialist'}’s availability…</Alert>
+    if (capacityResult?.error) return <Alert variant="error" className="ui-form-callout">{capacityResult.error.message ?? 'Could not check specialist capacity.'}</Alert>
+    if (remaining === null) return null
+    const name = selectedHold?.employee?.name ?? 'This specialist'
+    return hours > remaining
+      ? <Alert variant="warning" className="ui-form-callout" title="Not enough capacity">{name} has {formatHours(remaining)} available between these dates, but the project needs {formatHours(hours)}. Reduce the hours or extend the dates.</Alert>
+      : <Alert variant="info" className="ui-form-callout">{name} has <strong>{formatHours(remaining)}</strong> available between these dates.</Alert>
+  })()
 
   return (
     <section className="page agency-projects-page">
@@ -158,113 +177,126 @@ export function AgencyProjectsPage({ viewAs }) {
           : 'Create projects using your specialists and review agency project schedules.'}
       />
       <ApiErrorMessage error={error ?? (createError?.status === 422 ? null : createError)} />
-      <Card title="Create a project" description={`Your assignment has a shared weekly budget of ${holdCapacity.weekly_hours} hours, with at most ${holdCapacity.daily_hours} hours scheduled each working day.`}>
+      <Card
+        className="ui-form-card"
+        title="Create a project"
+        description={`Your assignment has a shared weekly budget of ${holdCapacity.weekly_hours} hours, with at most ${holdCapacity.daily_hours} hours scheduled each working day.`}
+      >
         {!isLoading && assignments.length === 0 && (
-          <Alert variant="info">
+          <Alert variant="info" className="ui-form-callout">
             You need to add a specialist before creating a project. <Link to="/agency/employees">Go to My specialists</Link>.
           </Alert>
         )}
-        <form className="agency-user-form" onSubmit={createProject}>
-          <Input id="project-title" label="Project title" name="title" maxLength="160" required error={fieldError('title')} />
-          <Textarea id="project-description" label="Description" name="description" rows="4" maxLength="5000" required error={fieldError('description')} />
-          <Input
-            id="project-hours"
-            label="Estimated work hours"
-            name="estimated_hours"
-            type="number"
-            min="0.01"
-            max="180"
-            step="0.01"
-            value={formValues.estimated_hours}
-            onChange={(event) => updateFormValue('estimated_hours', event.target.value)}
-            required
-            error={fieldError('estimated_hours')}
+        <form className="ui-form" onSubmit={createProject}>
+          <FormSection title="Basics" description="What is the work, in a sentence or two?">
+            <Input id="project-title" label="Project title" name="title" maxLength="160" required error={fieldError('title')} />
+            <Textarea id="project-description" label="Description" name="description" rows="4" maxLength="5000" required error={fieldError('description')} />
+          </FormSection>
+
+          <FormSection title="Schedule" description="Hours are scheduled earliest-first, Monday to Saturday.">
+            <FieldRow columns={3}>
+              <Input
+                id="project-hours"
+                label="Estimated work hours"
+                name="estimated_hours"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                max="180"
+                step="0.01"
+                value={formValues.estimated_hours}
+                onChange={(event) => updateFormValue('estimated_hours', event.target.value)}
+                required
+                error={fieldError('estimated_hours')}
+              />
+              <Input
+                id="project-start"
+                label="Start date"
+                name="start_date"
+                type="date"
+                min={today}
+                value={formValues.start_date}
+                onChange={(event) => updateFormValue('start_date', event.target.value)}
+                required
+                error={fieldError('start_date')}
+              />
+              <Input
+                id="project-due"
+                label="Due date"
+                name="due_date"
+                type="date"
+                min={formValues.start_date || today}
+                value={formValues.due_date}
+                onChange={(event) => updateFormValue('due_date', event.target.value)}
+                required
+                error={fieldError('due_date') ?? (datesInvalid ? 'Must be on or after the start date.' : undefined)}
+              />
+            </FieldRow>
+          </FormSection>
+
+          <FormSection title="Assignment" description="Only specialists you have added can be used.">
+            <Select
+              id="project-assignment"
+              label="Specialist"
+              value={selectedAssignment}
+              onChange={(event) => setSelectedAssignment(event.target.value)}
+              required
+              disabled={isLoading || assignments.length === 0}
+              error={fieldError('assignment_id')}
+            >
+              <option value="">{isLoading ? 'Loading your specialists…' : 'Choose a specialist'}</option>
+              {assignments.map((assignment) => (
+                <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>
+              ))}
+            </Select>
+            {capacityCallout}
+          </FormSection>
+
+          <FormSection title="Brief and files" description="Optional. Add anything that helps your specialist get started.">
+            <ProjectBriefFields errors={createError?.errors} />
+            <FilePicker files={briefFiles} onChange={setBriefFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isCreating} />
+          </FormSection>
+
+          {createError?.status === 422 && createError.message && !createError.errors && <Alert variant="error">{createError.message}</Alert>}
+          <FormActions
+            submitLabel="Create project"
+            loadingLabel="Scheduling project…"
+            loading={isCreating}
+            disabled={isLoading || !canSchedule}
+            disabledReason={disabledReason}
           />
-          <Input
-            id="project-start"
-            label="Start date"
-            name="start_date"
-            type="date"
-            min={today}
-            value={formValues.start_date}
-            onChange={(event) => updateFormValue('start_date', event.target.value)}
-            required
-            error={fieldError('start_date')}
-          />
-          <Input
-            id="project-due"
-            label="Due date"
-            name="due_date"
-            type="date"
-            min={formValues.start_date || today}
-            value={formValues.due_date}
-            onChange={(event) => updateFormValue('due_date', event.target.value)}
-            required
-            error={fieldError('due_date')}
-          />
-          <Select
-            id="project-assignment"
-            label="Specialist"
-            value={selectedAssignment}
-            onChange={(event) => setSelectedAssignment(event.target.value)}
-            required
-            disabled={isLoading || assignments.length === 0}
-            error={fieldError('assignment_id')}
-            helperText="Only specialists you have added can be used."
-          >
-            <option value="">{isLoading ? 'Loading your specialists…' : 'Choose a specialist'}</option>
-            {assignments.map((assignment) => (
-              <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>
-            ))}
-          </Select>
-          <ProjectBriefFields errors={createError?.errors} />
-          <FilePicker files={briefFiles} onChange={setBriefFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isCreating} />
-          {selectedAssignment && isCheckingCapacity && (
-            <p className="assignment-range-capacity" role="status">Checking specialist capacity…</p>
-          )}
-          {selectedAssignment && capacityResult?.error && (
-            <p className="form-error" role="alert">{capacityResult.error.message ?? 'Could not check specialist capacity.'}</p>
-          )}
-          {selectedAssignment && remaining !== null && (
-            <p className={Number(formValues.estimated_hours) > remaining ? 'form-error' : 'assignment-range-capacity'} role="status">
-              {formatHours(remaining)} available for {selectedHold?.employee?.name ?? 'this specialist'} between these dates.
-            </p>
-          )}
-          {createError?.status === 422 && createError.message && <p className="form-error" role="alert">{createError.message}</p>}
-          <Button type="submit" loading={isCreating} loadingText="Scheduling project…" disabled={isLoading || !canSchedule}>
-            Create project
-          </Button>
         </form>
       </Card>
+
       <Card title={isClient ? 'My projects' : 'Agency projects'} description="Select a project to view and manage its tickets.">
-        <div className="admin-users-search">
-          <Select
-            id="project-status-filter"
-            label="Status"
-            value={statusFilter}
-            onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}
-            disabled={isLoadingProjects}
-          >
-            {STATUS_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </Select>
-        </div>
+        <form className="ui-toolbar" onSubmit={submitSearch} role="search">
+          <Input id="project-search" label="Search projects" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, client or specialist" />
+          <Button type="submit" variant="secondary" loading={isLoadingProjects && Boolean(searchInput)} loadingText="Searching…">Search</Button>
+        </form>
+        <FilterChips label="Filter by status" options={STATUS_FILTERS} value={statusFilter} disabled={isLoadingProjects} onChange={(value) => { setStatusFilter(value); setPage(1) }} />
         {error && (
           <Button type="button" variant="secondary" onClick={() => { assignmentsState.reload(); projectsState.reload() }}>Try again</Button>
         )}
-        <Table
-          columns={columns}
-          rows={projects}
+        {isLoadingProjects && !projectsState.data
+          ? <p role="status">Loading projects…</p>
+          : (
+            <ProjectCardList
+              projects={projects}
+              routeFor={(project) => `/agency/projects/${project.id}`}
+              showClient
+              emptyTitle={statusFilter || search ? 'No matching projects' : 'No projects yet'}
+              emptyText={statusFilter || search ? 'Try a different status or search.' : 'Create your first project above to start assigning work.'}
+            />
+          )}
+        <Pagination
+          page={pagination.current_page}
+          lastPage={pagination.last_page}
+          total={pagination.total}
+          noun="project"
           loading={isLoadingProjects}
-          emptyTitle={statusFilter ? 'No matching projects' : 'No projects yet'}
-          emptyText={statusFilter ? 'Try a different status filter.' : 'Create a project above to start assigning work.'}
+          onPrevious={() => setPage((value) => value - 1)}
+          onNext={() => setPage((value) => value + 1)}
         />
-        <div className="admin-users-pagination">
-          <span>Page {pagination.current_page} of {pagination.last_page} · {pagination.total} project{pagination.total === 1 ? '' : 's'}</span>
-          <div>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoadingProjects || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoadingProjects || page >= pagination.last_page} onClick={() => setPage((value) => value + 1)}>Next</Button>
-          </div>
-        </div>
       </Card>
     </section>
   )

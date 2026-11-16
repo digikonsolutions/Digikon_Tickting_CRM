@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { authService } from '../../../auth/authService'
-import { Alert, Button, Input, Modal, Textarea } from '../../../components/ui'
+import { Alert, FieldRow, FormActions, Input, Modal, Textarea } from '../../../components/ui'
 import { addDays, todayStr } from '../../../lib/format'
 
 const MAX_DAYS_BACK = 14
@@ -49,15 +49,12 @@ export function LogTimeModal({ ticket, onClose, onLogged }) {
           disabled={isSending}
           required
         />
-        <div className="time-form-duration">
+        <FieldRow>
           <Input label="Hours" type="number" inputMode="numeric" min="0" max="12" value={hours} onChange={(event) => setHours(event.target.value)} disabled={isSending} />
           <Input label="Minutes" type="number" inputMode="numeric" min="0" max="59" value={minutes} onChange={(event) => setMinutes(event.target.value)} error={fieldError('minutes')} disabled={isSending} />
-        </div>
+        </FieldRow>
         <Textarea label="Note (optional)" rows="2" maxLength="500" value={note} onChange={(event) => setNote(event.target.value)} disabled={isSending} />
-        <div className="project-modal-actions">
-          <Button type="button" variant="secondary" disabled={isSending} onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSending} loadingText="Saving…" disabled={total < 1}>Log time</Button>
-        </div>
+        <FormActions submitLabel="Log time" loadingLabel="Saving…" loading={isSending} disabled={total < 1} disabledReason="Enter at least one minute." onCancel={onClose} />
       </form>
     </Modal>
   )

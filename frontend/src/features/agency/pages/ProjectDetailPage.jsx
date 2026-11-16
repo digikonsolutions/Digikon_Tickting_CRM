@@ -4,7 +4,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Input, Modal, PageHeader, PriorityBadge, Select, StatusBadge, TicketKey, Textarea, useToast } from '../../../components/ui'
+import { Alert, Button, Card, EmptyState, FieldRow, FormActions, FormSection, Input, Modal, PageHeader, PriorityBadge, ScheduleSummary, Select, StatusBadge, TicketKey, Textarea, useToast } from '../../../components/ui'
 import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { WaitingChip } from '../../tickets'
@@ -184,10 +184,10 @@ export function ProjectDetailPage() {
                     <strong title="Logged of estimated hours">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</strong>
                     {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
                   </div>
-                  <p className="project-ticket-dates">
-                    {ticket.due_date ? `${labels.dueDate} ${formatDate(ticket.due_date)}` : 'Not scheduled'}
-                    {ticket.start_date && ` · ${formatDateRange(ticket.start_date, ticket.due_date)}`}
-                  </p>
+                  <div className="project-ticket-dates">
+                    {ticket.due_date && <p className="project-ticket-due">{labels.dueDate} <strong>{formatDate(ticket.due_date)}</strong></p>}
+                    <ScheduleSummary schedule={ticket.schedule} />
+                  </div>
                 </div>
                 {canEdit && ticket.status !== 'cancelled' && ticket.status !== 'done' && (
                   <div className="project-ticket-actions">
@@ -204,7 +204,7 @@ export function ProjectDetailPage() {
               </li>
             ))}
           </ol>
-          : <p className="assignment-empty">No tickets yet. Add a ticket to break down project hours.</p>}
+          : <EmptyState title="No tickets yet" action={canEdit ? <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add the first ticket</Button> : null}>Break the project’s hours into tickets so work can be planned.</EmptyState>}
       </Card>
       {canEdit && ['scheduled', 'in_progress'].includes(project.status) && (
         <div className="project-detail-actions">
@@ -219,20 +219,25 @@ export function ProjectDetailPage() {
         title={editor?.ticket ? 'Edit ticket' : 'Create ticket'}
         footer={null}
       >
-        <form className="agency-user-form" onSubmit={saveTicket}>
-          <Input name="title" label="Title" maxLength="160" defaultValue={editor?.ticket?.title ?? ''} required error={mutationError?.errors?.title?.[0]} />
-          <Textarea name="description" label="Description" rows="4" defaultValue={editor?.ticket?.description ?? ''} required error={mutationError?.errors?.description?.[0]} />
-          <Input name="estimated_hours" label="Estimated hours" type="number" min="0.01" step="0.01" defaultValue={editor?.ticket?.estimated_hours ?? ''} required error={mutationError?.errors?.estimated_hours?.[0]} />
-          <Select name="priority" label="Priority" defaultValue={editor?.ticket?.priority ?? 'normal'}>
-            {PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-          </Select>
-          <TicketBriefFields key={editor?.ticket?.id ?? 'new'} errors={mutationError?.errors} defaults={editor?.ticket?.brief} otherTickets={tickets.filter((item) => item.id !== editor?.ticket?.id && item.status !== 'cancelled')} />
-          {!editor?.ticket && <FilePicker files={ticketFiles} onChange={setTicketFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isSaving} limits={{ ...BRIEF_LIMITS, extensions: BRIEF_LIMITS.extensions.filter((extension) => extension !== 'zip') }} />}
-          {mutationError?.status === 422 && <p className="form-error" role="alert">{mutationError.message}</p>}
-          <div className="project-modal-actions">
-            <Button type="button" variant="secondary" disabled={isSaving} onClick={() => setEditor(null)}>Cancel</Button>
-            <Button type="submit" loading={isSaving} loadingText="Saving…">{editor?.ticket ? 'Save changes' : 'Create ticket'}</Button>
-          </div>
+        <form className="ui-form" onSubmit={saveTicket}>
+          <FormSection title="Basics">
+            <Input name="title" label="Title" maxLength="160" defaultValue={editor?.ticket?.title ?? ''} required error={mutationError?.errors?.title?.[0]} />
+            <Textarea name="description" label="Description" rows="4" defaultValue={editor?.ticket?.description ?? ''} required error={mutationError?.errors?.description?.[0]} />
+          </FormSection>
+          <FormSection title="Planning" description="Dates are planned from the project schedule, in priority order.">
+            <FieldRow>
+              <Input name="estimated_hours" label="Estimated hours" type="number" inputMode="decimal" min="0.01" step="0.01" defaultValue={editor?.ticket?.estimated_hours ?? ''} required error={mutationError?.errors?.estimated_hours?.[0]} />
+              <Select name="priority" label="Priority" defaultValue={editor?.ticket?.priority ?? 'normal'}>
+                {PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+              </Select>
+            </FieldRow>
+          </FormSection>
+          <FormSection title="Details and files" description="Optional. Helpful for bug reports and change requests.">
+            <TicketBriefFields key={editor?.ticket?.id ?? 'new'} errors={mutationError?.errors} defaults={editor?.ticket?.brief} otherTickets={tickets.filter((item) => item.id !== editor?.ticket?.id && item.status !== 'cancelled')} />
+            {!editor?.ticket && <FilePicker files={ticketFiles} onChange={setTicketFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isSaving} limits={{ ...BRIEF_LIMITS, extensions: BRIEF_LIMITS.extensions.filter((extension) => extension !== 'zip') }} />}
+          </FormSection>
+          {mutationError?.status === 422 && !mutationError.errors && <Alert variant="error">{mutationError.message}</Alert>}
+          <FormActions submitLabel={editor?.ticket ? 'Save changes' : 'Create ticket'} loadingLabel="Saving…" loading={isSaving} onCancel={() => setEditor(null)} />
         </form>
       </Modal>
       <Modal

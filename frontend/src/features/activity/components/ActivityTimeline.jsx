@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
-import { Alert, Button, Card, EmptyState, Icon, RelativeTime, Select, Skeleton } from '../../../components/ui'
+import { Alert, Button, Card, EmptyState, Icon, Pagination, RelativeTime, Select, Skeleton } from '../../../components/ui'
 import { useAsync } from '../../../hooks/useAsync'
 import { getTicketStatusLabel } from '../../../lib/ticketStatus'
 
@@ -86,13 +86,7 @@ export function ActivityTimeline({ employeeId, range }) {
           ))}
         </ol>
       )}
-      <div className="admin-users-pagination">
-        <span>Page {pagination.current_page} of {pagination.last_page}</span>
-        <div>
-          <Button type="button" variant="secondary" size="sm" disabled={isLoading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-          <Button type="button" variant="secondary" size="sm" disabled={isLoading || page >= pagination.last_page} onClick={() => setPage((value) => value + 1)}>Next</Button>
-        </div>
-      </div>
+      <Pagination page={pagination.current_page} lastPage={pagination.last_page} noun="event" loading={isLoading} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
     </Card>
   )
 }

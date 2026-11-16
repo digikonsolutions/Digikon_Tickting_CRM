@@ -1,21 +1,15 @@
-import { Icon } from '../../../components/ui'
+import { KpiCard } from '../../../components/ui'
+
+// Dashboard figures use the shared KpiCard so every screen shows numbers the same way.
+const TONES = { primary: 'teal' }
 
 export function StatCard({ label, value, hint, icon = 'dashboard', tone = 'primary' }) {
-  return (
-    <article className="stat-card">
-      <span className={`stat-icon stat-icon-${tone}`}><Icon name={icon} size={22} /></span>
-      <div>
-        <p className="stat-label">{label}</p>
-        <p className="stat-value">{value}</p>
-        {hint && <p className="stat-hint">{hint}</p>}
-      </div>
-    </article>
-  )
+  return <KpiCard title={label} value={value} subtext={hint} icon={icon} tone={TONES[tone] ?? tone} />
 }
 
 export function StatGrid({ stats = [], isLoading = false }) {
   if (isLoading) {
-    return <div className="stat-grid" aria-busy="true">{[0, 1, 2, 3].map((i) => <div key={i} className="stat-card skeleton" />)}</div>
+    return <div className="dashboard-kpis" aria-busy="true">{[0, 1, 2, 3].map((i) => <div key={i} className="ui-skeleton ui-skeleton-card" />)}</div>
   }
-  return <div className="stat-grid">{stats.map((stat) => <StatCard key={stat.id} {...stat} />)}</div>
+  return <div className="dashboard-kpis">{stats.map((stat) => <StatCard key={stat.id} {...stat} />)}</div>
 }

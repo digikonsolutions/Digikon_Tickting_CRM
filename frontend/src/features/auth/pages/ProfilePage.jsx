@@ -4,7 +4,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { ROLE_LABELS } from '../../../auth/roles'
 import { authService } from '../../../auth/authService'
 import { ApiErrorMessage } from '../components/ApiErrorMessage'
-import { Badge, Button, Card, Input, PageHeader, useToast } from '../../../components/ui'
+import { Badge, Card, FormActions, FormSection, Input, PageHeader, useToast } from '../../../components/ui'
 
 export function ProfilePage() {
   const { user, updateUser } = useAuth()
@@ -33,8 +33,9 @@ export function ProfilePage() {
   return (
     <section className="page">
       <PageHeader eyebrow="Account" title="My profile" subtitle="Your account is kept out of other user lists. Update your display name here." />
-      <Card title="Profile details" description="Your role and agency assignment can only be changed by an authorized administrator or agency owner.">
-        <form className="agency-profile-form" onSubmit={saveProfile}>
+      <Card className="ui-form-card" title="Profile details" description="Your role and agency assignment can only be changed by an authorized administrator or agency owner.">
+        <form className="ui-form" onSubmit={saveProfile}>
+          <FormSection title="You">
           <Input
             id="profile-name"
             label="Name"
@@ -45,7 +46,9 @@ export function ProfilePage() {
             required
             error={error?.errors?.name?.[0]}
           />
-          <Input id="profile-email" label="Email address" value={user.email} disabled />
+          <Input id="profile-email" label="Email address" value={user.email} disabled helperText="Contact an administrator to change your email." />
+          </FormSection>
+          <FormSection title="Access">
           <div className="ui-field">
             <span className="ui-field-label">Signed-in role</span>
             <Badge variant={user.role === 'admin' ? 'primary' : 'slate'}>{ROLE_LABELS[user.role] ?? user.role}</Badge>
@@ -56,8 +59,9 @@ export function ProfilePage() {
               <span>{user.agency_name}</span>
             </div>
           )}
+          </FormSection>
           <ApiErrorMessage error={error?.status === 422 ? null : error} />
-          <Button type="submit" loading={isSaving} loadingText="Saving…">Save profile</Button>
+          <FormActions submitLabel="Save profile" loadingLabel="Saving…" loading={isSaving} disabled={name.trim() === user.name || !name.trim()} disabledReason="Change your name to save." align="start" />
         </form>
       </Card>
       <Card title="Notifications" description="Choose which updates reach you in the app and by email.">

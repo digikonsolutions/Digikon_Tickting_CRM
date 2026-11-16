@@ -3,7 +3,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, Input, Modal, PageHeader, Table, useToast } from '../../../components/ui'
+import { Badge, Button, Card, FieldRow, FormActions, FormSection, Input, Modal, PageHeader, Table, useToast } from '../../../components/ui'
 
 export function AgencyUsersPage() {
   const { user } = useAuth()
@@ -178,13 +178,17 @@ export function AgencyUsersPage() {
       />
       <ApiErrorMessage error={actionError} />
 
-      <Card title="Invite a client" description="They’ll receive an email to set their password.">
-        <form className="agency-user-form" onSubmit={createUser}>
-          <Input id="agency-user-name" label="Name" name="name" autoComplete="name" maxLength="120" required error={fieldError(createError, 'name')} />
-          <Input id="agency-user-email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" required error={fieldError(createError, 'email')} />
+      <Card className="ui-form-card" title="Invite a client" description="They’ll receive an email to set their password.">
+        <form className="ui-form" onSubmit={createUser}>
+          <FormSection>
+            <FieldRow>
+              <Input id="agency-user-name" label="Name" name="name" autoComplete="name" maxLength="120" required error={fieldError(createError, 'name')} />
+              <Input id="agency-user-email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" required error={fieldError(createError, 'email')} />
+            </FieldRow>
+          </FormSection>
           <input type="hidden" name="role" value={ROLES.AGENCY_CLIENT} />
           <ApiErrorMessage error={createError?.status === 422 ? null : createError} />
-          <Button type="submit" loading={isCreating} loadingText="Sending invitation…">Invite client</Button>
+          <FormActions submitLabel="Invite client" loadingLabel="Sending invitation…" loading={isCreating} />
         </form>
       </Card>
 
@@ -204,18 +208,15 @@ export function AgencyUsersPage() {
         open={Boolean(editingUser)}
         onClose={() => setEditingUser(null)}
         title="Edit account"
-        footer={(
-          <>
-            <Button type="button" variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
-            <Button type="submit" form="agency-user-edit-form" loading={isSavingEdit} loadingText="Saving…">Save changes</Button>
-          </>
-        )}
       >
         {editingUser && (
-          <form id="agency-user-edit-form" className="agency-user-form" onSubmit={saveUser}>
-            <Input id="edit-agency-user-name" label="Name" name="name" defaultValue={editingUser.name} maxLength="120" required error={fieldError(editError, 'name')} />
-            <Input id="edit-agency-user-email" label="Email address" name="email" type="email" defaultValue={editingUser.email} maxLength="254" required error={fieldError(editError, 'email')} />
+          <form id="agency-user-edit-form" className="ui-form" onSubmit={saveUser}>
+            <FormSection>
+              <Input id="edit-agency-user-name" label="Name" name="name" defaultValue={editingUser.name} maxLength="120" required error={fieldError(editError, 'name')} />
+              <Input id="edit-agency-user-email" label="Email address" name="email" type="email" defaultValue={editingUser.email} maxLength="254" required error={fieldError(editError, 'email')} />
+            </FormSection>
             <ApiErrorMessage error={editError?.status === 422 ? null : editError} />
+            <FormActions submitLabel="Save changes" loadingLabel="Saving…" loading={isSavingEdit} onCancel={() => setEditingUser(null)} />
           </form>
         )}
       </Modal>

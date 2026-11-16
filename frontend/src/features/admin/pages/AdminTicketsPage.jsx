@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Input, PageHeader, PriorityBadge, RelativeTime, Select, StatusBadge, Table, TicketKey } from '../../../components/ui'
+import { Button, Card, Input, PageHeader, Pagination, PriorityBadge, RelativeTime, Select, StatusBadge, Table, TicketKey } from '../../../components/ui'
 import { formatDate, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
 
@@ -119,13 +119,7 @@ export function AdminTicketsPage() {
         <ApiErrorMessage error={error} />
         {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
         <Table columns={columns} rows={tickets} loading={isLoading} emptyTitle="No tickets found" emptyText={hasFilters ? 'Try different filters.' : 'Tickets will appear here when agencies break down project work.'} />
-        <div className="admin-users-pagination">
-          <span>Page {pagination.current_page} of {pagination.last_page}</span>
-          <div>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button>
-            <Button type="button" variant="secondary" size="sm" disabled={isLoading || page >= pagination.last_page} onClick={() => setPage((value) => value + 1)}>Next</Button>
-          </div>
-        </div>
+        <Pagination page={pagination.current_page} lastPage={pagination.last_page} total={pagination.total} noun="ticket" loading={isLoading} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
       </Card>
     </section>
   )

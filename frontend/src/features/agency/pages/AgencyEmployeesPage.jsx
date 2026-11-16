@@ -5,7 +5,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
-  EmptyState, Modal, PageHeader, Skeleton, useToast,
+  EmptyState, Input, Modal, PageHeader, Skeleton, useToast,
 } from '../../../components/ui'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
@@ -148,7 +148,7 @@ export function AgencyEmployeesPage() {
             >
               ✕
             </button>
-            <div style={{ marginTop: 8 }}>
+            <div className="ui-retry">
               <Button type="button" variant="secondary" size="sm" onClick={() => { setActionError(null); reload() }}>
                 Try again
               </Button>
@@ -270,10 +270,11 @@ export function AgencyEmployeesPage() {
         title={labels.holdEmployee}
         description="Choosing a specialist makes them exclusive to you until you release them."
       >
-        <input
+        <Input
+          id="specialist-search"
+          label="Search specialists"
           type="search"
-          className="ae-drawer-search"
-          placeholder="Search by name or email…"
+          placeholder="Name or email"
           value={drawerSearch}
           onChange={(e) => setDrawerSearch(e.target.value)}
         />
