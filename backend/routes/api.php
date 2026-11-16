@@ -23,6 +23,7 @@ Route::middleware('web')->prefix('auth')->group(function () {
     Route::post('/logout', [SessionController::class, 'logout'])->middleware('auth');
     Route::get('/me', [SessionController::class, 'currentUser'])->middleware('auth');
     Route::patch('/profile', [SessionController::class, 'updateProfile'])->middleware('auth');
+    Route::put('/password', [SessionController::class, 'changePassword'])->middleware(['auth', 'throttle:password-change']);
 
     Route::post('/users', [AdminUserController::class, 'createUser'])
         ->middleware(['auth', 'role:admin', 'throttle:auth-admin-signup']);
@@ -33,8 +34,6 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/directory', [AgencyUserController::class, 'agencyDirectory'])
         ->middleware(['auth', 'role:agency_owner,agency_member,agency_client', 'agency.active']);
-    Route::patch('/profile', [AgencyUserController::class, 'updateAgencyProfile'])
-        ->middleware(['auth', 'role:agency_member,agency_client', 'agency.active']);
     Route::get('/users', [AgencyUserController::class, 'agencyUsers'])
         ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::post('/users', [AgencyUserController::class, 'createAgencyUser'])

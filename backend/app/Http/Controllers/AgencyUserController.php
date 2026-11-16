@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Http\Requests\AgencyCreateUserRequest;
-use App\Http\Requests\AgencyUpdateProfileRequest;
 use App\Http\Requests\AgencyUpdateUserRequest;
 use App\Models\User;
 use App\Services\UserAccountService;
@@ -127,13 +126,5 @@ class AgencyUserController extends Controller
             ]);
 
         return response()->json(['employees' => $employees]);
-    }
-
-    public function updateAgencyProfile(AgencyUpdateProfileRequest $request, UserAccountService $accounts): JsonResponse
-    {
-        $user = $request->user();
-        $user->update($request->validated());
-
-        return response()->json(['user' => $accounts->userPayload($user)]);
     }
 }

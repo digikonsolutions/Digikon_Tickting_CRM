@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\AgencyUpdateProfileRequest;
+use App\Http\Requests\ChangePasswordRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\UserAccountService;
@@ -12,7 +13,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class SessionController extends Controller
 {
@@ -63,12 +63,35 @@ class SessionController extends Controller
         return response()->json(['user' => $accounts->userPayload($request->user())]);
     }
 
-    public function updateProfile(Request $request, UserAccountService $accounts): JsonResponse
+    /** The one self-service profile endpoint, for every role. It only ever touches the signed-in user. */
+    public function updateProfile(UpdateProfileRequest $request, UserAccountService $accounts): JsonResponse
     {
         $user = $request->user();
-        $user->update($request->validate((new AgencyUpdateProfileRequest)->rules()));
+        $user->update(['name' => $request->validated('name')]);
 
-        return response()->json(['user' => $accounts->userPayload($user)]);
+        return response()->json(['user' => $accounts->userPayload($user->fresh())]);
+    }
+
+    /**
+     * Change the signed-in user's password. Every other session of this user is ended and the current one
+     * gets a new id, so a stolen session cannot outlive the change while this device stays signed in.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $user->forceFill([
+            'password' => $request->validated('password'),
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        DB::table('sessions')
+            ->where('user_id', $user->getKey())
+            ->where('id', '!=', $request->session()->getId())
+            ->delete();
+        $request->session()->regenerate();
+
+        return response()->json(['message' => 'Your password has been changed. Your other devices were signed out.']);
     }
 
     public function forgotPassword(Request $request, UserAccountService $accounts): JsonResponse
@@ -93,7 +116,7 @@ class SessionController extends Controller
         $data = $request->validate([
             'token' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:254'],
-            'password' => ['required', 'string', 'max:128', 'confirmed', PasswordRule::min(12)->letters()->mixedCase()->numbers()->symbols()],
+            'password' => ['required', 'string', 'max:128', 'confirmed', UserAccountService::passwordRule()],
         ]);
 
         $status = Password::reset(

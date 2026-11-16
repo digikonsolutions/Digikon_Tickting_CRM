@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class UserAccountService
 {
@@ -74,6 +75,20 @@ class UserAccountService
             'agency_id' => $user->agency_id,
             'agency_name' => $user->agency?->name,
         ];
+    }
+
+    /** The password policy shared by password reset and the signed-in change-password flow. */
+    public static function passwordRule(): PasswordRule
+    {
+        return PasswordRule::min(12)->letters()->mixedCase()->numbers()->symbols();
+    }
+
+    /** Whether the account may use the app right now: active, and its agency (if any) not suspended. */
+    public function canUseAccount(User $user): bool
+    {
+        $user->loadMissing('agency');
+
+        return $user->is_active && ($user->agency === null || $user->agency->status === 'active');
     }
 
     public function normalizeEmail(Request $request): void

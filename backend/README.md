@@ -37,7 +37,8 @@ Available routes:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/auth/csrf-cookie` | Establish the CSRF/session cookies |
-| PATCH | `/api/auth/profile` | Update the authenticated user's profile |
+| PATCH | `/api/auth/profile` | Any signed-in, active user updates their own display name (trimmed, whitespace collapsed, max 120). `email`, `role`, `agency_id`, `is_active` and `password` are rejected with 422. The only self-service profile route; the former `/api/agency/profile` was removed |
+| PUT | `/api/auth/password` | Change your own password: `current_password`, `password` (reset-flow policy, must differ) and `password_confirmation`. Ends every other session, rotates the remember token and the current session id. Throttled to 5 a minute per user |
 | POST | `/api/auth/users` | Admin-only account invitation; role and agency assignment are validated |
 | GET | `/api/admin/users` | Admin-only paginated directory of all roles (optionally filtered by `role`); supports `search`, `page`, and `per_page` |
 | PATCH | `/api/admin/users/{user}` | Admin update of employee or agency-owner details and activation |
@@ -49,7 +50,6 @@ Available routes:
 | DELETE | `/api/agency/users/{user}` | Owners delete same-agency clients |
 | GET | `/api/agency/directory` | Agency-owner, legacy agency-member, and agency-client directory including shared admin-created employees |
 | GET | `/api/agency/team` | Agency-owner/client roster of shared admin-created employees |
-| PATCH | `/api/agency/profile` | Agency-member or client may update their own display name |
 | GET | `/api/agency/employees/available` | Agency client/owner list of active same-agency and shared employees with no active holder |
 | POST | `/api/agency/assignments` | Hold an available employee exclusively for the current client or owner |
 | GET | `/api/agency/assignments` | List the caller's own active assignments (holder only; `scope` is rejected with 422) |

@@ -499,13 +499,13 @@ class AgencyUserManagementTest extends TestCase
             ->assertJsonFragment(['id' => $member->id, 'role' => Role::AgencyMember->value]);
 
         $this->actingAs($member);
-        $this->patchJson('/api/agency/profile', ['name' => 'Updated Member'])
+        $this->patchJson('/api/auth/profile', ['name' => 'Updated Member'])
             ->assertOk()
             ->assertJsonPath('user.name', 'Updated Member');
 
         $this->assertDatabaseHas('users', ['id' => $member->id, 'name' => 'Updated Member']);
 
-        $this->patchJson('/api/agency/profile', [
+        $this->patchJson('/api/auth/profile', [
             'name' => 'Role escalation',
             'role' => Role::AgencyOwner->value,
         ])->assertUnprocessable()->assertJsonValidationErrors(['role']);

@@ -24,7 +24,6 @@ class EnsureActiveAgencyMiddlewareTest extends TestCase
         return [
             'team' => ['GET', '/api/agency/team', Role::AgencyClient],
             'directory' => ['GET', '/api/agency/directory', Role::AgencyClient],
-            'profile' => ['PATCH', '/api/agency/profile', Role::AgencyClient],
             'list users' => ['GET', '/api/agency/users', Role::AgencyOwner],
             'create user' => ['POST', '/api/agency/users', Role::AgencyOwner],
             'update user' => ['PATCH', '/api/agency/users/1', Role::AgencyOwner],
