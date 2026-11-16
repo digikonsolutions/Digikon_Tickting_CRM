@@ -6,7 +6,9 @@ use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\AvatarService;
 use App\Services\UserAccountService;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,6 +70,33 @@ class SessionController extends Controller
     {
         $user = $request->user();
         $user->update(['name' => $request->validated('name')]);
+
+        return response()->json(['user' => $accounts->userPayload($user->fresh())]);
+    }
+
+    /**
+     * Upload or replace the signed-in user's profile photo. Only `photo_path` changes: the name, email and
+     * every other profile field are left exactly as they were.
+     */
+    public function uploadProfilePhoto(Request $request, UserAccountService $accounts, AvatarService $avatars): JsonResponse
+    {
+        $request->validate(['photo' => ['required', 'file']]);
+        $file = $request->file('photo');
+
+        if ($problem = $avatars->problem($file)) {
+            throw ValidationException::withMessages(['photo' => $problem]);
+        }
+
+        $user = $request->user();
+        $avatars->store($user, $file);
+
+        return response()->json(['user' => $accounts->userPayload($user->fresh())]);
+    }
+
+    public function deleteProfilePhoto(Request $request, UserAccountService $accounts, AvatarService $avatars): JsonResponse
+    {
+        $user = $request->user();
+        $avatars->remove($user);
 
         return response()->json(['user' => $accounts->userPayload($user->fresh())]);
     }

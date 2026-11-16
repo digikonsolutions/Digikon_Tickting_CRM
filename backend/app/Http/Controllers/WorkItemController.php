@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Http\Requests\StoreWorkItemRequest;
+use App\Http\Requests\UpdateWorkItemRequest;
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
 use App\Services\TicketEventRecorder;
+use App\Services\TicketPlanner;
 use App\Services\TimeTracker;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
@@ -227,6 +229,121 @@ class WorkItemController extends Controller
         return response()->json([
             'project' => $this->payload($item->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
         ], 201);
+    }
+
+    /**
+     * Edit an existing project. Agency owners only, their own agency, any status including
+     * completed and cancelled. Title, description and the brief fields are always editable;
+     * hours, dates and the assigned employee reschedule the project and so are limited to
+     * projects that are still open (scheduled or in progress). Nothing here changes `status`:
+     * that is only ever set by ticket completion (automatic) or the cancel endpoint (explicit).
+     */
+    public function update(UpdateWorkItemRequest $request, WorkItem $workItem, WorkItemScheduler $scheduler, TicketPlanner $planner): JsonResponse
+    {
+        $user = $request->user();
+        $agency = $user->agency;
+        abort_unless(
+            $user->role === Role::AgencyOwner && $agency !== null && $workItem->agency_id === $agency->id,
+            404
+        );
+
+        $data = $request->validated();
+        $schedulingFields = ['estimated_hours', 'start_date', 'due_date', 'assignment_id'];
+        $wantsReschedule = (bool) array_intersect($schedulingFields, array_keys($data));
+
+        if ($wantsReschedule && ! in_array($workItem->status, ['scheduled', 'in_progress'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Hours, dates and the assigned employee can only be changed on an open (scheduled or in progress) project.',
+            ]);
+        }
+
+        $item = DB::transaction(function () use ($user, $agency, $workItem, $data, $wantsReschedule, $schedulingFields, $scheduler, $planner): WorkItem {
+            $lockedItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
+
+            $plainData = Arr::except($data, $schedulingFields);
+            if (! empty($plainData)) {
+                $lockedItem->update($plainData);
+            }
+
+            if ($wantsReschedule) {
+                $this->rescheduleProject($lockedItem, $agency, $user, $data, $scheduler, $planner);
+            }
+
+            return $lockedItem;
+        });
+
+        return response()->json([
+            'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true),
+        ]);
+    }
+
+    /**
+     * Applies an hours/dates/employee change to an open project: keeps allocations already in the
+     * past untouched, replaces everything from today onward with a fresh plan for the (possibly
+     * new) employee, and re-plans ticket schedules against the resulting pool.
+     */
+    private function rescheduleProject(WorkItem $lockedItem, \App\Models\Agency $agency, User $user, array $data, WorkItemScheduler $scheduler, TicketPlanner $planner): void
+    {
+        $start = CarbonImmutable::parse($data['start_date'] ?? $lockedItem->start_date->toDateString(), config('app.timezone'));
+        $due = CarbonImmutable::parse($data['due_date'] ?? $lockedItem->due_date->toDateString(), config('app.timezone'));
+        $this->validateDateRange($start, $due);
+
+        $assignment = $lockedItem->assignment;
+        if (array_key_exists('assignment_id', $data) && $data['assignment_id'] != $lockedItem->assignment_id) {
+            $assignment = EmployeeAssignment::query()->lockForUpdate()->find($data['assignment_id']);
+            if (
+                $assignment === null
+                || $assignment->holder_id !== $user->id
+                || $assignment->agency_id !== $agency->id
+                || $assignment->status !== 'active'
+            ) {
+                throw ValidationException::withMessages([
+                    'assignment_id' => 'Choose an active employee assignment held by your account.',
+                ]);
+            }
+        }
+        $employee = User::query()->lockForUpdate()->findOrFail($assignment->employee_id);
+        if (! $employee->is_active || $employee->role !== Role::Employee) {
+            throw ValidationException::withMessages([
+                'assignment_id' => 'The assigned employee is no longer active.',
+            ]);
+        }
+
+        $totalUnits = (int) round((float) ($data['estimated_hours'] ?? $lockedItem->estimated_hours) * 100);
+        $today = now(config('app.timezone'))->toDateString();
+        $pastUnits = (int) round(
+            (float) $lockedItem->allocations()->whereDate('work_date', '<', $today)->sum('hours') * 100
+        );
+        $remainingUnits = max(0, $totalUnits - $pastUnits);
+
+        // Free this project's own future hours first so they do not count as "booked" against the employee.
+        // If the new plan does not fit, the exception rolls the whole transaction back and nothing changes.
+        $lockedItem->allocations()->whereDate('work_date', '>=', $today)->delete();
+        $plan = $remainingUnits === 0 ? [] : $scheduler->plan($employee, CarbonImmutable::parse(max($start->toDateString(), $today), config('app.timezone')), $due, $remainingUnits);
+        if ($plan === null) {
+            throw ValidationException::withMessages([
+                'assignment_id' => 'This employee does not have enough capacity in the selected date range. Extend the dates.',
+            ]);
+        }
+
+        foreach ($plan as $allocation) {
+            WorkItemAllocation::create([
+                'work_item_id' => $lockedItem->id,
+                'employee_id' => $employee->id,
+                'work_date' => $allocation['work_date'],
+                'hours' => WorkItemScheduler::unitsToHours($allocation['units']),
+            ]);
+        }
+
+        $lockedItem->update([
+            'assignment_id' => $assignment->id,
+            'employee_id' => $employee->id,
+            'estimated_hours' => WorkItemScheduler::unitsToHours($totalUnits),
+            'start_date' => $start->toDateString(),
+            'due_date' => $due->toDateString(),
+        ]);
+
+        $planner->plan($lockedItem->fresh());
     }
 
     public function cancel(Request $request, WorkItem $workItem, TicketEventRecorder $recorder): JsonResponse

@@ -320,8 +320,10 @@ class TicketManagementTest extends TestCase
             ->assertOk()->assertJsonPath('ticket.status', 'done');
         $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'completed']);
 
+        // A completed project still accepts new (follow-up) tickets, and creating one does not reopen it.
         $this->actingAs($owner)->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
-            ->assertUnprocessable();
+            ->assertCreated();
+        $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'completed']);
     }
 
     public function test_admin_ticket_directory_is_read_only_and_comments_allow_only_project_participants(): void
@@ -361,10 +363,10 @@ class TicketManagementTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_tickets_require_open_project_and_nonagency_roles_cannot_manage_them(): void
+    public function test_tickets_require_a_non_cancelled_project_and_nonagency_roles_cannot_manage_them(): void
     {
         [$agency, $owner, $client, $employee, $project] = $this->projectFixture();
-        $project->update(['status' => 'completed']);
+        $project->update(['status' => 'cancelled']);
 
         $this->actingAs($client)->postJson($this->projectTicketsUrl($project), $this->ticketData(2))
             ->assertUnprocessable();

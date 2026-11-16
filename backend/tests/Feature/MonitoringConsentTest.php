@@ -66,7 +66,7 @@ class MonitoringConsentTest extends TestCase
     public function test_a_new_policy_version_asks_again(): void
     {
         app(MonitoringPolicy::class)->accept($this->u['employee'], null);
-        config(['monitoring.version' => '2.0']);
+        config(['monitoring.version' => '99.0']);
 
         $this->actingAs($this->u['employee'])->getJson('/api/auth/me')->assertJsonPath('user.monitoring_consent_required', true);
     }

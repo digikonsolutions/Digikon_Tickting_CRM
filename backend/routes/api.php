@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AdminEmployeeActivityController;
 use App\Http\Controllers\EmployeeHeartbeatController;
+use App\Http\Controllers\BrowserHistoryController;
 use App\Http\Controllers\MonitoringConsentController;
 use App\Http\Controllers\ProjectAttachmentController;
 use App\Http\Controllers\TimeController;
@@ -24,6 +25,8 @@ Route::middleware('web')->prefix('auth')->group(function () {
     Route::post('/logout', [SessionController::class, 'logout'])->middleware('auth');
     Route::get('/me', [SessionController::class, 'currentUser'])->middleware('auth');
     Route::patch('/profile', [SessionController::class, 'updateProfile'])->middleware('auth');
+    Route::post('/profile/photo', [SessionController::class, 'uploadProfilePhoto'])->middleware(['auth', 'throttle:attachments']);
+    Route::delete('/profile/photo', [SessionController::class, 'deleteProfilePhoto'])->middleware('auth');
     Route::put('/password', [SessionController::class, 'changePassword'])->middleware(['auth', 'throttle:password-change']);
 
     Route::post('/users', [AdminUserController::class, 'createUser'])
@@ -65,8 +68,13 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/projects', [WorkItemController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:project-create']);
+    Route::patch('/projects/{workItem}', [WorkItemController::class, 'update'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::patch('/projects/{workItem}/cancel', [WorkItemController::class, 'cancel'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    // The project's employee timeline: the same activity data as the admin page, filtered to this project.
+    Route::get('/projects/{workItem}/activity', [AdminEmployeeActivityController::class, 'projectActivity'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::post('/projects/{workItem}/tickets', [TicketController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/projects/{workItem}/tickets', [TicketController::class, 'index'])
@@ -82,6 +90,19 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/employees/{id}/performance', [AdminEmployeeActivityController::class, 'performance'])
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
+});
+
+// Browser tab history, synced from the Chrome extension. Employees only, and only after consent;
+// an employee reads and writes only their own history. Admin access is below, strictly read-only.
+Route::middleware(['web', 'auth', 'role:employee'])->prefix('browser-history')->group(function () {
+    Route::get('/status', [BrowserHistoryController::class, 'status']);
+    Route::post('/sync', [BrowserHistoryController::class, 'sync'])->middleware('throttle:browser-history-sync');
+});
+
+// Admin: read-only across all employees. No create/update/delete route exists for this data at all.
+Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin/browser-history')->group(function () {
+    Route::get('/summary', [BrowserHistoryController::class, 'adminSummary']);
+    Route::get('/events', [BrowserHistoryController::class, 'adminEvents']);
 });
 
 Route::middleware(['web', 'auth', 'role:admin'])->group(function () {

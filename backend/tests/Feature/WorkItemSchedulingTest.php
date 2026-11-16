@@ -443,8 +443,11 @@ class WorkItemSchedulingTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'projects')
             ->assertJsonPath('projects.0.agency_name', 'Northwind');
+        // Editing exists for the agency owner only, and can never set the status.
         $this->patchJson('/api/agency/projects/'.$workItem->id, ['status' => 'completed'])
-            ->assertMethodNotAllowed();
+            ->assertForbidden();
+        $this->actingAs($owner)->patchJson('/api/agency/projects/'.$workItem->id, ['status' => 'completed'])
+            ->assertUnprocessable();
 
         $this->actingAs($employee)->getJson('/api/work-items/mine')
             ->assertOk()

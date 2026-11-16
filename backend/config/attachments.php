@@ -44,4 +44,14 @@ return [
 
     // Only these may be displayed inline (image previews); everything else is always a download.
     'inline_mimes' => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+
+    // Profile photos: small images only, on the PUBLIC disk (they are shown in the header, sidebar
+    // and employee timeline, so unlike every other attachment they must have a public URL).
+    'avatar_max_kb' => (int) env('AVATAR_MAX_KB', 4096),
+    'avatar_allowed' => [
+        'png' => ['image/png'],
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'webp' => ['image/webp'],
+    ],
 ];

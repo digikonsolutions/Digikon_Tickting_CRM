@@ -56,13 +56,15 @@ class TicketController extends Controller
         TicketEventRecorder $recorder
     ): JsonResponse {
         $user = $request->user();
-        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
+        // New tickets are allowed on completed projects too (follow-up work). Creating one never
+        // changes the project's status: only a ticket moving through the workflow does that.
+        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true, allowCompleted: true);
         $data = $request->validated();
 
         $ticket = DB::transaction(function () use ($workItem, $user, $data, $planner, $recorder): Ticket {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
-            $this->ensureOpenProject($lockedWorkItem);
+            $this->ensureOpenProject($lockedWorkItem, allowCompleted: true);
 
             $agency = Agency::query()->lockForUpdate()->findOrFail($lockedWorkItem->agency_id);
             $nextNumber = $agency->ticket_sequence + 1;
@@ -639,12 +641,13 @@ class TicketController extends Controller
         User $user,
         WorkItem $workItem,
         bool $requireOpen = false,
-        bool $requireActiveAssignment = false
+        bool $requireActiveAssignment = false,
+        bool $allowCompleted = false
     ): void {
         abort_unless($this->canAccessProject($user, $workItem), 404);
 
         if ($requireOpen) {
-            $this->ensureOpenProject($workItem);
+            $this->ensureOpenProject($workItem, $allowCompleted);
         }
 
         if ($requireActiveAssignment) {
@@ -666,9 +669,14 @@ class TicketController extends Controller
         return true;
     }
 
-    private function ensureOpenProject(WorkItem $workItem): void
+    private function ensureOpenProject(WorkItem $workItem, bool $allowCompleted = false): void
     {
-        abort_unless(in_array($workItem->status, ['scheduled', 'in_progress'], true), 422, 'Tickets can only be changed on open projects.');
+        $allowed = $allowCompleted ? ['scheduled', 'in_progress', 'completed'] : ['scheduled', 'in_progress'];
+        abort_unless(
+            in_array($workItem->status, $allowed, true),
+            422,
+            $allowCompleted ? 'Tickets cannot be added to a cancelled project.' : 'Tickets can only be changed on open projects.'
+        );
     }
 
     private function ensureActiveProjectAssignment(WorkItem $workItem): void

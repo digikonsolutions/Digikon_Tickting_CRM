@@ -183,6 +183,8 @@ class ActivityLogger
         $before = $this->now()->subDays((int) config('activity.retention_days'));
         $logs = EmployeeActivityLog::query()->where('occurred_at', '<', $before)->delete();
         WorkSession::query()->whereNotNull('ended_at')->where('ended_at', '<', $before)->delete();
+        // A query delete: the model itself refuses to be deleted, retention pruning is the one exception.
+        \App\Models\BrowserHistoryEvent::query()->where('occurred_at', '<', $before)->delete();
 
         return $logs;
     }

@@ -8,6 +8,7 @@ use App\Models\EmployeeActivityLog;
 use App\Models\EmployeeAssignment;
 use App\Models\TicketEvent;
 use App\Models\User;
+use App\Models\WorkItem;
 use App\Models\WorkSession;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -96,24 +97,84 @@ class AdminEmployeeActivityController extends Controller
 
         return response()->json([
             'employee' => ['id' => $employee->id, 'name' => $employee->name],
-            'events' => $page->getCollection()->map(fn (EmployeeActivityLog $log): array => [
-                // Connection details are for administrators only.
-                'id' => $log->id,
-                'event_type' => $log->event_type,
-                'occurred_at' => $log->occurred_at->toISOString(),
-                'ticket' => $log->ticket ? ['id' => $log->ticket->id, 'key' => $log->ticket->key, 'title' => $log->ticket->title] : null,
-                'project' => $log->workItem ? ['id' => $log->workItem->id, 'title' => $log->workItem->title] : null,
-                'metadata' => $log->metadata,
-                'ip_address' => $connection ? $log->ip_address : null,
-                'user_agent' => $connection ? $log->user_agent : null,
-            ])->values(),
-            'pagination' => [
-                'current_page' => $page->currentPage(),
-                'last_page' => $page->lastPage(),
-                'per_page' => $page->perPage(),
-                'total' => $page->total(),
-            ],
+            'events' => $page->getCollection()->map(fn (EmployeeActivityLog $log): array => $this->eventPayload($log, $connection))->values(),
+            'pagination' => $this->paginationPayload($page),
         ]);
+    }
+
+    /**
+     * The same recorded events as `activity()`, filtered to one project (its ticket updates and
+     * its own project-status changes). This is the "employee timeline" embedded in Project Details
+     * on the Agency Owner Dashboard: agency owners only, their own agency, and only while the
+     * project's employee is currently assigned to that agency.
+     */
+    public function projectActivity(Request $request, WorkItem $workItem): JsonResponse
+    {
+        $viewer = $request->user();
+        abort_unless(
+            $viewer->role === Role::AgencyOwner && $viewer->agency_id !== null && $workItem->agency_id === $viewer->agency_id,
+            404
+        );
+        abort_if($workItem->employee_id === null, 404);
+
+        $assignment = EmployeeAssignment::query()
+            ->where('employee_id', $workItem->employee_id)
+            ->where('agency_id', $viewer->agency_id)
+            ->where('status', 'active')
+            ->latest('started_at')
+            ->first();
+        abort_if($assignment === null, 404);
+        $this->since = CarbonImmutable::instance($assignment->started_at);
+
+        [$from, $to] = $this->range($request, 30, 366);
+        $filters = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
+        $employee = $workItem->employee()->firstOrFail();
+
+        $page = EmployeeActivityLog::query()
+            ->where('employee_id', $employee->id)
+            ->where('work_item_id', $workItem->id)
+            ->whereBetween('occurred_at', [$from, $to])
+            ->with(['ticket:id,agency_id,number,title', 'ticket.agency:id,ticket_prefix'])
+            ->orderByDesc('occurred_at')->orderByDesc('id')
+            ->paginate($filters['per_page'] ?? 50);
+
+        return response()->json([
+            'employee' => ['id' => $employee->id, 'name' => $employee->name, 'photo_url' => $employee->photoUrl()],
+            'project' => ['id' => $workItem->id, 'title' => $workItem->title],
+            'events' => $page->getCollection()->map(fn (EmployeeActivityLog $log): array => $this->eventPayload($log, false))->values(),
+            'pagination' => $this->paginationPayload($page),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function eventPayload(EmployeeActivityLog $log, bool $withConnection): array
+    {
+        return [
+            'id' => $log->id,
+            'event_type' => $log->event_type,
+            'occurred_at' => $log->occurred_at->toISOString(),
+            'ticket' => $log->ticket ? ['id' => $log->ticket->id, 'key' => $log->ticket->key, 'title' => $log->ticket->title] : null,
+            'project' => $log->workItem ? ['id' => $log->workItem->id, 'title' => $log->workItem->title] : null,
+            'metadata' => $log->metadata,
+            // Connection details are for administrators only.
+            'ip_address' => $withConnection ? $log->ip_address : null,
+            'user_agent' => $withConnection ? $log->user_agent : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paginationPayload($page): array
+    {
+        return [
+            'current_page' => $page->currentPage(),
+            'last_page' => $page->lastPage(),
+            'per_page' => $page->perPage(),
+            'total' => $page->total(),
+        ];
     }
 
     public function performance(Request $request, int $id): JsonResponse

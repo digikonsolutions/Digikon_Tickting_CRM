@@ -75,6 +75,7 @@ class UserAccountService
             'role' => $user->role->value,
             'agency_id' => $user->agency_id,
             'agency_name' => $user->agency?->name,
+            'photo_url' => $user->photoUrl(),
         ];
 
         // Employees must accept the monitoring notice before using the app.

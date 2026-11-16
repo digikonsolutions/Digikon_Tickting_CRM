@@ -71,6 +71,8 @@ class ProfileTest extends TestCase
                 'role' => $role->value,
                 'agency_id' => $user->agency_id,
                 'agency_name' => $user->agency_id ? 'Northwind' : null,
+                'photo_url' => null,
+                ...($role === Role::Employee ? ['monitoring_consent_required' => true] : []),
             ]]);
 
         $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Ada Lovelace']);
