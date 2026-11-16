@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { ApiErrorMessage } from '../components/ApiErrorMessage'
 import { AuthLayout } from '../components/AuthLayout'
 import { Alert, Button, Input } from '../../../components/ui'
+import { isStrongPassword, PASSWORD_HINT } from '../../../lib/password'
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
@@ -32,8 +33,8 @@ export function ResetPasswordPage() {
       setError(new Error('Passwords do not match.'))
       return
     }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,}/.test(data.get('password'))) {
-      setError(new Error('Use at least 12 characters with uppercase, lowercase, a number, and a symbol.'))
+    if (!isStrongPassword(data.get('password'))) {
+      setError(new Error(PASSWORD_HINT))
       return
     }
 
@@ -62,7 +63,7 @@ export function ResetPasswordPage() {
       title={isComplete ? 'Password set successfully' : isInvite ? 'Set your password' : 'Reset your password'}
       description={isComplete
         ? `The password for ${email} has been updated. You are still signed in as ${user.name}; this does not sign you in as the invited user.`
-        : 'Use at least 12 characters with uppercase, lowercase, a number, and a symbol.'}
+        : PASSWORD_HINT}
       footer={isComplete && user
         ? <Link to={ROLE_HOME[user.role]}>Return to your workspace</Link>
         : <Link to="/login">Back to sign in</Link>}

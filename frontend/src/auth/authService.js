@@ -1,5 +1,6 @@
 import { ROLES, isKnownRole } from './roles'
 import { DEFAULT_CAPACITY } from '../lib/constants'
+import { isStrongPassword, normalizeName, PASSWORD_HINT } from '../lib/password'
 
 const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api').replace(/\/$/, '')
 const AUTH_MODE = import.meta.env.VITE_AUTH_MODE ?? 'api'
@@ -162,11 +163,31 @@ export const authService = {
     if (AUTH_MODE === 'mock') return null
     return request('/auth/me')
   },
-  async updateProfile(data) {
-    if (AUTH_MODE === 'mock') return { user: data }
+  // The single self-service profile endpoint (every role). current is only used in mock mode, to return
+  // the same shape the API does: the full user payload with the new name.
+  async updateProfile(data, current = {}) {
+    if (AUTH_MODE === 'mock') {
+      const name = normalizeName(data.name)
+      if (!name || name.length > 120) {
+        throw new ApiError('The given data was invalid.', { status: 422, errors: { name: [name ? 'Your name may not be longer than 120 characters.' : 'Enter your name.'] } })
+      }
+      return { user: { id: current.id ?? 1, name, email: current.email ?? 'mock@example.com', role: current.role ?? 'employee', agency_id: current.agency_id ?? null, agency_name: current.agency_name ?? null } }
+    }
     return request('/auth/profile', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    })
+  },
+  // Signed-in password change. The server ends every other session and keeps this one.
+  async changePassword({ currentPassword, password, passwordConfirmation }) {
+    if (AUTH_MODE === 'mock') {
+      if (!isStrongPassword(password)) throw new ApiError('The given data was invalid.', { status: 422, errors: { password: [PASSWORD_HINT] } })
+      if (password !== passwordConfirmation) throw new ApiError('The given data was invalid.', { status: 422, errors: { password: ['The new password and its confirmation do not match.'] } })
+      return { message: 'Your password has been changed. Your other devices were signed out.' }
+    }
+    return request('/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({ current_password: currentPassword, password, password_confirmation: passwordConfirmation }),
     })
   },
   async signIn({ email, password }) {

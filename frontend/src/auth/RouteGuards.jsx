@@ -243,6 +243,7 @@ export function AppLayout() {
               <div className="header-user-menu-popover">
                 <strong>{user.name}</strong>
                 <span>{ROLE_LABELS[user.role]}</span>
+                <Link to="/profile">My profile</Link>
                 <Link to="/notifications">Notifications</Link>
                 <Link to="/settings/notifications">Notification settings</Link>
                 <button type="button" onClick={handleSignOut} disabled={isSigningOut}>
