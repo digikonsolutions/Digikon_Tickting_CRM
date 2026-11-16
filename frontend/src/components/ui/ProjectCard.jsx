@@ -9,7 +9,7 @@ import { StatusBadge } from './StatusBadge'
 // One project as a card: title and who it is for on top, then status, specialist, hours and due date,
 // and the schedule at a glance. Used by every projects list so they all read the same on any screen.
 // `to` is the detail route; `showAgency` / `showClient` choose what the second line names.
-export function ProjectCard({ project, to, showAgency = false, showClient = true }) {
+export function ProjectCard({ project, to, showAgency = false, showClient = true, actions = null }) {
   const parties = [
     showAgency ? project.agency_name : null,
     showClient ? (project.client?.name ?? 'Account removed') : null,
@@ -52,17 +52,19 @@ export function ProjectCard({ project, to, showAgency = false, showClient = true
       </dl>
 
       <ScheduleSummary schedule={project.schedule} />
+
+      {actions && <footer className="ui-project-card-actions">{actions}</footer>}
     </article>
   )
 }
 
-export function ProjectCardList({ projects = [], routeFor, showAgency = false, showClient = true, emptyTitle = 'No projects', emptyText = 'Nothing to show yet.', emptyAction = null }) {
+export function ProjectCardList({ projects = [], routeFor, actionsFor, showAgency = false, showClient = true, emptyTitle = 'No projects', emptyText = 'Nothing to show yet.', emptyAction = null }) {
   if (!projects.length) return <EmptyState title={emptyTitle} action={emptyAction}>{emptyText}</EmptyState>
   return (
     <ul className="ui-project-list">
       {projects.map((project) => (
         <li key={project.id}>
-          <ProjectCard project={project} to={routeFor?.(project)} showAgency={showAgency} showClient={showClient} />
+          <ProjectCard project={project} to={routeFor?.(project)} showAgency={showAgency} showClient={showClient} actions={actionsFor?.(project)} />
         </li>
       ))}
     </ul>

@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
@@ -102,6 +102,17 @@ export function ProjectDetailPage() {
     setTicketFiles([])
     setFileNotice(null)
   }
+
+  // Links from the projects list (?edit=1 / ?newTicket=1) open the matching dialog once, then clear the link.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const wanted = searchParams.get('edit') ? 'edit' : searchParams.get('newTicket') ? 'ticket' : null
+  useEffect(() => {
+    if (!wanted || !project) return
+    setSearchParams({}, { replace: true })
+    if (wanted === 'edit' && isOwner) openProjectEditor()
+    if (wanted === 'ticket' && canAddTicket) { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, project?.id])
 
   async function openProjectEditor() {
     setMutationError(null)

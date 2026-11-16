@@ -283,6 +283,14 @@ export function AgencyProjectsPage({ viewAs }) {
             <ProjectCardList
               projects={projects}
               routeFor={(project) => `/agency/projects/${project.id}`}
+              actionsFor={user.role === 'agency_owner' ? (project) => (
+                <>
+                  <Link className="ui-button ui-button-secondary ui-button-sm" to={`/agency/projects/${project.id}?edit=1`}>Edit project</Link>
+                  {project.status !== 'cancelled' && project.assignment_status === 'active' && (
+                    <Link className="ui-button ui-button-primary ui-button-sm" to={`/agency/projects/${project.id}?newTicket=1`}>Add ticket</Link>
+                  )}
+                </>
+              ) : undefined}
               showClient
               emptyTitle={statusFilter || search ? 'No matching projects' : 'No projects yet'}
               emptyText={statusFilter || search ? 'Try a different status or search.' : 'Create your first project above to start assigning work.'}
