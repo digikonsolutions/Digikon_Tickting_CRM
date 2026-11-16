@@ -1747,3 +1747,36 @@
 .site-icon > span { color: var(--brand-hover); font-weight: 800; }
 .site-icon-sm { width: 1.75rem; height: 1.75rem; font-size: .75rem; }
 .site-icon-md { width: 2.25rem; height: 2.25rem; font-size: .9rem; }
+
+/* ---------- Dashboard polish: readable banner heading, KPI cards ---------- */
+.welcome-banner h1 { color: var(--color-white); }
+.welcome-banner p { max-width: 42rem; }
+
+/* Cards fill the row (6 cards -> 3 + 3, never 4 + 2 with gaps) and never get squeezed. */
+.dashboard-kpis { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+
+.ui-kpi-card:not(.ui-kpi-hero) {
+  position: relative;
+  gap: var(--space-3);
+  overflow: hidden;
+  padding: 1.1rem 1.25rem 1.1rem 1.4rem;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+.ui-kpi-card:not(.ui-kpi-hero)::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: .3rem;
+  background: var(--color-accent-600);
+}
+.ui-kpi-card:not(.ui-kpi-hero):hover { transform: translateY(-2px); border-color: var(--color-primary-200); box-shadow: var(--shadow-md, 0 .6rem 1.4rem rgb(15 23 42 / 8%)); }
+.ui-kpi-success::before { background: var(--color-success-700) !important; }
+.ui-kpi-warning::before { background: var(--color-warning-500) !important; }
+.ui-kpi-danger::before { background: var(--color-danger-600) !important; }
+.ui-kpi-info::before { background: var(--color-info-700) !important; }
+.ui-kpi-card .ui-kpi-icon { width: 2.4rem; height: 2.4rem; border-radius: .75rem; }
+.ui-kpi-card .ui-kpi-title { font-size: .8rem; letter-spacing: .01em; }
+.ui-kpi-card .ui-kpi-value { margin-top: .15rem; font-size: 2.1rem; font-variant-numeric: tabular-nums; }
+.ui-kpi-card .ui-kpi-subtext { font-size: .78rem; }
+.ui-kpi-hero { min-height: 7.5rem; }
+@media (prefers-reduced-motion: reduce) { .ui-kpi-card:not(.ui-kpi-hero) { transition: none; } .ui-kpi-card:not(.ui-kpi-hero):hover { transform: none; } }
