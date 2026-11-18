@@ -46,9 +46,9 @@ export function ReportFilterBar({
     hasActiveFilters,
   } = filters
 
-  const agencies = filterOptions.agencies ?? []
-  const employees = filterOptions.employees ?? []
-  const clients = filterOptions.clients ?? []
+  const agencies = filterOptions?.agencies ?? []
+  const employees = filterOptions?.employees ?? []
+  const clients = filterOptions?.clients ?? []
 
   const canFilterAgency = scope === 'admin' && agencies.length > 0
   const canFilterEmployee = employees.length > 0

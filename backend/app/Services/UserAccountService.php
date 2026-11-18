@@ -76,13 +76,24 @@ class UserAccountService
             'agency_id' => $user->agency_id,
             'agency_name' => $user->agency?->name,
             'photo_url' => $user->photoUrl(),
+        'avatar_url' => $user->avatar_url,
+        'avatar_public_id' => $user->avatar_public_id,
+
         ];
 
         // Agency-scoped users (owner, client, legacy member) get their agency's branding on every session
         // load so the app can theme itself before first paint. Everyone else keeps the default look.
-        $payload['branding'] = $user->role->isAgencyRole() && $user->agency
-            ? app(AgencyBrandingService::class)->payload($user->agency)
-            : null;
+        // Safely fetch agency branding – any failure should not break the auth response.
+        try {
+            $payload['branding'] = $user->role->isAgencyRole() && $user->agency
+                ? app(AgencyBrandingService::class)->payload($user->agency)
+                : null;
+        } catch (\Throwable $e) {
+            // Log the class and message; do not expose details to the client.
+            \Log::error('Branding lookup failed: ' . get_class($e) . ' – ' . $e->getMessage());
+            $payload['branding'] = null;
+        }
+
 
         // Employees must accept the monitoring notice before using the app.
         $policy = app(MonitoringPolicy::class);

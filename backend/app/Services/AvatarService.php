@@ -22,6 +22,10 @@ class AvatarService
     }
 
     /** JPG, JPEG, PNG and WEBP only; content is sniffed and must match the extension. */
+    /**
+     * Validate the uploaded avatar file.
+     * Accepts only jpg, png, webp (real mime), max 2 MB, never SVG.
+     */
     public function problem(UploadedFile $file): ?string
     {
         $name = AttachmentService::sanitizeName((string) $file->getClientOriginalName());
@@ -56,30 +60,74 @@ class AvatarService
     }
 
     /** Stores the new photo and removes the previous one. Does not touch any other profile field. */
+    /** Stores the new photo and removes the previous one. Does not touch any other profile field. */
     public function store(User $user, UploadedFile $file): string
     {
-        $extension = strtolower(pathinfo((string) $file->getClientOriginalName(), PATHINFO_EXTENSION));
-        $path = Storage::disk('public')->putFileAs('avatars', $file, (string) Str::uuid().'.'.$extension);
-        if ($path === false) {
-            throw new RuntimeException('The photo could not be stored.');
+        // Resolve Cloudinary uploader via container
+        $uploader = app(\App\Services\CloudinaryUploader::class);
+        $folder = rtrim(config('cloudinary.root_folder', 'clienthub'), '/') . '/avatars';
+        $options = [
+            'transformation' => [
+                'width' => 512,
+                'height' => 512,
+                'crop' => 'fill',
+                'gravity' => 'face',
+            ],
+        ];
+
+        // Keep reference to old asset in case we need to rollback
+        $oldPublicId = $user->avatar_public_id;
+        $oldUrl = $user->avatar_url;
+
+        try {
+            $result = $uploader->upload($file, $folder, $options);
+        } catch (\Exception $e) {
+            // No state change – user keeps existing avatar
+            throw $e; // will be handled upstream as 500 with safe message
         }
 
-        $this->delete($user);
-        $user->forceFill(['photo_path' => $path])->save();
+        // Attempt to persist the new avatar info
+        $user->forceFill([
+            'avatar_public_id' => $result['public_id'],
+            'avatar_url'       => $result['secure_url'],
+        ]);
 
-        return $path;
+        try {
+            $user->save();
+        } catch (\Exception $e) {
+            // DB save failed – clean up the newly uploaded asset
+            $uploader->delete($result['public_id']);
+            // Restore original fields (no change needed as they were not saved)
+            throw $e;
+        }
+
+        // If there was a previous avatar, delete it now (won't affect the new one)
+        if ($oldPublicId) {
+            $uploader->delete($oldPublicId);
+        }
+
+        // Return the public URL for convenience (not used by controller)
+        return $result['secure_url'];
     }
 
     public function delete(User $user): void
     {
-        if ($user->photo_path) {
-            Storage::disk('public')->delete($user->photo_path);
+        if ($user->avatar_public_id) {
+            $uploader = app(\App\Services\CloudinaryUploader::class);
+            $uploader->delete($user->avatar_public_id);
         }
     }
 
+
     public function remove(User $user): void
     {
+        // Delete Cloudinary asset if it exists
         $this->delete($user);
-        $user->forceFill(['photo_path' => null])->save();
+        // Clear DB columns
+        $user->forceFill([
+            'avatar_public_id' => null,
+            'avatar_url' => null,
+        ])->save();
     }
+
 }

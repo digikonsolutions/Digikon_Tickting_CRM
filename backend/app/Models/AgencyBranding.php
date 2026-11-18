@@ -32,6 +32,13 @@ class AgencyBranding extends Model
         'sidebar_style',
         'corner_style',
         'welcome_message',
+        // Cloudinary fields
+        'logo_public_id',
+        'logo_url',
+        'logo_collapsed_public_id',
+        'logo_collapsed_url',
+        'favicon_public_id',
+        'favicon_url',
     ];
 
     public function agency(): BelongsTo

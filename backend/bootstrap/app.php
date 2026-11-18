@@ -55,6 +55,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => 500,
             };
 
+            // Log full exception details for any 500‑level error (or any unexpected error).
+            if ($status >= 500) {
+                \Log::error('Unhandled exception', [
+                    'class' => get_class($exception),
+                    'message' => $exception->getMessage(),
+                    'file' => $exception->getFile(),
+                    'line' => $exception->getLine(),
+                ]);
+            }
+
             $message = match ($status) {
                 401 => 'Unauthenticated.',
                 403 => 'You are not authorized to perform this action.',
