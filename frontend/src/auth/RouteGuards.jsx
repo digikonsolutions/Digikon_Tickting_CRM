@@ -9,6 +9,7 @@ import { Badge, Button, Icon, Loader } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
 import { TimerPill } from '../features/time'
 import { MonitoringConsent, useHeartbeat } from '../features/activity'
+import { AssistantWidget } from '../features/assistant'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -279,6 +280,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <AssistantWidget />
     </div>
   )
 }

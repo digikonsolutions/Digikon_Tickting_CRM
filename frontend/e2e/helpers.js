@@ -19,7 +19,12 @@ export async function signIn(page, email, password) {
 
 export async function signInExpectingSuccess(page, email, password) {
   await signIn(page, email, password)
-  await expect(page.locator('.sidebar-user-details')).toBeVisible()
+  // Employees must accept the work activity notice before the app opens (once per policy version).
+  const shell = page.locator('.sidebar-user-details')
+  const notice = page.getByRole('button', { name: 'I understand and accept' })
+  await expect(shell.or(notice)).toBeVisible()
+  if (await notice.isVisible()) await notice.click()
+  await expect(shell).toBeVisible()
 }
 
 export async function signOut(page) {

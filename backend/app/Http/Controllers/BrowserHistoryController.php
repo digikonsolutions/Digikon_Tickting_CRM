@@ -134,7 +134,7 @@ class BrowserHistoryController extends Controller
         $perPage = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']])['per_page'] ?? 50;
 
         $page = $this->filtered($request)
-            ->with('user:id,name,photo_path')
+            ->with('user:id,name,photo_path,avatar_url')
             ->orderByDesc('occurred_at')->orderByDesc('id')
             ->paginate($perPage);
 

@@ -154,23 +154,25 @@ export function LineChart({
       </svg>
 
       {/* Accessible data table fallback for screen readers */}
-      <table className="rp-sr-only">
-        <caption>{summary}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date / Period</th>
-            <th scope="col">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {points.map((pt, idx) => (
-            <tr key={idx}>
-              <td>{pt.label}</td>
-              <td>{pt.val}{unit ? ` ${unit}` : ''}</td>
+      <div className="rp-sr-only">
+        <table>
+          <caption>{summary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Date / Period</th>
+              <th scope="col">Value</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {points.map((pt, idx) => (
+              <tr key={idx}>
+                <td>{pt.label}</td>
+                <td>{pt.val}{unit ? ` ${unit}` : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

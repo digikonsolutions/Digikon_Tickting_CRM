@@ -62,7 +62,13 @@ class SessionController extends Controller
 
     public function currentUser(Request $request, UserAccountService $accounts): JsonResponse
     {
-        return response()->json(['user' => $accounts->userPayload($request->user())]);
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        return response()->json(['user' => $accounts->userPayload($user)]);
     }
 
     /** The one self-service profile endpoint, for every role. It only ever touches the signed-in user. */

@@ -13,11 +13,12 @@ use RuntimeException;
  */
 class AgencyBrandingService
 {
-    protected CloudinaryUploader $uploader;
+    /** Resolved on first use, so reading branding (every /auth/me) never needs Cloudinary credentials. */
+    private ?CloudinaryUploader $uploader = null;
 
-    public function __construct()
+    private function uploader(): CloudinaryUploader
     {
-        $this->uploader = new CloudinaryUploader();
+        return $this->uploader ??= app(CloudinaryUploader::class);
     }
 
     /** Colour defaults when an agency has not chosen one. */
@@ -82,7 +83,10 @@ class AgencyBrandingService
         // Determine folder inside Cloudinary for this agency.
         $folder = "agency-branding/{$agency->id}";
         try {
-            $result = $this->uploader->upload($file, $folder);
+            // Logos often come with a wide blank canvas around the mark; trim uniform borders so the mark
+            // fills the sidebar slot. The favicon is left as drawn.
+            $options = $kind === 'favicon' ? [] : ['transformation' => ['effect' => 'trim:10']];
+            $result = $this->uploader()->upload($file, $folder, $options);
         } catch (\Throwable $e) {
             // Log the failure without exposing details to the client.
             \Log::error('Branding upload exception: ' . get_class($e) . ' – ' . $e->getMessage());
@@ -96,7 +100,7 @@ class AgencyBrandingService
         // Delete previous Cloudinary asset if it exists.
         $oldPublicId = $b->{$publicIdColumn};
         if ($oldPublicId) {
-            $this->uploader->delete($oldPublicId);
+            $this->uploader()->delete($oldPublicId);
         }
 
         // Save new data (legacy path column cleared).
@@ -120,7 +124,7 @@ class AgencyBrandingService
 
         $oldPublicId = $b->{$publicIdColumn};
         if ($oldPublicId) {
-            $this->uploader->delete($oldPublicId);
+            $this->uploader()->delete($oldPublicId);
         }
 
         $b->forceFill([
@@ -142,7 +146,7 @@ class AgencyBrandingService
             $publicIdColumn = str_replace('_path', '_public_id', $col);
             $oldPublicId = $b->{$publicIdColumn};
             if ($oldPublicId) {
-                $this->uploader->delete($oldPublicId);
+                $this->uploader()->delete($oldPublicId);
             }
         }
 

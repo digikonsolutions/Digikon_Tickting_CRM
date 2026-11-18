@@ -23,6 +23,9 @@ use App\Services\TicketEventRecorder;
 use App\Services\TimeTracker;
 use App\Services\TicketPlanner;
 use App\Services\TicketWorkflow;
+use App\Services\WorkflowNotificationService;
+use App\Services\WorkItemScheduler;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,8 +59,10 @@ class TicketController extends Controller
         TicketEventRecorder $recorder
     ): JsonResponse {
         $user = $request->user();
-        // New tickets are allowed on completed projects too (follow-up work). Creating one never
-        // changes the project's status: only a ticket moving through the workflow does that.
+        // New tickets are allowed on completed projects too (follow-up work). A ticket added to an
+        // open project never changes its status; one added to a completed project reopens it (see
+        // reopenCompletedProjectForFollowUp) so the new ticket actually gets real, future work days
+        // instead of being squeezed into the project's already-past schedule window.
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true, allowCompleted: true);
         $data = $request->validated();
 
@@ -65,6 +70,10 @@ class TicketController extends Controller
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem, allowCompleted: true);
+
+            if ($lockedWorkItem->status === 'completed') {
+                $this->reopenCompletedProjectForFollowUp($lockedWorkItem, (float) $data['estimated_hours'], $user);
+            }
 
             $agency = Agency::query()->lockForUpdate()->findOrFail($lockedWorkItem->agency_id);
             $nextNumber = $agency->ticket_sequence + 1;
@@ -690,6 +699,88 @@ class TicketController extends Controller
                 ->exists(),
             404
         );
+    }
+
+    /**
+     * A completed project's own `work_item_allocations` all sit inside its original (now-past) work
+     * window, consumed by whatever tickets were done when it completed. Re-running the planner against
+     * that pool as-is would place a brand-new follow-up ticket on those same past dates, making it look
+     * overdue the instant it is created. Instead: book fresh capacity for the assigned employee starting
+     * today, add it to the project's hours and allocation pool, and put the project back `in_progress`
+     * so the usual ticket workflow (and project date/hours editing) opens up again.
+     */
+    private function reopenCompletedProjectForFollowUp(WorkItem $lockedWorkItem, float $newTicketHours, User $actor): void
+    {
+        $newTotalHours = round((float) $lockedWorkItem->estimated_hours + $newTicketHours, 2);
+        $maxHours = (float) config('scheduling.max_project_hours', 180);
+        if ($newTotalHours > $maxHours) {
+            throw ValidationException::withMessages([
+                'estimated_hours' => "Adding this ticket would take the project to {$newTotalHours} h, over the {$maxHours} h limit. Reduce the estimate or edit the project's hours first.",
+            ]);
+        }
+
+        $employee = User::query()->lockForUpdate()->findOrFail($lockedWorkItem->employee_id);
+
+        // The project's own `work_item_allocations` may still hold more than its done tickets actually
+        // used (an owner rarely estimates to the exact hour), and that leftover sits on dates from the
+        // original, now-past work window. TicketPlanner assigns a project's pool earliest-date-first, so
+        // that leftover would otherwise be handed straight to the new ticket, dating it in the past.
+        // Reconcile the pool down to exactly what is still owed (the done tickets' real hours, on their
+        // real dates) before adding anything new: no future ticket may ever be backdated into stale slack.
+        $consumedByDate = DB::table('ticket_allocations')
+            ->join('tickets', 'tickets.id', '=', 'ticket_allocations.ticket_id')
+            ->where('tickets.work_item_id', $lockedWorkItem->id)
+            ->where('tickets.status', 'done')
+            ->selectRaw('ticket_allocations.work_date, SUM(ticket_allocations.hours) AS hours')
+            ->groupBy('ticket_allocations.work_date')
+            ->get();
+
+        DB::table('work_item_allocations')->where('work_item_id', $lockedWorkItem->id)->delete();
+
+        foreach ($consumedByDate as $row) {
+            DB::table('work_item_allocations')->insert([
+                'work_item_id' => $lockedWorkItem->id,
+                'employee_id' => $employee->id,
+                'work_date' => $row->work_date,
+                'hours' => $row->hours,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $scheduler = app(WorkItemScheduler::class);
+        $timezone = config('app.timezone');
+        $start = CarbonImmutable::now($timezone);
+        $searchLimit = $start->addDays(90);
+        $requestedUnits = (int) round($newTicketHours * 100);
+
+        $plan = $scheduler->plan($employee, $start, $searchLimit, $requestedUnits);
+        abort_if($plan === null, 422, 'Could not find enough availability for this specialist in the next 90 days. Try a smaller estimate.');
+
+        foreach ($plan as $slot) {
+            DB::table('work_item_allocations')->insert([
+                'work_item_id' => $lockedWorkItem->id,
+                'employee_id' => $employee->id,
+                'work_date' => $slot['work_date'],
+                'hours' => WorkItemScheduler::unitsToHours($slot['units']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $newDue = CarbonImmutable::parse(end($plan)['work_date'], $timezone);
+        $projectBefore = $lockedWorkItem->status;
+        $lockedWorkItem->forceFill([
+            'status' => 'in_progress',
+            'estimated_hours' => $newTotalHours,
+            'due_date' => $newDue->greaterThan($lockedWorkItem->due_date) ? $newDue->toDateString() : $lockedWorkItem->due_date->toDateString(),
+        ])->save();
+
+        app(ActivityLogger::class)->projectStatusChanged($actor, $lockedWorkItem, $projectBefore, 'in_progress');
+        $projectForNotice = $lockedWorkItem->fresh()->load('client');
+        DB::afterCommit(function () use ($projectForNotice, $projectBefore, $actor): void {
+            app(WorkflowNotificationService::class)->projectStatusChanged($projectForNotice, $projectBefore, 'in_progress', $actor);
+        });
     }
 
     private function lockActiveProjectAssignment(WorkItem $workItem): EmployeeAssignment

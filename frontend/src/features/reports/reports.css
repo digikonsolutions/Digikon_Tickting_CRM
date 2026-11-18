@@ -9,6 +9,17 @@
   width: 100%;
 }
 
+.rp-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.rp-page-head > .ui-page-header { min-width: 0; flex: 1 1 18rem; }
+
 .rp-header-actions {
   display: flex;
   align-items: center;
@@ -20,7 +31,7 @@
   position: sticky;
   top: 0;
   z-index: 25;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--color-card) 95%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--color-border);
@@ -635,8 +646,11 @@
   }
 
   /* Hide navigation, layout chrome and controls */
-  .ui-sidebar,
-  .ui-topbar,
+  .sidebar,
+  .sidebar-backdrop,
+  .dashboard-header,
+  .as-launcher,
+  .as-panel,
   .rp-filter-bar,
   .rp-mobile-bar,
   .ui-tabs,
@@ -647,8 +661,10 @@
     display: none !important;
   }
 
-  .ui-shell,
-  .ui-content,
+  .app-shell,
+  .app-main,
+  .app-shell.sidebar-collapsed .app-main,
+  .dashboard-content,
   .rp-page {
     display: block !important;
     padding: 0 !important;
@@ -698,3 +714,5 @@
     border: 1px solid #bbb !important;
   }
 }
+
+.rp-muted { color: var(--color-muted); }

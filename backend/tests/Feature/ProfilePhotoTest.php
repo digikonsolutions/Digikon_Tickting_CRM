@@ -54,7 +54,8 @@ class ProfilePhotoTest extends TestCase
             $url = $response->json('user.photo_url');
             $this->assertNotNull($url, $role->value);
             $user->refresh();
-            Storage::disk('public')->assertExists($user->photo_path);
+            $this->assertNotNull($user->avatar_public_id, $role->value);
+            $this->assertArrayHasKey($user->avatar_public_id, $this->cloudinary->assets);
             $this->assertSame('Original Name', $user->name);
             $this->assertSame($email, $user->email);
             $this->getJson('/api/auth/me')->assertJsonPath('user.photo_url', $url);
@@ -65,14 +66,15 @@ class ProfilePhotoTest extends TestCase
     {
         $user = $this->user();
         $this->actingAs($user)->postJson('/api/auth/profile/photo', ['photo' => $this->png('a.png')])->assertOk();
-        $first = $user->fresh()->photo_path;
+        $first = $user->fresh()->avatar_public_id;
 
         $this->postJson('/api/auth/profile/photo', ['photo' => $this->jpg('b.jpg')])->assertOk();
-        $second = $user->fresh()->photo_path;
+        $second = $user->fresh()->avatar_public_id;
 
         $this->assertNotSame($first, $second);
-        Storage::disk('public')->assertMissing($first);
-        Storage::disk('public')->assertExists($second);
+        $this->assertContains($first, $this->cloudinary->deleted);
+        $this->assertArrayNotHasKey($first, $this->cloudinary->assets);
+        $this->assertArrayHasKey($second, $this->cloudinary->assets);
     }
 
     public function test_jpg_jpeg_png_and_webp_are_accepted(): void
@@ -100,17 +102,19 @@ class ProfilePhotoTest extends TestCase
         $this->postJson('/api/auth/profile/photo', ['photo' => UploadedFile::fake()->createWithContent('evil.png', '<?php echo 1;')])->assertUnprocessable();
         // Too large.
         $this->postJson('/api/auth/profile/photo', ['photo' => $this->png('big.png', 6000)])->assertUnprocessable()->assertJsonValidationErrors('photo');
-        $this->assertNull($user->fresh()->photo_path);
+        $this->assertNull($user->fresh()->avatar_public_id);
+        $this->assertSame([], $this->cloudinary->assets);
     }
 
     public function test_photo_can_be_removed_and_guests_cannot_upload(): void
     {
         $user = $this->user();
         $this->actingAs($user)->postJson('/api/auth/profile/photo', ['photo' => $this->png()])->assertOk();
-        $path = $user->fresh()->photo_path;
+        $publicId = $user->fresh()->avatar_public_id;
 
         $this->deleteJson('/api/auth/profile/photo')->assertOk()->assertJsonPath('user.photo_url', null);
-        Storage::disk('public')->assertMissing($path);
+        $this->assertContains($publicId, $this->cloudinary->deleted);
+        $this->assertNull($user->fresh()->avatar_url);
 
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/auth/profile/photo', ['photo' => $this->png()])->assertUnauthorized();

@@ -5,6 +5,7 @@ import { AppRoutes } from './app/AppRoutes'
 import './App.css'
 import './branding/agency-branding.css'
 import './features/reports/reports.css'
+import './features/assistant/assistant.css'
 
 function App() {
   return (

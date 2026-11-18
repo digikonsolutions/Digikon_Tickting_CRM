@@ -12,6 +12,7 @@ use App\Http\Controllers\EmployeeHeartbeatController;
 use App\Http\Controllers\BrowserHistoryController;
 use App\Http\Controllers\MonitoringConsentController;
 use App\Http\Controllers\ProjectAttachmentController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
@@ -25,7 +26,7 @@ Route::middleware('web')->prefix('auth')->group(function () {
     Route::post('/forgot-password', [SessionController::class, 'forgotPassword'])->middleware('throttle:auth-password-reset');
     Route::post('/reset-password', [SessionController::class, 'resetPassword'])->middleware('throttle:auth-password-reset');
     Route::post('/logout', [SessionController::class, 'logout'])->middleware('auth');
-    Route::get('/me', [SessionController::class, 'currentUser'])->middleware('auth');
+    Route::get('/me', [SessionController::class, 'currentUser']);
     Route::patch('/profile', [SessionController::class, 'updateProfile'])->middleware('auth');
     Route::post('/profile/photo', [SessionController::class, 'uploadProfilePhoto'])->middleware(['auth', 'throttle:attachments']);
     Route::delete('/profile/photo', [SessionController::class, 'deleteProfilePhoto'])->middleware('auth');
@@ -208,4 +209,10 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
     Route::delete('/project-attachments/{attachment}', [ProjectAttachmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
+});
+
+// The in-app assistant: role-specific preset questions answered from the database (every role).
+Route::middleware(['web', 'auth', 'throttle:insights'])->prefix('assistant')->group(function () {
+    Route::get('/questions', [AssistantController::class, 'questions']);
+    Route::post('/ask', [AssistantController::class, 'ask']);
 });

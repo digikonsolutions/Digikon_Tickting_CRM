@@ -2,23 +2,32 @@
 
 .ab-logo-box {
   display: inline-flex;
-  height: 2.25rem;
-  max-width: 9.5rem;
+  height: 2.5rem;
+  width: 10.5rem;
+  max-width: 100%;
   align-items: center;
   overflow: hidden;
 }
 
 .ab-logo-box-square {
-  width: 2.25rem;
+  width: 2.5rem;
   justify-content: center;
 }
 
+/* Fill the reserved box: as tall as it allows, never wider, aligned with the nav labels. */
 .ab-logo {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  object-position: left center;
 }
+
+.ab-logo-box-square .ab-logo { object-position: center; }
+
+/* The collapse button sits beside the logo; let the logo take the rest of the row. */
+.sidebar-brand-row .brand:has(.ab-logo-box) { flex: 1 1 auto; }
+.sidebar-collapsed .sidebar-brand-row .brand:has(.ab-logo-box) { flex: 0 0 auto; }
 
 /* Brand-tinted sidebar: a dark shade of the primary with readable text (set by BrandingProvider). */
 :root[data-sidebar="brand"] .sidebar {
@@ -131,7 +140,7 @@
 .is-brand-sidebar .ab-pv-sidebar { border-right-color: transparent; background: var(--sidebar-brand-bg, var(--pv-card)); color: var(--sidebar-brand-fg, var(--pv-text)); }
 .ab-pv-brand { display: flex; min-width: 0; min-height: 1.6rem; align-items: center; gap: .4rem; margin-bottom: .5rem; overflow: hidden; color: var(--pv-heading); font-weight: 800; }
 .is-brand-sidebar .ab-pv-brand { color: var(--sidebar-brand-fg); }
-.ab-pv-logo { max-width: 100%; max-height: 1.6rem; object-fit: contain; }
+.ab-pv-logo { display: block; width: 100%; height: 1.9rem; object-fit: contain; object-position: left center; }
 .is-brand-sidebar .ab-pv-logo { border-radius: 4px; background: #fff; padding: 2px 4px; }
 .ab-pv-mark { display: grid; width: 1.5rem; height: 1.5rem; flex: 0 0 auto; place-items: center; border-radius: var(--radius-sm); background: var(--brand); color: var(--color-on-brand, #fff); font-weight: 900; }
 .ab-pv-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -159,15 +168,17 @@
 
 /* ---- Uploader ---- */
 .ab-upload { display: grid; gap: var(--space-2); }
-.ab-upload-body { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
-.ab-dropzone { position: relative; display: grid; min-height: 8.5rem; place-items: center; overflow: hidden; border: 2px dashed var(--color-input-border); border-radius: var(--radius-card); background: var(--color-surface-sunken); color: var(--color-text); text-align: center; cursor: pointer; padding: var(--space-3); transition: border-color 150ms ease, background-color 150ms ease; }
-.ab-dropzone.is-square { min-height: 8.5rem; max-width: 8.5rem; }
+.ab-upload-body { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.ab-dropzone { position: relative; display: grid; width: 100%; aspect-ratio: 16 / 9; min-height: 8.5rem; place-items: center; overflow: hidden; border: 2px dashed var(--color-input-border); border-radius: var(--radius-card); background: var(--color-surface-sunken); color: var(--color-text); text-align: center; cursor: pointer; padding: var(--space-3); transition: border-color 150ms ease, background-color 150ms ease; }
+.ab-dropzone.is-square { width: 9.5rem; aspect-ratio: 1; min-height: 0; }
 .ab-dropzone:hover, .ab-dropzone.is-dragging { border-color: var(--brand); background: var(--brand-soft); }
 .ab-dropzone:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.ab-dropzone.has-image { border-style: solid; border-color: var(--color-border); background: repeating-conic-gradient(var(--color-surface-sunken) 0 25%, var(--color-card) 0 50%) 0 0 / 14px 14px; }
+.ab-dropzone.has-image { border-style: solid; border-color: var(--color-border); background: var(--color-card); padding: var(--space-4); }
+/* Transparent logos still need contrast: a faint checker only behind the image itself. */
+.ab-dropzone.has-image .ab-drop-image { border-radius: var(--radius-sm); background: repeating-conic-gradient(var(--color-surface-sunken) 0 25%, transparent 0 50%) 0 0 / 12px 12px; }
 .ab-dropzone.is-busy { cursor: progress; opacity: .85; }
 .ab-drop-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; }
-.ab-drop-image { max-width: 100%; max-height: 6.5rem; object-fit: contain; }
+.ab-drop-image { width: 100%; height: 100%; object-fit: contain; }
 .ab-drop-empty { display: grid; justify-items: center; gap: .25rem; font-size: var(--text-sm); color: var(--color-muted); }
 .ab-drop-empty strong { color: var(--color-heading); }
 .ab-drop-progress { position: absolute; inset: auto 0 0 0; height: .4rem; background: var(--color-border); }
@@ -210,7 +221,8 @@
 
 @media (max-width: 760px) {
   .ab-upload-body { grid-template-columns: 1fr; }
-  .ab-dropzone.is-square { max-width: none; }
+  .ab-dropzone.is-square { width: 9.5rem; }
+  .ab-upload-actions .ui-button { min-height: 2.75rem; }
   .ab-pv-frame { grid-template-columns: 5.5rem minmax(0, 1fr); }
   .ab-savebar { bottom: .5rem; }
   .ab-savebar-actions, .ab-savebar-actions .ui-button { width: 100%; }

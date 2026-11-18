@@ -1,0 +1,1 @@
+export { AssistantWidget } from './AssistantWidget'

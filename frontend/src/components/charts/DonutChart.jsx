@@ -129,25 +129,27 @@ export function DonutChart({
       </div>
 
       {/* Accessible data table fallback */}
-      <table className="rp-sr-only">
-        <caption>{summary}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Status / Category</th>
-            <th scope="col">Count</th>
-            <th scope="col">Percentage</th>
-          </tr>
-        </thead>
-        <tbody>
-          {computedSlices.map((slice, idx) => (
-            <tr key={idx}>
-              <td>{slice.label}</td>
-              <td>{slice.val}</td>
-              <td>{slice.percent}%</td>
+      <div className="rp-sr-only">
+        <table>
+          <caption>{summary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Status / Category</th>
+              <th scope="col">Count</th>
+              <th scope="col">Percentage</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {computedSlices.map((slice, idx) => (
+              <tr key={idx}>
+                <td>{slice.label}</td>
+                <td>{slice.val}</td>
+                <td>{slice.percent}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

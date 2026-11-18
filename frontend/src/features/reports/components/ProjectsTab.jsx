@@ -62,6 +62,11 @@ export function ProjectsTab({
         if (flag === 'at_risk') {
           return <Badge variant="warning">At risk</Badge>
         }
+        // Only open projects can be on track; finished ones show how they ended instead.
+        if (row.status === 'completed') {
+          return row.days_late > 0 ? <Badge variant="warning">{`Done ${row.days_late}d late`}</Badge> : <Badge variant="success">On time</Badge>
+        }
+        if (row.status === 'cancelled') return <span className="rp-muted">—</span>
         return <Badge variant="slate">On track</Badge>
       },
     },

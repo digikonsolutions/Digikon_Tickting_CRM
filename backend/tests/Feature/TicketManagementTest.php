@@ -320,10 +320,19 @@ class TicketManagementTest extends TestCase
             ->assertOk()->assertJsonPath('ticket.status', 'done');
         $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'completed']);
 
-        // A completed project still accepts new (follow-up) tickets, and creating one does not reopen it.
-        $this->actingAs($owner)->postJson($this->projectTicketsUrl($project), $this->ticketData(1))
-            ->assertCreated();
-        $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'completed']);
+        // A completed project still accepts new (follow-up) tickets. Creating one reopens the project
+        // (back to in_progress) and books fresh, future capacity for it: the follow-up must not be
+        // squeezed into the project's already-past schedule window, where it would look overdue the
+        // moment it is created, and the employee must be able to start it like any other open ticket.
+        $followUp = $this->actingAs($owner)->postJson($this->projectTicketsUrl($project), $this->ticketData(1, 'Follow-up'))
+            ->assertCreated()->json('ticket');
+        $this->assertDatabaseHas('work_items', ['id' => $project->id, 'status' => 'in_progress']);
+        $today = CarbonImmutable::now(config('app.timezone'))->toDateString();
+        $this->assertGreaterThanOrEqual($today, $followUp['due_date']);
+        $this->assertSame(11.0, (float) $project->fresh()->estimated_hours);
+
+        $this->actingAs($employee)->postJson('/api/tickets/'.$followUp['id'].'/transitions', ['action' => 'start'])
+            ->assertOk()->assertJsonPath('ticket.status', 'in_progress');
     }
 
     public function test_admin_ticket_directory_is_read_only_and_comments_allow_only_project_participants(): void

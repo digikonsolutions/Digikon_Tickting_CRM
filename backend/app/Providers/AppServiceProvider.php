@@ -49,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('auth-password-reset', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
 
+        RateLimiter::for('insights', fn (Request $request) => Limit::perMinute(60)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         ResetPassword::createUrlUsing(function ($user, string $token): string {
             $query = http_build_query([
                 'token' => $token,

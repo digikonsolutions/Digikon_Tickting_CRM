@@ -660,6 +660,15 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { projects: [], capacity: DEFAULT_CAPACITY }
     return request('/work-items/mine')
   },
+  // In-app assistant: the signed-in role's preset questions ({ categories }) and their answers from live data.
+  async getAssistantQuestions() {
+    if (AUTH_MODE === 'mock') return { categories: [] }
+    return request('/assistant/questions')
+  },
+  async askAssistant(questionKey, params = {}) {
+    if (AUTH_MODE === 'mock') return { question_key: questionKey, title: '', generated_at: new Date().toISOString(), blocks: [], empty_message: 'The assistant needs the API.' }
+    return request('/assistant/ask', { method: 'POST', body: JSON.stringify({ question_key: questionKey, params }) })
+  },
   // Reports: computed in SQL, scoped by authenticated user.
   async getReport(scope, type, params = {}) {
     if (AUTH_MODE === 'mock') {
@@ -739,3 +748,5 @@ export const authService = {
 }
 
 export { isKnownRole }
+
+  

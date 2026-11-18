@@ -18,6 +18,8 @@ const AGENCY_TABS = [
   { id: 'tickets', label: 'Tickets' },
 ]
 
+const EMPTY_OPTIONS = { agencies: [], employees: [], clients: [] }
+
 const TAB_STATUSES = {
   overview: [],
   employees: ['scheduled', 'in_progress', 'completed', 'cancelled'],
@@ -27,7 +29,7 @@ const TAB_STATUSES = {
 
 export function AgencyReportsPage() {
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { showToast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
 
   const filters = useReportFilters({
@@ -35,10 +37,9 @@ export function AgencyReportsPage() {
     allowedTabs: AGENCY_TABS.map((t) => t.id),
   })
 
-  const { data: filterOptions = { agencies: [], employees: [], clients: [] } } = useAsync(
-    () => loadFilterOptions('agency', user?.role),
-    [user?.role]
-  )
+  // A stable loader: useAsync re-runs whenever the function changes, so an inline arrow would refetch on every render.
+  const loadOptions = useCallback(() => loadFilterOptions('agency', user?.role), [user?.role])
+  const { data: filterOptions } = useAsync(loadOptions)
 
   const loadReportData = useCallback(
     () => authService.getReport('agency', filters.tab, filters.apiParams),
@@ -49,23 +50,15 @@ export function AgencyReportsPage() {
     error: reportError,
     isLoading,
     reload: reloadReport,
-  } = useAsync(loadReportData, [filters.tab, filters.apiParams])
+  } = useAsync(loadReportData)
 
   async function handleExport() {
     setIsExporting(true)
     try {
       await authService.downloadReport('agency', filters.tab, filters.apiParams)
-      toast({
-        title: 'Report exported',
-        description: `Exported ${filters.tab} report as CSV.`,
-        variant: 'success',
-      })
+      showToast(`Exported the ${filters.tab} report as CSV.`, 'success')
     } catch (err) {
-      toast({
-        title: 'Export failed',
-        description: getErrorMessage(err),
-        variant: 'danger',
-      })
+      showToast(getErrorMessage(err), 'error')
     } finally {
       setIsExporting(false)
     }
@@ -77,7 +70,7 @@ export function AgencyReportsPage() {
 
   return (
     <div className="rp-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="rp-page-head">
         <PageHeader
           eyebrow="Analytics"
           title="Reports"
@@ -109,7 +102,7 @@ export function AgencyReportsPage() {
         scope="agency"
         role={user?.role}
         tabStatuses={TAB_STATUSES[filters.tab] ?? []}
-        filterOptions={filterOptions}
+        filterOptions={filterOptions ?? EMPTY_OPTIONS}
         onExport={handleExport}
         isExporting={isExporting}
       />
@@ -122,7 +115,7 @@ export function AgencyReportsPage() {
       </div>
 
       {/* Report tab container */}
-      <div id="rp-tab-panel" role="tabpanel" aria-labelledby={filters.tab}>
+      <div id="rp-tab-panel" role="tabpanel" aria-label={`${filters.tab} report`}>
         {filters.tab === 'overview' && (
           <OverviewTab
             data={reportData}

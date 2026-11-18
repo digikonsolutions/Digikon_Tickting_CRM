@@ -65,7 +65,8 @@ class User extends Authenticatable
     /** Public URL of the profile photo, or null when the user has none (the UI shows an initial instead). */
     public function photoUrl(): ?string
     {
-        return $this->photo_path ? Storage::disk('public')->url($this->photo_path) : null;
+        // Photos live in Cloudinary now (avatar_url); older local uploads (photo_path) keep working.
+        return $this->avatar_url ?: ($this->photo_path ? Storage::disk('public')->url($this->photo_path) : null);
     }
 
     public function heldEmployeeAssignments(): HasMany

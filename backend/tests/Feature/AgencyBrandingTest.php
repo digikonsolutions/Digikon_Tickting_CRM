@@ -64,7 +64,8 @@ class AgencyBrandingTest extends TestCase
 
     private function files(string $agencyId): array
     {
-        return Storage::disk('public')->allFiles("agency-branding/{$agencyId}");
+        // Files now live in Cloudinary; the fake records them by public id.
+        return $this->cloudinary->under("agency-branding/{$agencyId}");
     }
 
     // ---- reading ----------------------------------------------------------------------------------------
@@ -165,7 +166,7 @@ class AgencyBrandingTest extends TestCase
         }
 
         $this->assertSame('Brand', AgencyBranding::first()->display_name);
-        $this->assertNotNull(AgencyBranding::first()->logo_path);
+        $this->assertNotNull(AgencyBranding::first()->logo_public_id);
     }
 
     // ---- tenant isolation -------------------------------------------------------------------------------
@@ -220,16 +221,21 @@ class AgencyBrandingTest extends TestCase
 
         $r = $this->actingAs($owner)->postJson('/api/agency/branding/logo', ['file' => $this->png('../../evil name.PNG')])->assertOk();
         $logoUrl = $r->json('branding.logo_url');
-        $this->assertStringStartsWith(rtrim(config('app.url'), '/').'/storage/'.$dir.'/', $logoUrl);
+        // Cloudinary serves the file under a generated public id; the client's filename never appears.
+        $this->assertStringStartsWith('https://res.cloudinary.test/'.$dir.'/', $logoUrl);
         $this->assertStringNotContainsString('evil', $logoUrl);
-        $this->assertMatchesRegularExpression('#/[A-Za-z0-9]{40}\.png$#', $logoUrl);
 
         $this->actingAs($owner)->postJson('/api/agency/branding/logo-collapsed', ['file' => $this->png('mark.png', 96)])
             ->assertOk()->assertJsonPath('branding.logo_collapsed_url', fn ($v) => $v !== null);
         $this->actingAs($owner)->postJson('/api/agency/branding/favicon', ['file' => $this->ico()])
-            ->assertOk()->assertJsonPath('branding.favicon_url', fn ($v) => str_ends_with($v, '.ico'));
+            ->assertOk()->assertJsonPath('branding.favicon_url', fn ($v) => $v !== null);
 
         $this->assertCount(3, $this->files((string) $owner->agency_id));
+
+        // logos are trimmed of blank borders on upload; the favicon is stored as drawn
+        $branding = AgencyBranding::first();
+        $this->assertSame(['effect' => 'trim:10'], $this->cloudinary->options[$branding->logo_public_id]['transformation'] ?? null);
+        $this->assertArrayNotHasKey('transformation', $this->cloudinary->options[$branding->favicon_public_id]);
 
         $this->actingAs($owner)->deleteJson('/api/agency/branding/logo')->assertOk()->assertJsonPath('branding.logo_url', null);
         $this->actingAs($owner)->deleteJson('/api/agency/branding/favicon')->assertOk()->assertJsonPath('branding.favicon_url', null);
@@ -241,15 +247,16 @@ class AgencyBrandingTest extends TestCase
         $owner = $this->owner();
 
         $this->actingAs($owner)->postJson('/api/agency/branding/logo', ['file' => $this->png()])->assertOk();
-        $first = AgencyBranding::first()->logo_path;
-        Storage::disk('public')->assertExists($first);
+        $first = AgencyBranding::first()->logo_public_id;
+        $this->assertContains($first, $this->files((string) $owner->agency_id));
 
         $this->actingAs($owner)->postJson('/api/agency/branding/logo', ['file' => $this->png('b.png', 100)])->assertOk();
-        $second = AgencyBranding::first()->logo_path;
+        $second = AgencyBranding::first()->logo_public_id;
 
         $this->assertNotSame($first, $second);
-        Storage::disk('public')->assertMissing($first);
-        Storage::disk('public')->assertExists($second);
+        $this->assertContains($first, $this->cloudinary->deleted);
+        $this->assertNotContains($first, $this->files((string) $owner->agency_id));
+        $this->assertContains($second, $this->files((string) $owner->agency_id));
         $this->assertCount(1, $this->files((string) $owner->agency_id));
     }
 

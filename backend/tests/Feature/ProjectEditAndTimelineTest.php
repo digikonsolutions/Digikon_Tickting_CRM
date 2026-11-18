@@ -8,6 +8,7 @@ use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\MonitoringPolicy;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\BuildsTicketFixture;
 use Tests\TestCase;
@@ -101,7 +102,7 @@ class ProjectEditAndTimelineTest extends TestCase
 
     /* ---- tickets on completed projects ------------------------------------------------------ */
 
-    public function test_owner_can_create_a_ticket_on_a_completed_project_without_reopening_it(): void
+    public function test_owner_can_create_a_ticket_on_a_completed_project_and_it_reopens_with_a_future_due_date(): void
     {
         $this->project->update(['status' => 'completed']);
 
@@ -112,8 +113,35 @@ class ProjectEditAndTimelineTest extends TestCase
         $ticketId = $response->json('ticket.id');
         $this->assertSame($this->project->id, Ticket::findOrFail($ticketId)->work_item_id);
         $this->assertSame($this->agency->id, Ticket::findOrFail($ticketId)->agency_id);
-        $this->assertSame('completed', $this->project->fresh()->status);
+        // A follow-up ticket must reopen the project and get real, future allocation: squeezing it into
+        // the project's already-past schedule window would make it look overdue the moment it is created.
+        $this->assertSame('in_progress', $this->project->fresh()->status);
+        $today = CarbonImmutable::now(config('app.timezone'))->toDateString();
+        $this->assertGreaterThanOrEqual($today, (string) $response->json('ticket.due_date'));
         $this->getJson($this->url().'/tickets')->assertOk()->assertJsonFragment(['title' => 'Follow-up']);
+    }
+
+    public function test_follow_up_ticket_does_not_reuse_unused_slack_from_the_old_schedule_window(): void
+    {
+        // The project budgets 30 h but the only ticket that actually ran used just 4 h, so the original
+        // allocation pool (Monday 6 h, ... ) is left with a lot of now-past, never-consumed slack once
+        // the project completes. A follow-up ticket must never be dated into that stale slack.
+        $small = $this->makeTicket('client', 'Small done ticket', 4);
+        $this->transition('employee', $small, 'start');
+        $this->transition('employee', $small, 'send_to_review');
+        $this->transition('client', $small, 'approve');
+        $this->assertSame('completed', $this->project->fresh()->status);
+
+        $followUp = $this->actingAs($this->u['owner'])->postJson($this->url().'/tickets', [
+            'title' => 'Follow-up', 'description' => 'Extra work.', 'estimated_hours' => 1,
+        ])->assertCreated()->json('ticket');
+
+        $this->assertSame('in_progress', $this->project->fresh()->status);
+        $today = CarbonImmutable::now(config('app.timezone'))->toDateString();
+        $this->assertGreaterThanOrEqual($today, $followUp['due_date'], 'the follow-up must not land in the old, already-past schedule window');
+
+        $this->actingAs($this->u['employee'])->postJson('/api/tickets/'.$followUp['id'].'/transitions', ['action' => 'start'])
+            ->assertOk()->assertJsonPath('ticket.status', 'in_progress');
     }
 
     public function test_cancelled_projects_still_reject_new_tickets(): void
