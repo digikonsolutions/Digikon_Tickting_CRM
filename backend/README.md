@@ -57,6 +57,13 @@ Available routes:
 | DELETE | `/api/agency/assignments/{assignment}` | Holder ends their own assignment (owners and clients alike; 404 for anyone else's) |
 | GET | `/api/agency/projects` | Agency clients and owners page through projects in their agency. Query: `page`, `per_page` (default 25, max 100), `status` (`open`, `scheduled`, `in_progress`, `completed`, `cancelled`; `open` = scheduled + in progress), `assignment_id`, `search` (title, client or employee name). Returns `projects`, `pagination` and an agency-wide `summary` of counts by status that ignores filters and page |
 | GET | `/api/agency/capacity?assignment_id=&from=&to=` | Agency client/owner read per-day availability of an employee they hold (same rules as the scheduler) for a date range of up to 366 days |
+| GET | `/api/admin/reports/{overview\|employees\|agencies\|projects\|tickets\|assignments}` | Admin only. Report JSON, or a CSV with `?format=csv`. See "Reports" below |
+| GET | `/api/agency/reports/{overview\|employees\|projects\|tickets}` | Agency owner and client (active agency only). An owner sees their agency; a client sees only their own projects and the assignments they hold |
+| GET | `/api/agency/branding` | Owner, client and member read their own agency's branding (defaults when never customised). The same payload is `user.branding` in `/api/auth/me` for agency-scoped users (`null` for everyone else) |
+| PUT | `/api/agency/branding` | Owner only. Partial update of `display_name`, `tagline`, `welcome_message`, `primary_color`, `accent_color` (hex, at least 4.5:1 against white), `theme_mode` (`light`/`dark`/`system`), `sidebar_style` (`light`/`brand`), `corner_style` (`soft`/`rounded`/`sharp`). `agency_id` is prohibited |
+| POST | `/api/agency/branding/{logo\|logo-collapsed\|favicon}` | Owner only, multipart field `file`. Logos: png/jpg/webp, max 2 MB, 64 to 4096 px. Favicon: png/ico, max 512 KB, 16 to 1024 px |
+| DELETE | `/api/agency/branding/{logo\|logo-collapsed\|favicon}` | Owner only. Removes one file |
+| DELETE | `/api/agency/branding` | Owner only. Resets every field to the defaults and deletes all the agency's files |
 | GET | `/api/agency/projects/{workItem}` | Agency clients and owners read one project in their agency (404 for other agencies) |
 | POST | `/api/agency/projects` | Agency client/owner create a project using their active `assignment_id` |
 | PATCH | `/api/agency/projects/{workItem}/cancel` | Agency clients and owners cancel any open project in their agency |
@@ -165,6 +172,34 @@ Only the employee assigned to a ticket logs time; admins can correct or remove e
 | `agency_sees_entries` | `TIME_AGENCY_SEES_ENTRIES` | true | when false agency users see totals but not the individual entries |
 
 There is one running timer per employee: starting another stops the first. Timers also stop automatically when the ticket moves to blocked, waiting on client, in review or done, when it is cancelled, when the project is cancelled, when the assignment ends and when the employee is deactivated (the stop reason is stored). Each manual entry and each stopped timer records one public `time_logged` event; starting a timer records nothing. Overruns are only flagged (`over_estimate`); nothing is rescheduled automatically. Ticket payloads carry `logged_hours`, `estimated_hours`, `over_estimate` and `timer_running`. Summaries aggregate in SQL and return, per group, logged, scheduled and estimated hours plus utilization (logged divided by scheduled); `format=csv` streams a download with spreadsheet formula characters neutralised.
+
+### Agency branding (white label)
+
+One `agency_branding` row per agency. Everyone in the agency (owner, client, legacy member) is themed by it; employees and admins keep the default look. The agency is always the signed-in user's own, never taken from input, and suspended agencies get 403 like the other agency routes.
+
+**Storage.** Uploads go to the `public` disk under `agency-branding/{agency_id}/` with random 40-character names (the client filename is ignored; the extension comes from the sniffed content). Replacing or removing a file deletes the old one. URLs are absolute, built from `APP_URL`. Run this once per environment so the files are served:
+
+```bash
+php artisan storage:link
+```
+
+**SVG is rejected, not sanitised.** An SVG can carry `<script>`, `on*` handlers, `javascript:` links and `foreignObject`, and a regex or DOM strip is easy to bypass and hard to prove complete; a stored file served from the app's origin would be stored XSS. Logos accept png, jpg and webp; the favicon accepts png and ico. Files are validated by content (`mimes` sniffs the real type) and by dimensions, which works without the GD extension. Revisit SVG only with a maintained sanitiser (for example `enshrined/svg-sanitize`) and a `Content-Security-Policy`/`nosniff` response for the storage path.
+
+**Colours** must be `#RRGGBB`. The primary colour carries white button text and the accent colour may be used as text on white, so both must reach a WCAG contrast ratio of at least 4.5:1 against white (422 otherwise). The stock ClientHub teal `#0D9488` is only 3.7:1, so use `#0F766E` (5.5:1) for a teal brand. A colour left empty means "use the ClientHub default".
+
+### Reports
+
+Each report is one small class in `app/Services/Reports/` (`OverviewReport`, `EmployeeUtilizationReport`, `AgencySummaryReport`, `ProjectReport`, `TicketReport`, `AssignmentReport`); `ReportController` only validates (`ReportRequest`), builds a `ReportScope` and runs the report. Numbers are computed in SQL with grouped queries and per-row subqueries (the number of queries does not grow with the rows). The scope comes from the signed-in user, never from input: admin sees everything, an agency owner is limited to their `agency_id`, an agency client to projects where they are the client and assignments where they are the holder. Filters can only narrow it (a foreign `employee_id` or `client_id` simply returns nothing). Suspended agencies get 403.
+
+Filters (all optional): `from`, `to` (`YYYY-MM-DD`, at most one year, default the last 30 days), `status` (per report: project statuses for employees and projects, ticket statuses for tickets, `active|ended` for assignments, `active|suspended` for agencies; ignored by the overview), `agency_id` (admin only), `employee_id`, `client_id` (admin and owner only), `page`, `per_page` (max 100), `sort` and `direction` (whitelisted per report, otherwise 422). The table reports return `rows`, `pagination`, `totals` and a `summary`; the overview returns counts, `series` (`{labels, values}`) and an `attention` block.
+
+What the range means: employees count scheduled hours inside it; projects are those whose start-to-due window overlaps it; tickets are those created in it (throughput counts tickets that reached `done` in it, by ISO week of their last update, which is their completion time because `done` is final); assignments are those active at any time in it. Overview entity counts (agencies, users, employees) are a snapshot of now.
+
+**Scheduled is not worked.** The employee report shows hours the scheduler booked (`work_item_allocations`) against capacity (working days in the range x 6 h, so 36 h for a Monday to Saturday week, minus `scheduling.non_working_dates`). Utilization is scheduled / capacity, and a non-admin sees only the hours booked on their own projects. Logged time is in the time summary. Bands: under 50% low, 50 to 90% healthy, over 90% high. Overdue = open and past due; at risk = open, due within two days and still has open tickets.
+
+**CSV** (`?format=csv`): same filters and scope, streamed, UTF-8 with a BOM for Excel, a header row, and cells starting with `=`, `+`, `-`, `@`, tab or CR get a leading apostrophe. At most 10,000 rows are exported; the response headers `X-Export-Row-Limit` and `X-Export-Truncated` say so. The overview exports its key metrics as `Metric,Value`.
+
+Indexes added for these queries are in `2026_11_18_200000_add_report_indexes.php`. The overview is not cached (it is a handful of grouped queries); add a 60 s cache keyed by scope and filters if it ever shows up in profiling.
 
 ### Employee activity (admin only)
 

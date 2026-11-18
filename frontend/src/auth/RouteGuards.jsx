@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './useAuth'
+import { BrandMark } from '../branding/BrandMark'
+import { useBranding } from '../branding/useBranding'
 import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon, Loader } from '../components/ui'
@@ -43,6 +45,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Work' },
     { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
+    { to: '/admin/reports', label: 'Reports', icon: 'chart', section: 'Work' },
     { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
     { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'People' },
     { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
@@ -56,9 +59,11 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.AGENCY_OWNER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
+    { to: '/agency/reports', label: 'Reports', icon: 'chart' },
     { to: '/agency/time', label: 'Time summary', icon: 'clock' },
     { to: '/agency/employees', label: 'My specialists', icon: 'users' },
     { to: '/agency/users', label: 'Agency accounts', icon: 'users' },
+    { to: '/agency/branding', label: 'Branding', icon: 'palette' },
   ],
   [ROLES.AGENCY_MEMBER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -67,6 +72,7 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.AGENCY_CLIENT]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/my-projects', label: 'Agency projects', icon: 'ticket' },
+    { to: '/agency/reports', label: 'Reports', icon: 'chart' },
     { to: '/agency/employees', label: 'My specialists', icon: 'users' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
@@ -74,6 +80,7 @@ const SIDEBAR_ITEMS = Object.freeze({
 
 export function AppLayout() {
   const { user, signOut } = useAuth()
+  const { displayName } = useBranding()
   const location = useLocation()
   const navigate = useNavigate()
   const [signOutError, setSignOutError] = useState(null)
@@ -118,14 +125,17 @@ export function AppLayout() {
       '/admin/dashboard': 'Dashboard',
       '/admin/projects': 'All projects',
       '/admin/tickets': 'All tickets',
+      '/admin/reports': 'Reports',
       '/admin/assignments': 'Assignments',
       '/admin/time': 'Time report',
       '/agency/time': 'Time summary',
       '/agency/dashboard': 'Dashboard',
       '/agency/projects': 'Projects',
       '/agency/my-projects': 'Agency projects',
+      '/agency/reports': 'Reports',
       '/agency/employees': 'My specialists',
       '/agency/users': 'Agency accounts',
+      '/agency/branding': 'Branding',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace'))
 
@@ -165,8 +175,8 @@ export function AppLayout() {
       {isNavOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setIsNavOpen(false)} />}
       <aside className="sidebar" id="primary-navigation">
         <div className="sidebar-brand-row">
-          <NavLink className="brand" to={ROLE_HOME[user.role]} aria-label="ClientHub home">
-            <span className="brand-mark">C</span><span className="sidebar-brand-name">ClientHub</span>
+          <NavLink className="brand" to={ROLE_HOME[user.role]} aria-label={`${displayName || 'ClientHub'} home`}>
+            <BrandMark collapsed={isSidebarCollapsed} />
           </NavLink>
           <button
             className="sidebar-collapse-button"

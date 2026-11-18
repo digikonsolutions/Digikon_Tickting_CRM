@@ -122,7 +122,7 @@
   margin-top: 1.75rem;
   border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: var(--color-white);
+  background: var(--color-card);
   padding: 1.25rem;
   box-shadow: 0 8px 24px rgb(15 23 42 / 5%);
 }

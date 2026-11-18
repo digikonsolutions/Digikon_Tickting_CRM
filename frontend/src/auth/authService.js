@@ -240,6 +240,31 @@ export const authService = {
       }),
     })
   },
+  // Agency branding. Reading is open to the whole agency; everything else is owner-only (the server enforces it).
+  // Every call resolves to { branding }. `kind` is 'logo', 'logo-collapsed' or 'favicon'.
+  async getAgencyBranding() {
+    if (AUTH_MODE === 'mock') return { branding: null }
+    return request('/agency/branding')
+  },
+  async updateAgencyBranding(data) {
+    if (AUTH_MODE === 'mock') return { branding: data }
+    return request('/agency/branding', { method: 'PUT', body: JSON.stringify(data) })
+  },
+  // Multipart: the browser sets the Content-Type boundary itself.
+  async uploadBrandingAsset(kind, file, { onProgress, signal } = {}) {
+    if (AUTH_MODE === 'mock') return { branding: null }
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return uploadForm(`/agency/branding/${encodeURIComponent(kind)}`, form, { onProgress, signal })
+  },
+  async deleteBrandingAsset(kind) {
+    if (AUTH_MODE === 'mock') return { branding: null }
+    return request(`/agency/branding/${encodeURIComponent(kind)}`, { method: 'DELETE' })
+  },
+  async resetAgencyBranding() {
+    if (AUTH_MODE === 'mock') return { branding: null }
+    return request('/agency/branding', { method: 'DELETE' })
+  },
   async listAgencyUsers() {
     if (AUTH_MODE === 'mock') return { users: [] }
     return request('/agency/users')
@@ -634,6 +659,82 @@ export const authService = {
   async listMyWork() {
     if (AUTH_MODE === 'mock') return { projects: [], capacity: DEFAULT_CAPACITY }
     return request('/work-items/mine')
+  },
+  // Reports: computed in SQL, scoped by authenticated user.
+  async getReport(scope, type, params = {}) {
+    if (AUTH_MODE === 'mock') {
+      return {
+        type,
+        range: { from: params.from ?? '', to: params.to ?? '', days: 30 },
+        rows: [],
+        pagination: { current_page: 1, last_page: 1, total: 0 },
+        summary: {},
+        totals: null,
+      }
+    }
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    )
+    const query = new URLSearchParams(cleanParams).toString()
+    return request(`/${scope}/reports/${encodeURIComponent(type)}${query ? `?${query}` : ''}`)
+  },
+  async downloadReport(scope, type, params = {}) {
+    const cleanParams = Object.fromEntries(
+      Object.entries({ ...params, format: 'csv' }).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    )
+    const query = new URLSearchParams(cleanParams).toString()
+    const path = `/${scope}/reports/${encodeURIComponent(type)}${query ? `?${query}` : ''}`
+
+    if (AUTH_MODE === 'mock') {
+      const blob = new Blob(['Metric,Value\nMock,1'], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `report-${type}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      return
+    }
+
+    const response = await fetch(`${API_URL}${path}`, {
+      credentials: 'include',
+      headers: {
+        Accept: 'text/csv, application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) notifyUnauthorized(path)
+      let message = 'Failed to download report.'
+      try {
+        const json = await response.json()
+        if (json?.message) message = json.message
+      } catch {
+        // non-json error
+      }
+      throw new ApiError(message, { status: response.status })
+    }
+
+    const blob = await response.blob()
+    let filename = `report-${type}.csv`
+    const disposition = response.headers.get('content-disposition')
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (match?.[1]) {
+        filename = match[1].replace(/['"]/g, '').trim()
+      }
+    }
+
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
   },
 }
 

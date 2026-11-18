@@ -3,6 +3,20 @@ import { authService, isKnownRole } from './authService'
 
 const AuthContext = createContext(null)
 
+function sessionUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    agency_id: user.agency_id ?? null,
+    agency_name: user.agency_name ?? null,
+    photo_url: user.photo_url ?? null,
+    branding: user.branding ?? null,
+    monitoring_consent_required: Boolean(user.monitoring_consent_required),
+  }
+}
+
 async function fetchSession() {
   if (authService.isMockMode) return { user: null, error: '' }
 
@@ -10,19 +24,7 @@ async function fetchSession() {
     const response = await authService.getCurrentUser()
     const user = response?.user ?? response
     if (!isKnownRole(user?.role)) throw new Error('Your account has no valid role assigned.')
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        agency_id: user.agency_id ?? null,
-        agency_name: user.agency_name ?? null,
-        photo_url: user.photo_url ?? null,
-        monitoring_consent_required: Boolean(user.monitoring_consent_required),
-      },
-      error: '',
-    }
+    return { user: sessionUser(user), error: '' }
   } catch (error) {
     return { user: null, error: error.status === 401 ? '' : error.message }
   }
@@ -44,6 +46,10 @@ export function AuthProvider({ children }) {
 
   const updateUser = useCallback((updates) => {
     setUser((current) => current ? { ...current, ...updates } : current)
+  }, [])
+
+  const updateBranding = useCallback((branding) => {
+    setUser((current) => current ? { ...current, branding: branding ?? null } : current)
   }, [])
 
   useEffect(() => {
@@ -73,16 +79,7 @@ export function AuthProvider({ children }) {
 
   const establishSession = (nextUser) => {
     if (!isKnownRole(nextUser?.role)) throw new Error('Your account has no valid role assigned.')
-    setUser({
-      id: nextUser.id,
-      name: nextUser.name,
-      email: nextUser.email,
-      role: nextUser.role,
-      agency_id: nextUser.agency_id ?? null,
-      agency_name: nextUser.agency_name ?? null,
-      photo_url: nextUser.photo_url ?? null,
-      monitoring_consent_required: Boolean(nextUser.monitoring_consent_required),
-    })
+    setUser(sessionUser(nextUser))
     setAuthError('')
   }
 
@@ -92,6 +89,7 @@ export function AuthProvider({ children }) {
     authError,
     refreshSession,
     updateUser,
+    updateBranding,
     signIn: async (credentials) => {
       const response = await authService.signIn(credentials)
       const nextUser = response?.user ?? response
@@ -106,7 +104,7 @@ export function AuthProvider({ children }) {
         setAuthError('')
       }
     },
-  }), [user, isLoading, authError, refreshSession, updateUser])
+  }), [user, isLoading, authError, refreshSession, updateUser, updateBranding])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

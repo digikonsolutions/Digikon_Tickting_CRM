@@ -5,6 +5,7 @@ namespace App\Models;
 use DomainException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 
 class Agency extends Model
@@ -40,6 +41,11 @@ class Agency extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function branding(): HasOne
+    {
+        return $this->hasOne(AgencyBranding::class);
     }
 
     public static function generatePrefix(string $name, ?int $agencyId = null): string

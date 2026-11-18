@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AgencyUserController;
+use App\Http\Controllers\AgencyBrandingController;
 use App\Http\Controllers\EmployeeAssignmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SessionController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\EmployeeHeartbeatController;
 use App\Http\Controllers\BrowserHistoryController;
 use App\Http\Controllers\MonitoringConsentController;
 use App\Http\Controllers\ProjectAttachmentController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
@@ -85,6 +87,19 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    // White-label branding: everyone in the agency reads it; only the owner changes it.
+    Route::get('/branding', [AgencyBrandingController::class, 'show'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,agency_member', 'agency.active']);
+    Route::put('/branding', [AgencyBrandingController::class, 'update'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
+    Route::delete('/branding', [AgencyBrandingController::class, 'reset'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
+    Route::post('/branding/{kind}', [AgencyBrandingController::class, 'upload'])
+        ->whereIn('kind', ['logo', 'logo-collapsed', 'favicon'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active', 'throttle:attachments']);
+    Route::delete('/branding/{kind}', [AgencyBrandingController::class, 'destroyAsset'])
+        ->whereIn('kind', ['logo', 'logo-collapsed', 'favicon'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     // Monitoring: agency owners only, and only for employees currently assigned to their own agency.
     Route::get('/employees/{id}/activity', [AdminEmployeeActivityController::class, 'activity'])
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
@@ -105,8 +120,14 @@ Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin/browser-history'
     Route::get('/events', [BrowserHistoryController::class, 'adminEvents']);
 });
 
+// Reports: computed in SQL, scoped by the signed-in user. ?format=csv streams an export.
+Route::middleware(['web', 'auth', 'role:admin'])->get('/admin/reports/{type}', [ReportController::class, 'admin'])
+    ->whereIn('type', ['overview', 'employees', 'agencies', 'projects', 'tickets', 'assignments']);
+Route::middleware(['web', 'auth', 'role:agency_owner,agency_client', 'agency.active'])->get('/agency/reports/{type}', [ReportController::class, 'agency'])
+    ->whereIn('type', ['overview', 'employees', 'projects', 'tickets']);
+
 Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
-    Route::get('/admin/users', [AdminUserController::class, 'adminUsers']);
+    Route::get('/admin/users',[AdminUserController::class, 'adminUsers']);
     Route::patch('/admin/users/{adminUser}', [AdminUserController::class, 'updateAdminUser']);
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);

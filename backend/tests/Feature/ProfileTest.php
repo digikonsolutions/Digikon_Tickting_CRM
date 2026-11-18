@@ -62,18 +62,21 @@ class ProfileTest extends TestCase
     {
         $user = $this->makeUser($role);
 
-        $this->actingAs($user)->patchJson('/api/auth/profile', ['name' => 'Ada Lovelace'])
-            ->assertOk()
-            ->assertExactJson(['user' => [
-                'id' => $user->id,
-                'name' => 'Ada Lovelace',
-                'email' => $user->email,
-                'role' => $role->value,
-                'agency_id' => $user->agency_id,
-                'agency_name' => $user->agency_id ? 'Northwind' : null,
-                'photo_url' => null,
-                ...($role === Role::Employee ? ['monitoring_consent_required' => true] : []),
-            ]]);
+        $response = $this->actingAs($user)->patchJson('/api/auth/profile', ['name' => 'Ada Lovelace'])->assertOk();
+
+        $response->assertExactJson(['user' => [
+            'id' => $user->id,
+            'name' => 'Ada Lovelace',
+            'email' => $user->email,
+            'role' => $role->value,
+            'agency_id' => $user->agency_id,
+            'agency_name' => $user->agency_id ? 'Northwind' : null,
+            'photo_url' => null,
+            // Agency-scoped roles carry their agency's branding (covered in AgencyBrandingTest); others null.
+            'branding' => $role->isAgencyRole() ? $response->json('user.branding') : null,
+            ...($role === Role::Employee ? ['monitoring_consent_required' => true] : []),
+        ]]);
+        $this->assertSame($role->isAgencyRole(), $response->json('user.branding') !== null);
 
         $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Ada Lovelace']);
         $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('user.name', 'Ada Lovelace');

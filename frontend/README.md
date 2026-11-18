@@ -25,6 +25,20 @@ VITE_AUTH_MODE=api
 - `src/components/ui/` contains shared UI primitives used across features.
 - `src/auth/` contains authentication state, role definitions, and route guards.
 - `src/hooks/` contains shared hooks.
+- `src/branding/` contains agency white-labelling (see below).
+
+## Agency branding
+
+An agency owner customises the workspace at `/agency/branding`; everyone in that agency (owner, client, legacy member) sees it, and employees and admins keep the default ClientHub look.
+
+- The API sends the branding in `user.branding` (`/auth/me` and login), so the app themes itself before the first render. `AuthContext` keeps it in state; `updateBranding(branding)` replaces it after an edit.
+- `BrandingProvider` (`useBranding()`) turns it into CSS variables on `<html>` (`brandingVariables.js`, shade scale from `colorUtils.js`), sets `data-theme` and `data-sidebar`, swaps the favicon and `document.title`, and resets all of it on logout. The last branding is cached in `localStorage` (`clienthub.branding`) so a reload does not flash the default look; the server response replaces it. It re-reads the branding when the tab regains focus (at most every 30 seconds), so a client sees an owner's change without signing in again.
+- Themes: `theme_mode` is `light`, `dark` or `system`. Dark neutrals live in `index.css` under `[data-theme="dark"]`; brand-coloured text on dark surfaces uses `--brand-text` (see the end of `src/branding/agency-branding.css`). Corner style sets `--radius-*`.
+- Contrast is enforced in the UI and the API: the primary and accent colours need at least 4.5:1 against white. The stock teal `#0D9488` is 3.7:1, so the teal preset is `#0F766E`.
+- SVG uploads are rejected (see `backend/README.md`); logos are png, jpg or webp and the favicon png or ico.
+- The login page is not branded: the agency is unknown before sign-in. A possible follow-up is a per-agency login URL (for example `/a/{slug}/login`).
+- The settings page uses `useBlocker` for its unsaved-changes guard, which needs a data router, so `main.jsx` uses `createBrowserRouter` with a single `*` route that renders `<App />`.
+- Styles for the shell and the settings page are in `src/branding/agency-branding.css` (`ab-` prefix).
 
 Create the initial admin using the setup steps in `backend/README.md`. There is no public signup: ask an administrator to create your account. Set `VITE_AUTH_MODE=mock` only when you intentionally want the non-persistent UI demo.
 

@@ -12,6 +12,7 @@ import {
   AdminUsersPage,
 } from '../features/admin'
 import {
+  AgencyBrandingPage,
   AgencyClientProjectsPage,
   AgencyDirectoryPage,
   AgencyEmployeesPage,
@@ -24,6 +25,7 @@ import { AdminEmployeePage } from '../features/activity'
 import { AdminHistoryPage } from '../features/history'
 import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
+import { AdminReportsPage, AgencyReportsPage } from '../features/reports'
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -67,6 +69,7 @@ export function AppRoutes() {
             <Route path="/admin/projects/:id" element={<AdminProjectDetailPage />} />
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
             <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
             <Route path="/admin/time" element={<TimeSummaryPage scope="admin" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
@@ -87,6 +90,7 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/users" element={<AgencyUsersPage />} />
+            <Route path="/agency/branding" element={<AgencyBrandingPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/employees/:id/activity" element={<AdminEmployeePage scope="agency" />} />
@@ -94,6 +98,7 @@ export function AppRoutes() {
             <Route path="/agency/time" element={<TimeSummaryPage scope="agency" />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
+            <Route path="/agency/reports" element={<AgencyReportsPage />} />
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>

@@ -125,6 +125,47 @@
   --control-height: 2.75rem;
 }
 
+/* Dark theme: applied by BrandingProvider (agency theme_mode dark, or system + OS dark). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-page: #0b1220;
+  --color-card: #111827;
+  --color-surface-sunken: #0f172a;
+  --color-surface-hover: #1a2335;
+  --color-brand-tint: #101c28;
+  --color-border: #263244;
+  --color-border-soft: #1e293b;
+  --color-border-strong: #3b4a60;
+  --color-input-border: #7b8aa0;
+  --color-text: #cbd5e1;
+  --color-text-soft: #b4c0d0;
+  --color-heading: #f1f5f9;
+  --color-muted: #9aa8bb;
+  --color-placeholder: #8190a5;
+  --color-subtle: #64748b;
+  --color-success-50: #0b2a20;
+  --color-success-200: #14532d;
+  --color-success-700: #6ee7b7;
+  --color-warning-50: #2a2008;
+  --color-warning-200: #78350f;
+  --color-warning-700: #fcd34d;
+  --color-danger-50: #2f1215;
+  --color-danger-200: #7f1d1d;
+  --color-danger-600: #f87171;
+  --color-info-50: #0c2233;
+  --color-info-200: #0c4a6e;
+  --color-info-700: #7dd3fc;
+  --color-violet-50: #211a3a;
+  --color-violet-200: #4c1d95;
+  --color-violet-700: #c4b5fd;
+  --color-orange-50: #2b1708;
+  --color-orange-200: #7c2d12;
+  --color-orange-700: #fdba74;
+  --shadow-sm: 0 .25rem .75rem rgb(0 0 0 / 30%);
+  --shadow-card: 0 1rem 2.5rem rgb(0 0 0 / 35%);
+  --shadow-card-hover: 0 1.25rem 3rem rgb(0 0 0 / 45%);
+}
+
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; color: var(--color-text); background: var(--color-page); font-size: var(--text-md); line-height: var(--leading-normal); }
 h1, h2, h3, h4 { color: var(--color-heading); line-height: var(--leading-tight); }

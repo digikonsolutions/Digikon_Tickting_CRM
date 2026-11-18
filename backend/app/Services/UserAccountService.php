@@ -78,6 +78,12 @@ class UserAccountService
             'photo_url' => $user->photoUrl(),
         ];
 
+        // Agency-scoped users (owner, client, legacy member) get their agency's branding on every session
+        // load so the app can theme itself before first paint. Everyone else keeps the default look.
+        $payload['branding'] = $user->role->isAgencyRole() && $user->agency
+            ? app(AgencyBrandingService::class)->payload($user->agency)
+            : null;
+
         // Employees must accept the monitoring notice before using the app.
         $policy = app(MonitoringPolicy::class);
         if ($policy->requiresConsent($user)) {
