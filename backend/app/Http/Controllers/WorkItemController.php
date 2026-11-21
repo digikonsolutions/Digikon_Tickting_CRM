@@ -104,9 +104,8 @@ class WorkItemController extends Controller
             ->with('employee')
             ->whereKey($data['assignment_id'])
             ->where('agency_id', $agency->id)
-            ->where('holder_id', $request->user()->id)
             ->first();
-        abort_unless($assignment !== null, 404);
+        abort_unless($assignment !== null && $assignment->usableBy($request->user()), 404);
 
         if ($assignment->status !== 'active' || ! $assignment->employee?->is_active) {
             throw ValidationException::withMessages([
@@ -146,12 +145,11 @@ class WorkItemController extends Controller
         $data = $request->validated();
         $assignment = EmployeeAssignment::query()
             ->whereKey($data['assignment_id'])
-            ->where('holder_id', $creator->id)
             ->where('agency_id', $agency->id)
             ->where('status', 'active')
             ->first();
 
-        if (! $assignment) {
+        if (! $assignment || ! $assignment->usableBy($creator)) {
             throw ValidationException::withMessages([
                 'assignment_id' => 'Choose an active employee assignment held by your account.',
             ]);
@@ -179,8 +177,7 @@ class WorkItemController extends Controller
             $lockedAssignment = EmployeeAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
             if (
                 $lockedAssignment->status !== 'active'
-                || $lockedAssignment->holder_id !== $creator->id
-                || $lockedAssignment->agency_id !== $agency->id
+                || ! $lockedAssignment->usableBy($creator)
             ) {
                 throw ValidationException::withMessages([
                     'assignment_id' => 'Choose an active employee assignment held by your account.',
@@ -297,8 +294,7 @@ class WorkItemController extends Controller
             $assignment = EmployeeAssignment::query()->lockForUpdate()->find($data['assignment_id']);
             if (
                 $assignment === null
-                || $assignment->holder_id !== $user->id
-                || $assignment->agency_id !== $agency->id
+                || ! $assignment->usableBy($user)
                 || $assignment->status !== 'active'
             ) {
                 throw ValidationException::withMessages([

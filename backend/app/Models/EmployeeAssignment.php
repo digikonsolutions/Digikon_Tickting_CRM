@@ -27,6 +27,16 @@ class EmployeeAssignment extends Model
         ];
     }
 
+    /**
+     * Who may schedule work on this assignment: its holder, and any client of the same agency (clients cannot add
+     * employees, so they work with the ones their agency has).
+     */
+    public function usableBy(User $user): bool
+    {
+        return $this->agency_id === $user->agency_id
+            && ($this->holder_id === $user->id || $user->role === \App\Enums\Role::AgencyClient);
+    }
+
     public function holder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'holder_id');

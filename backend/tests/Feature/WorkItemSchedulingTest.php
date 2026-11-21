@@ -164,7 +164,9 @@ class WorkItemSchedulingTest extends TestCase
             'estimated_hours' => 1,
         ])->assertUnprocessable()->assertJsonValidationErrors(['assignment_id']);
 
-        $this->actingAs($anotherClient)->postJson('/api/agency/projects', [
+        // A client of another agency cannot use this agency's employee (clients of the SAME agency can; see EmployeeSeatsTest).
+        $outsider = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => Agency::create(['name' => 'Elsewhere'])->id]);
+        $this->actingAs($outsider)->postJson('/api/agency/projects', [
             ...$payload,
             'title' => 'Another client Tuesday task',
             'estimated_hours' => 3,

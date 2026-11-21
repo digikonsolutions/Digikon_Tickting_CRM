@@ -128,7 +128,7 @@ class BackendCorrectnessTest extends TestCase
         $this->getJson("{$base}?start_date=tomorrow&due_date={$start}")->assertUnprocessable()->assertJsonValidationErrors('start_date');
 
         // Someone else's assignment (same agency, other client; other agency; wrong role) is not found or forbidden.
-        $this->actingAs($this->makeClient($agency, 'Colleague'))->getJson("{$base}?start_date={$start}&due_date={$start}")->assertNotFound();
+        $this->actingAs($this->makeClient($agency, 'Colleague'))->getJson("{$base}?start_date={$start}&due_date={$start}")->assertOk();      // clients work with the agency's employees
         $rival = $this->makeClient($this->makeAgency('Rival'));
         $this->actingAs($rival)->getJson("{$base}?start_date={$start}&due_date={$start}")->assertNotFound();
         $this->actingAs(User::factory()->create(['role' => Role::Employee]))->getJson("{$base}?start_date={$start}&due_date={$start}")->assertForbidden();

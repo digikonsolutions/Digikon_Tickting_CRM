@@ -101,6 +101,26 @@ class EmployeeSeatsTest extends TestCase
         $this->add($owner)->assertCreated();
     }
 
+    public function test_clients_schedule_on_the_agencys_employees_but_cannot_end_or_cross_agencies(): void
+    {
+        [$agency, $owner, $client] = $this->agencyOnPlan(custom: false, seats: 2, adminAssigned: true);
+        $assignment = EmployeeAssignment::where('agency_id', $agency->id)->firstOrFail();
+        $payload = ['title' => 'Client project', 'description' => 'd', 'estimated_hours' => 4, 'start_date' => $this->monday->addDays(7)->toDateString(), 'due_date' => $this->monday->addDays(9)->toDateString(), 'assignment_id' => $assignment->id];
+
+        // The assignment is held by the owner, yet the client sees it and can schedule on it.
+        $this->actingAs($client)->getJson('/api/agency/assignments')->assertOk()->assertJsonCount(1, 'assignments');
+        $this->getJson("/api/agency/assignments/{$assignment->id}/availability?start_date={$payload['start_date']}&due_date={$payload['due_date']}")->assertOk();
+        $this->postJson('/api/agency/projects', $payload)->assertCreated();
+        $this->deleteJson("/api/agency/assignments/{$assignment->id}")->assertNotFound();           // only the holder ends it
+        $this->assertSame('active', $assignment->fresh()->status);
+
+        // Another agency's client gets nothing.
+        $rival = $this->makeAgency('Rival '.uniqid());
+        $this->actingAs($this->makeClient($rival))->getJson('/api/agency/assignments')->assertJsonCount(0, 'assignments');
+        $this->postJson('/api/agency/projects', $payload)->assertUnprocessable()->assertJsonValidationErrors('assignment_id');
+        $this->assertNotNull($owner);
+    }
+
     public function test_the_summary_tells_the_ui_what_to_show(): void
     {
         [$agency, $owner] = $this->agencyOnPlan(custom: false, seats: 2, adminAssigned: true);

@@ -118,7 +118,8 @@ class EmployeeAssignmentController extends Controller
             ->with(['employee', 'agency', 'holder'])
             ->where('status', 'active')
             ->where('agency_id', $agency->id)
-            ->where('holder_id', $viewer->id)
+            // Owners see what they hold; clients see every active employee of their agency (they cannot add or end any).
+            ->when($viewer->role !== Role::AgencyClient, fn ($query) => $query->where('holder_id', $viewer->id))
             ->orderByDesc('started_at')
             ->get()
             ->map(fn (EmployeeAssignment $assignment): array => $this->payload(
@@ -131,7 +132,7 @@ class EmployeeAssignmentController extends Controller
 
     public function usage(Request $request, EmployeeAssignment $assignment): JsonResponse
     {
-        $this->authorizeAssignment($request->user(), $assignment);
+        abort_unless($assignment->usableBy($request->user()), 404);
         $filters = $request->validate(['week' => ['sometimes', 'date_format:Y-m-d']]);
         $week = CarbonImmutable::parse(
             $filters['week'] ?? CarbonImmutable::now(config('app.timezone'))->toDateString(),
@@ -151,7 +152,7 @@ class EmployeeAssignmentController extends Controller
      */
     public function availability(Request $request, EmployeeAssignment $assignment): JsonResponse
     {
-        $this->authorizeAssignment($request->user(), $assignment);
+        abort_unless($assignment->usableBy($request->user()), 404);
         $data = $request->validate([
             'start_date' => ['required', 'date_format:Y-m-d'],
             'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
