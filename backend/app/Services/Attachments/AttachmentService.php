@@ -137,6 +137,28 @@ class AttachmentService
         ]);
     }
 
+    /** Stores a file on an agency request (more hours, an employee, ...). */
+    public function storeForRequest(\App\Models\AgencyRequest $request, User $uploader, UploadedFile $file): Attachment
+    {
+        $extension = strtolower(pathinfo((string) $file->getClientOriginalName(), PATHINFO_EXTENSION));
+        $disk = $this->disk();
+        $path = Storage::disk($disk)->putFileAs("requests/{$request->id}", $file, (string) Str::uuid().'.'.$extension);
+        if ($path === false) {
+            throw new RuntimeException('The file could not be stored.');
+        }
+
+        return $request->attachments()->create([
+            'uploaded_by' => $uploader->id,
+            'uploader_name' => $uploader->name,
+            'original_name' => self::sanitizeName((string) $file->getClientOriginalName()),
+            'path' => $path,
+            'disk' => $disk,
+            'mime' => $this->detectMime($file->getRealPath()),
+            'size' => (int) $file->getSize(),
+            'sha256' => hash_file('sha256', $file->getRealPath()),
+        ]);
+    }
+
     public function isInlineSafe(TicketAttachment|Attachment $attachment): bool
     {
         $mime = $attachment instanceof Attachment ? $attachment->mime : $attachment->mime_type;

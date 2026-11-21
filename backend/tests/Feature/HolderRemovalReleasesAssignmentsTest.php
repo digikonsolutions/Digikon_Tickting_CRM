@@ -62,8 +62,9 @@ class HolderRemovalReleasesAssignmentsTest extends TestCase
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
-        $assignmentId = $this->actingAs($client)
-            ->postJson('/api/agency/assignments', ['employee_id' => $employee->id])->assertCreated()->json('assignment.id');
+        // Clients cannot add employees through the API any more, so the client's hold is set up directly.
+        $assignmentId = \App\Models\EmployeeAssignment::create(['holder_id' => $client->id, 'agency_id' => $agency->id, 'employee_id' => $employee->id, 'status' => 'active', 'source' => 'owner', 'active_employee_id' => $employee->id, 'started_at' => now()])->id;
+        $this->actingAs($client);
         $monday = CarbonImmutable::now(config('app.timezone'))->startOfWeek()->addWeeks(2);
         $projectId = $this->postJson('/api/agency/projects', [
             'title' => 'Held work',

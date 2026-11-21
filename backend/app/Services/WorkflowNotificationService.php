@@ -38,6 +38,7 @@ class WorkflowNotificationService
             'more_hours' => ['requests more hours', 'more hours'],
             'upgrade' => ['requests a plan upgrade', 'a plan upgrade'],
             'renewal' => ['requests a contract renewal', 'a contract renewal'],
+            'employee' => ['requests an employee', 'an additional employee'],
         ][$type] ?? ['sends a request', 'help'];
 
         $sent = 0;

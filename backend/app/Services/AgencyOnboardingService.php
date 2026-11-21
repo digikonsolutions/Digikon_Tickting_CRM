@@ -83,6 +83,7 @@ class AgencyOnboardingService
                         'agency_id' => $agency->id,
                         'employee_id' => $employeeId,
                         'status' => 'active',
+                        'source' => 'admin',
                         'active_employee_id' => $employeeId,
                         'started_at' => now(config('app.timezone')),
                     ]);

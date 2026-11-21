@@ -54,6 +54,7 @@ trait BuildsAgencyFixtures
             'agency_id' => $agency->id,
             'employee_id' => $employee->id,
             'status' => 'active',
+            'source' => 'owner',
             'active_employee_id' => $employee->id,
             'started_at' => now(),
         ]);

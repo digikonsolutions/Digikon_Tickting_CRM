@@ -51,6 +51,7 @@ class WorkflowNotificationTest extends TestCase
             'agency_id' => $this->agency->id,
             'employee_id' => $this->employee->id,
             'status' => 'active',
+            'source' => 'owner',
             'active_employee_id' => $this->employee->id,
             'started_at' => now(),
         ]);
@@ -114,16 +115,16 @@ class WorkflowNotificationTest extends TestCase
 
         Notification::fake();
 
-        $this->actingAs($this->client)->postJson('/api/agency/assignments', [
+        $this->actingAs($this->owner)->postJson('/api/agency/assignments', [
             'employee_id' => $otherEmployee->id,
         ])->assertCreated();
 
         Notification::assertSentTo($otherEmployee, AssignmentHeld::class, function ($n) {
-            return str_contains($n->payload['body'], $this->client->name)
+            return str_contains($n->payload['body'], $this->owner->name)
                 && $n->payload['url_path'] === '/my-work';
         });
 
-        Notification::assertNotSentTo($this->client, AssignmentHeld::class);
+        Notification::assertNotSentTo($this->owner, AssignmentHeld::class);
     }
 
     public function test_assignment_ended_notifies_employee_and_holder_except_actor(): void

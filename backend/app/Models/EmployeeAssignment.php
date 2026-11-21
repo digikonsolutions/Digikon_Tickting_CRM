@@ -13,6 +13,7 @@ class EmployeeAssignment extends Model
         'agency_id',
         'employee_id',
         'status',
+        'source',
         'active_employee_id',
         'started_at',
         'ended_at',

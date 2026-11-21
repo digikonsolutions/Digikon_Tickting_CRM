@@ -356,10 +356,8 @@ class AgencyUserManagementTest extends TestCase
         $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
         $nextEmployee = User::factory()->create(['role' => Role::Employee]);
-        $assignmentId = $this->actingAs($client)
-            ->postJson('/api/agency/assignments', ['employee_id' => $employee->id])
-            ->assertCreated()
-            ->json('assignment.id');
+        $assignmentId = EmployeeAssignment::create(['holder_id' => $client->id, 'agency_id' => $agency->id, 'employee_id' => $employee->id, 'status' => 'active', 'source' => 'owner', 'active_employee_id' => $employee->id, 'started_at' => now()])->id;
+        $this->actingAs($client);
         $workDate = now(config('app.timezone'))->addWeek()->toDateString();
         $workItem = WorkItem::create([
             'agency_id' => $agency->id,
@@ -405,13 +403,11 @@ class AgencyUserManagementTest extends TestCase
             'work_date' => $workDate,
         ]);
 
+        // Clients cannot add employees themselves; the freed one stays free.
         $this->actingAs($client)
             ->postJson('/api/agency/assignments', ['employee_id' => $nextEmployee->id])
-            ->assertCreated();
-        $this->assertSame(
-            1,
-            EmployeeAssignment::query()->where('holder_id', $client->id)->where('status', 'active')->count()
-        );
+            ->assertForbidden();
+        $this->assertSame(0, EmployeeAssignment::query()->where('holder_id', $client->id)->where('status', 'active')->count());
     }
 
     public function test_admin_can_change_agency_status_and_suspension_revokes_only_agency_sessions(): void

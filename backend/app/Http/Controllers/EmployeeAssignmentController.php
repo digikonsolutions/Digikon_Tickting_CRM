@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Services\AssignmentService;
+use App\Services\EmployeeSeats;
 use App\Services\EmployeeProfileService;
 use App\Services\WorkflowNotificationService;
 use App\Services\WorkItemScheduler;
@@ -56,6 +57,8 @@ class EmployeeAssignmentController extends Controller
 
         try {
             $assignment = DB::transaction(function () use ($holder, $agency, $data): EmployeeAssignment {
+                // Owners only, within the plan's seats, and only where the plan lets them (see EmployeeSeats).
+                app(EmployeeSeats::class)->assertCanAdd($holder);
                 $employee = User::query()->lockForUpdate()->findOrFail($data['employee_id']);
 
                 if (
@@ -79,6 +82,7 @@ class EmployeeAssignmentController extends Controller
                     'agency_id' => $agency->id,
                     'employee_id' => $employee->id,
                     'status' => 'active',
+                    'source' => 'owner',
                     'active_employee_id' => $employee->id,
                     'started_at' => now(config('app.timezone')),
                 ]);

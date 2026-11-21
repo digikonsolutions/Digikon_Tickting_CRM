@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminPlanController;
 use App\Http\Controllers\ContractDocumentController;
 use App\Http\Controllers\AdminEmployeeController;
 use App\Http\Controllers\AgencyClientController;
+use App\Http\Controllers\AgencyRequestController;
 use App\Http\Controllers\AgencyDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AgencyEmployeeProfileController;
@@ -49,8 +50,14 @@ Route::middleware('web')->prefix('agency')->group(function () {
     // Owner and client dashboards, scoped to the caller's own agency. Requests notify every admin.
     Route::get('/dashboard', [AgencyDashboardController::class, 'show'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
-    Route::post('/requests', [AgencyDashboardController::class, 'request'])
+    Route::get('/requests', [AgencyRequestController::class, 'index'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    Route::post('/requests', [AgencyRequestController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:agency-requests']);
+    Route::get('/employees/summary', [AgencyRequestController::class, 'employees'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    Route::get('/request-attachments/{attachment}/download', [AgencyRequestController::class, 'download'])
+        ->middleware(['auth', 'role:agency_owner,agency_client,admin']);
     Route::get('/contract/document', [AgencyDashboardController::class, 'contractDocument'])
         ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/team', [AgencyUserController::class, 'agencyTeam'])

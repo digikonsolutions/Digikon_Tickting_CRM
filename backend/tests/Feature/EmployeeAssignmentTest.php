@@ -18,8 +18,8 @@ class EmployeeAssignmentTest extends TestCase
     {
         $agencyA = Agency::create(['name' => 'Agency A']);
         $agencyB = Agency::create(['name' => 'Agency B']);
-        $clientA = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agencyA->id]);
-        $clientB = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agencyB->id]);
+        $clientA = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agencyA->id]);
+        $clientB = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agencyB->id]);
         $sharedEmployee = User::factory()->create(['role' => Role::Employee, 'agency_id' => null]);
         $agencyEmployee = User::factory()->create(['role' => Role::Employee, 'agency_id' => $agencyA->id]);
 
@@ -51,7 +51,7 @@ class EmployeeAssignmentTest extends TestCase
     public function test_one_holder_can_hold_multiple_employees_and_duplicate_attempts_leave_one_active_assignment(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
-        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $employeeA = User::factory()->create(['role' => Role::Employee]);
         $employeeB = User::factory()->create(['role' => Role::Employee]);
 
@@ -74,8 +74,8 @@ class EmployeeAssignmentTest extends TestCase
     public function test_work_items_require_the_callers_active_assignment_and_allocate_up_to_thirty_six_hours_per_week(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
-        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $anotherClient = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $anotherClient = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
         $assignmentId = $this->actingAs($client)
             ->postJson('/api/agency/assignments', ['employee_id' => $employee->id])
@@ -128,8 +128,8 @@ class EmployeeAssignmentTest extends TestCase
     public function test_cancelling_and_ending_assignments_release_future_capacity_and_free_the_employee(): void
     {
         $agency = Agency::create(['name' => 'Northwind']);
-        $clientA = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $clientB = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $clientA = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $clientB = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $employee = User::factory()->create(['role' => Role::Employee]);
         $assignmentId = $this->actingAs($clientA)
             ->postJson('/api/agency/assignments', ['employee_id' => $employee->id])
@@ -170,8 +170,8 @@ class EmployeeAssignmentTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
-        $clientA = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $clientB = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $clientA = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $clientB = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $admin = User::factory()->create(['role' => Role::Admin]);
         $employeeA = User::factory()->create(['role' => Role::Employee]);
         $employeeB = User::factory()->create(['role' => Role::Employee]);
@@ -233,8 +233,8 @@ class EmployeeAssignmentTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
-        $clientA = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
-        $clientB = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $clientA = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
+        $clientB = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $employeeA = User::factory()->create(['role' => Role::Employee]);
         $employeeB = User::factory()->create(['role' => Role::Employee]);
         $assignmentA = $this->actingAs($clientA)
@@ -262,7 +262,7 @@ class EmployeeAssignmentTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $owner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
-        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $ownerEmployee = User::factory()->create(['role' => Role::Employee]);
         $clientEmployee = User::factory()->create(['role' => Role::Employee]);
         $clientAssignment = $this->actingAs($client)
@@ -286,7 +286,7 @@ class EmployeeAssignmentTest extends TestCase
     {
         $agency = Agency::create(['name' => 'Northwind']);
         $other = Agency::create(['name' => 'Other']);
-        $client = User::factory()->create(['role' => Role::AgencyClient, 'agency_id' => $agency->id]);
+        $client = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $agency->id]);
         $outsiderOwner = User::factory()->create(['role' => Role::AgencyOwner, 'agency_id' => $other->id]);
         $admin = User::factory()->create(['role' => Role::Admin]);
         $employee = User::factory()->create(['role' => Role::Employee]);
