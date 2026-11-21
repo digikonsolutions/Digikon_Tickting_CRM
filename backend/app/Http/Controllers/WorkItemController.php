@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Http\Requests\AdminDashboardRequest;
 use App\Http\Requests\StoreWorkItemRequest;
 use App\Http\Requests\UpdateWorkItemRequest;
 use App\Models\EmployeeAssignment;
@@ -10,6 +11,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
+use App\Services\AdminDashboardService;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use App\Services\TimeTracker;
@@ -431,12 +433,11 @@ class WorkItemController extends Controller
      * Everything the admin dashboard needs in one call: status counts, ticket total,
      * scheduled hours per day for the next 7 days (aggregated in SQL) and the latest projects.
      */
-    public function adminDashboard(Request $request): JsonResponse
+    public function adminDashboard(AdminDashboardRequest $request, AdminDashboardService $dashboard): JsonResponse
     {
-        $filters = $request->validate([
-            'status' => ['sometimes', 'in:scheduled,in_progress,completed,cancelled'],
-        ]);
+        $filters = $request->validated();
         $timezone = config('app.timezone');
+        $week = CarbonImmutable::parse($filters['week'] ?? 'now', $timezone);
         $today = CarbonImmutable::now($timezone)->startOfDay();
         $counts = WorkItem::query()
             ->selectRaw('status, COUNT(*) AS aggregate')
@@ -487,6 +488,9 @@ class WorkItemController extends Controller
             ->values();
 
         return response()->json([
+            // Employee- and agency-first payload (see AdminDashboardService). The keys below it are the
+            // earlier project-centric summary, kept so existing consumers keep working.
+            ...$dashboard->snapshot($week, $filters['employee_filter'] ?? 'all'),
             'today' => $today->toDateString(),
             'projects' => [
                 'total' => (int) $counts->sum(),
