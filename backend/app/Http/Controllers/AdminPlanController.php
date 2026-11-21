@@ -13,7 +13,7 @@ class AdminPlanController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $plans = Plan::query()->when($request->boolean('active'), fn ($query) => $query->where('is_active', true))->orderBy('name')->get();
+        $plans = Plan::query()->when($request->boolean('active'), fn ($query) => $query->where('is_active', true))->orderBy('sort_order')->orderBy('name')->get();
 
         return response()->json(['plans' => $plans->map(fn (Plan $plan): array => $this->payload($plan))->values()]);
     }
@@ -38,11 +38,20 @@ class AdminPlanController extends Controller
         if (is_string($request->input('name'))) {
             $request->merge(['name' => NameNormalizer::collapse($request->input('name'))]);
         }
+        if (is_array($request->input('features'))) {
+            $request->merge(['features' => array_values(array_filter(array_map(fn ($line) => is_string($line) ? trim($line) : $line, $request->input('features')), fn ($line) => $line !== '' && $line !== null))]);
+        }
         $sometimes = $plan ? 'sometimes' : 'required';
 
         return $request->validate([
             'name' => [$sometimes, 'string', 'max:120', Rule::unique('plans', 'name')->ignore($plan?->id)],
+            'tagline' => ['sometimes', 'nullable', 'string', 'max:60'],
             'description' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'best_for' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'features' => ['sometimes', 'nullable', 'array', 'max:30'],
+            'features.*' => ['string', 'max:160'],
+            'is_custom' => ['sometimes', 'boolean'],
+            'sort_order' => ['sometimes', 'integer', 'min:0', 'max:999'],
             'employees' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000'],
             'hours_per_month' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100000'],
             'max_open_projects' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000'],
@@ -61,7 +70,12 @@ class AdminPlanController extends Controller
         return [
             'id' => $plan->id,
             'name' => $plan->name,
+            'tagline' => $plan->tagline,
             'description' => $plan->description,
+            'best_for' => $plan->best_for,
+            'features' => $plan->features ?? [],
+            'is_custom' => $plan->is_custom,
+            'sort_order' => $plan->sort_order,
             'employees' => $plan->employees,
             'hours_per_month' => $plan->hours_per_month !== null ? (float) $plan->hours_per_month : null,
             'max_open_projects' => $plan->max_open_projects,

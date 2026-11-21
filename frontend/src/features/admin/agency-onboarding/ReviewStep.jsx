@@ -1,7 +1,7 @@
 import { Alert, Badge, Button, Card } from '../../../components/ui'
 import { formatDate } from '../../../lib/format'
 import {
-  BILLING_CYCLES, COMPANY_SIZES, CONTACT_METHODS, contractSummary, formatBytes, labelOf, reviewWarnings,
+  BILLING_CYCLES, COMPANY_SIZES, CONTACT_METHODS, contractSummary, featuresOf, formatBytes, labelOf, reviewWarnings,
 } from './onboardingForm'
 
 const Row = ({ label, children }) => (children === undefined || children === null || children === ''
@@ -29,6 +29,7 @@ export function ReviewStep({ values, plans, employees, logo, document: contractD
   const plan = (plans ?? []).find((item) => String(item.id) === String(contract.plan_id))
   const chosen = setup.employee_ids.map((id) => employees[id]?.name ?? `Employee #${id}`)
   const limits = contractSummary(contract)
+  const included = featuresOf(contract)
 
   return (
     <div className="onb-review">
@@ -64,6 +65,7 @@ export function ReviewStep({ values, plans, employees, logo, document: contractD
           <Row label="Plan">{plan?.name ?? 'Custom'}</Row>
           <Row label="Status"><Badge variant={contract.status === 'trial' ? 'warning' : 'success'}>{contract.status === 'trial' ? 'Trial' : 'Active'}</Badge></Row>
           <Row label="Limits">{limits.join(' · ')}</Row>
+          <Row label="Includes">{included.length > 0 && <ul className="onb-includes">{included.slice(0, 5).map((item) => <li key={item}>{item}</li>)}{included.length > 5 && <li>+ {included.length - 5} more</li>}</ul>}</Row>
           <Row label="Price">{contract.price !== '' && `${contract.currency} ${Number(contract.price).toLocaleString()} ${labelOf(BILLING_CYCLES, contract.billing_cycle).toLowerCase()}`}</Row>
           <Row label="Dates">{[contract.start_date && formatDate(contract.start_date), contract.end_date && formatDate(contract.end_date)].filter(Boolean).join(' to ')}</Row>
           <Row label="Trial ends">{contract.status === 'trial' && contract.trial_end_date && formatDate(contract.trial_end_date)}</Row>

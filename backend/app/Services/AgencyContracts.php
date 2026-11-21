@@ -66,6 +66,7 @@ class AgencyContracts
         return [
             'id' => $contract->id,
             'plan_name' => $contract->plan_name,
+            'features' => $contract->features ?? [],
             'status' => $contract->status,
             'billing_cycle' => $contract->billing_cycle,
             'starts_on' => $start,

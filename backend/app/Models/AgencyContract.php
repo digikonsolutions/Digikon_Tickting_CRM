@@ -22,6 +22,7 @@ class AgencyContract extends Model
             'end_date' => 'date',
             'trial_end_date' => 'date',
             'auto_renew' => 'boolean',
+            'features' => 'array',
             'hours_per_month' => 'decimal:2',
             'price' => 'decimal:2',
             'overage_rate' => 'decimal:2',

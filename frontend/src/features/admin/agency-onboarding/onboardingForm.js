@@ -56,7 +56,7 @@ export function emptyWizard() {
     contract: {
       plan_id: '', employees: '', hours_per_month: '', max_open_projects: '', max_client_accounts: '', price: '', currency: 'USD',
       billing_cycle: 'monthly', overage_rate: '', start_date: todayString(), end_date: '', auto_renew: false, notice_period_days: '',
-      status: 'active', trial_end_date: '', payment_terms_days: '', discount_percent: '',
+      status: 'active', trial_end_date: '', payment_terms_days: '', discount_percent: '', features: '',
     },
     setup: { employee_ids: [], brand_color: '', send_invite: true, welcome_enabled: false, welcome_message: '' },
   }
@@ -79,6 +79,7 @@ export function applyPlan(contract, plan) {
     billing_cycle: billing,
     overage_rate: text(plan.overage_rate),
     end_date: endDateFor(contract.start_date, billing),
+    features: (plan.features ?? []).join('\n'),
   }
 }
 
@@ -91,6 +92,9 @@ export function contractSummary(contract) {
   if (contract.max_client_accounts !== '') parts.push(`${contract.max_client_accounts} client accounts`)
   return parts
 }
+
+/** The inclusions the admin typed, one per line, without blanks. */
+export const featuresOf = (contract) => String(contract.features ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
 
 const blank = (value) => value === '' || value === null || value === undefined
 const NUMBER_FIELDS = ['employees', 'hours_per_month', 'max_open_projects', 'max_client_accounts', 'price', 'overage_rate', 'notice_period_days', 'payment_terms_days', 'discount_percent']
@@ -110,6 +114,7 @@ export function buildPayload(values, mode) {
     if (contract.plan_id) contract.plan_id = Number(contract.plan_id)
     for (const field of NUMBER_FIELDS) if (contract[field] !== undefined) contract[field] = Number(contract[field])
     if (contract.status !== 'trial') delete contract.trial_end_date
+    contract.features = featuresOf(values.contract)
   }
 
   const setup = { employee_ids: values.setup.employee_ids, send_invite: values.setup.send_invite }
@@ -224,3 +229,11 @@ export function hasContent(values) {
 export const firstError = (errors, key) => errors?.[key]?.[0]
 export const formatBytes = (bytes) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`)
 export const labelOf = (options, value) => options.find((option) => option.value === value)?.label ?? value
+
+const PER = { monthly: 'month', quarterly: 'quarter', yearly: 'year' }
+
+export function planPrice(plan) {
+  if (plan.price === null || plan.price === undefined) return null
+  const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: plan.currency ?? 'USD', maximumFractionDigits: Number.isInteger(Number(plan.price)) ? 0 : 2 }).format(plan.price)
+  return { money, per: PER[plan.billing_cycle] ?? 'month' }
+}

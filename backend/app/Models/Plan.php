@@ -12,7 +12,7 @@ class Plan extends Model
     /** Plan columns a contract snapshots (and an admin may override per agency). */
     public const SNAPSHOT_FIELDS = ['employees', 'hours_per_month', 'max_open_projects', 'max_client_accounts', 'price', 'currency', 'billing_cycle', 'overage_rate'];
 
-    protected $fillable = ['name', 'description', 'employees', 'hours_per_month', 'max_open_projects', 'max_client_accounts', 'price', 'currency', 'billing_cycle', 'overage_rate', 'is_active'];
+    protected $fillable = ['name', 'tagline', 'description', 'best_for', 'features', 'is_custom', 'sort_order', 'employees', 'hours_per_month', 'max_open_projects', 'max_client_accounts', 'price', 'currency', 'billing_cycle', 'overage_rate', 'is_active'];
 
     protected function casts(): array
     {
@@ -21,6 +21,8 @@ class Plan extends Model
             'price' => 'decimal:2',
             'overage_rate' => 'decimal:2',
             'is_active' => 'boolean',
+            'is_custom' => 'boolean',
+            'features' => 'array',
         ];
     }
 }

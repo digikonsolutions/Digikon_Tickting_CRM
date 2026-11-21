@@ -8,13 +8,29 @@ import { BILLING_CYCLES, CURRENCIES, labelOf } from '../agency-onboarding/onboar
 import '../agency-onboarding/onboarding.css'
 
 const loadPlans = () => authService.listPlans()
-const EMPTY = { name: '', description: '', employees: '', hours_per_month: '', max_open_projects: '', max_client_accounts: '', price: '', currency: 'USD', billing_cycle: 'monthly', overage_rate: '', is_active: true }
+const EMPTY = { name: '', tagline: '', description: '', best_for: '', features: '', sort_order: 0, is_custom: false, employees: '', hours_per_month: '', max_open_projects: '', max_client_accounts: '', price: '', currency: 'USD', billing_cycle: 'monthly', overage_rate: '', is_active: true }
 const NUMBER_FIELDS = ['employees', 'hours_per_month', 'max_open_projects', 'max_client_accounts', 'price', 'overage_rate']
 
-const toForm = (plan) => Object.fromEntries(Object.keys(EMPTY).map((key) => [key, plan[key] === null || plan[key] === undefined ? '' : plan[key]]))
+const toForm = (plan) => ({
+  ...Object.fromEntries(Object.keys(EMPTY).map((key) => [key, plan[key] === null || plan[key] === undefined ? '' : plan[key]])),
+  features: (plan.features ?? []).join('\n'),
+  is_custom: Boolean(plan.is_custom),
+  sort_order: plan.sort_order ?? 0,
+})
 
 function toPayload(form) {
-  const payload = { name: form.name.trim(), description: form.description.trim() || null, currency: form.currency, billing_cycle: form.billing_cycle, is_active: form.is_active }
+  const payload = {
+    name: form.name.trim(),
+    tagline: form.tagline.trim() || null,
+    best_for: form.best_for.trim() || null,
+    features: String(form.features).split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+    is_custom: form.is_custom,
+    sort_order: Number(form.sort_order) || 0,
+    description: form.description.trim() || null,
+    currency: form.currency,
+    billing_cycle: form.billing_cycle,
+    is_active: form.is_active,
+  }
   for (const field of NUMBER_FIELDS) payload[field] = form[field] === '' ? null : Number(form[field])
   return payload
 }
@@ -60,10 +76,11 @@ export function AdminPlansPage() {
   })
 
   const columns = [
-    { key: 'name', label: 'Plan', render: (_v, plan) => <strong>{plan.name}</strong> },
+    { key: 'name', label: 'Plan', render: (_v, plan) => <span><strong>{plan.name}</strong>{plan.is_custom && <> <Badge variant="info">Custom</Badge></>}{plan.tagline && <small className="adm-muted" style={{ display: 'block' }}>{plan.tagline}</small>}</span> },
     { key: 'employees', label: 'Seats', render: (value) => value ?? <span className="adm-muted">No limit</span> },
     { key: 'hours_per_month', label: 'Hours / month', render: (value) => value ?? <span className="adm-muted">No limit</span> },
     { key: 'max_open_projects', label: 'Open projects', render: (value) => value ?? <span className="adm-muted">No limit</span> },
+    { key: 'features', label: 'Included', render: (_v, plan) => `${(plan.features ?? []).length} items` },
     { key: 'price', label: 'Price', render: (_v, plan) => (plan.price != null ? `${plan.currency} ${Number(plan.price).toLocaleString()} / ${labelOf(BILLING_CYCLES, plan.billing_cycle).toLowerCase()}` : <span className="adm-muted">Not set</span>) },
     { key: 'is_active', label: 'Status', render: (value) => <Badge variant={value ? 'success' : 'slate'}>{value ? 'Active' : 'Retired'}</Badge> },
     { key: 'actions', label: 'Actions', render: (_v, plan) => <Button type="button" size="sm" variant="secondary" aria-label={`Edit ${plan.name}`} onClick={() => open(plan)}>Edit</Button> },
@@ -82,8 +99,13 @@ export function AdminPlansPage() {
       <Modal open={Boolean(editing)} onClose={() => !saving && setEditing(null)} title={editing?.id ? 'Edit plan' : 'New plan'} footer={null}>
         <form className="ui-form" onSubmit={save}>
           <FormSection description={editing?.id ? 'Changes apply to new contracts only. Existing contracts keep the numbers they were made with.' : undefined}>
-            <Input id="plan-name" label="Name" maxLength="120" required {...field('name')} />
+            <FieldRow>
+              <Input id="plan-name" label="Name" maxLength="120" required {...field('name')} />
+              <Input id="plan-tagline" label="Small heading" maxLength="60" placeholder="e.g. Scale delivery" {...field('tagline')} />
+            </FieldRow>
             <Textarea id="plan-description" label="Description" rows="2" maxLength="500" {...field('description')} />
+            <Input id="plan-best" label="Best for" maxLength="255" placeholder="e.g. Best for agencies managing 10–20 sub-accounts." {...field('best_for')} />
+            <Textarea id="plan-features" label="What's included" rows="6" helperText="One item per line." {...field('features')} />
             <FieldRow columns={3}>
               <Input id="plan-employees" label="Employees (seats)" type="number" min="0" max="1000" {...field('employees')} />
               <Input id="plan-hours" label="Hours per month" type="number" min="0" step="0.5" {...field('hours_per_month')} />
@@ -97,6 +119,10 @@ export function AdminPlansPage() {
             <FieldRow>
               <Select id="plan-cycle" label="Billing cycle" {...field('billing_cycle')}>{BILLING_CYCLES.map((cycle) => <option key={cycle.value} value={cycle.value}>{cycle.label}</option>)}</Select>
               <Input id="plan-overage" label="Overage rate (per extra hour)" type="number" min="0" step="0.01" {...field('overage_rate')} />
+            </FieldRow>
+            <FieldRow>
+              <Input id="plan-order" label="Order in lists" type="number" min="0" max="999" {...field('sort_order')} />
+              <label className="onb-check"><input type="checkbox" checked={form.is_custom} onChange={(event) => setForm((current) => ({ ...current, is_custom: event.target.checked }))} /><span><strong>Custom plan</strong><small>No fixed price or limits; filled in per agency.</small></span></label>
             </FieldRow>
             <label className="onb-check"><input type="checkbox" checked={form.is_active} onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))} /><span>Available when creating agencies</span></label>
           </FormSection>

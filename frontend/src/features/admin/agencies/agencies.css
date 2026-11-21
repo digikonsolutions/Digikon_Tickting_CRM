@@ -31,3 +31,5 @@
 .agency-docs-title { margin: var(--space-4) 0 var(--space-2); color: var(--color-heading); font-size: .95rem; }
 .agency-docs { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; font-size: .9rem; }
 .agency-docs a { color: var(--color-accent-700); font-weight: 600; }
+.agency-includes { list-style: disc; padding-left: 1.2rem; display: block; }
+.agency-includes li { margin-bottom: .25rem; }

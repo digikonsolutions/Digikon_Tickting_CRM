@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useRef } from 'react'
-import { Alert, Button, EmptyState, FieldRow, FormSection, Input, Select, Skeleton } from '../../../components/ui'
+import { Alert, Button, EmptyState, FieldRow, FormSection, Input, Select, Skeleton, Textarea } from '../../../components/ui'
 import { Icon } from '../../../components/ui/Icon'
+import { PlanCards } from './PlanCards'
 import {
-  BILLING_CYCLES, CONTRACT_STATUSES, CURRENCIES, DOCUMENT_RULES, applyPlan, contractSummary, endDateFor, firstError, formatBytes, labelOf,
+  BILLING_CYCLES, CONTRACT_STATUSES, CURRENCIES, DOCUMENT_RULES, applyPlan, contractSummary, endDateFor, featuresOf, firstError, formatBytes, labelOf,
 } from './onboardingForm'
 
 // Plan and contract fields. Reusable: `value` is the contract object, `onChange` receives the whole next object.
@@ -27,9 +28,6 @@ export function ContractFields({
   function setCycle(cycle) {
     onChange({ ...value, billing_cycle: cycle, ...(endFollowsDates ? { end_date: endDateFor(value.start_date, cycle) } : {}) })
   }
-  function setPlan(id) {
-    onChange(applyPlan(value, (plans ?? []).find((plan) => String(plan.id) === id)))
-  }
   const summary = contractSummary(value)
   const price = value.price !== '' ? `${value.currency} ${Number(value.price).toLocaleString()} ${labelOf(BILLING_CYCLES, value.billing_cycle).toLowerCase()}` : null
 
@@ -44,12 +42,8 @@ export function ContractFields({
           </EmptyState>
         )}
         {plans && plans.length > 0 && (
-          <Select id="contract-plan" label="Plan" value={value.plan_id} onChange={(event) => setPlan(event.target.value)} error={firstError(errors, `${prefix}plan_id`)}>
-            <option value="">Custom (no plan)</option>
-            {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}{plan.price != null ? ` · ${plan.currency} ${plan.price}/${plan.billing_cycle}` : ''}</option>)}
-          </Select>
-        )}
-        <FieldRow>
+          <PlanCards plans={plans} value={value.plan_id} onSelect={(plan) => onChange(applyPlan(value, plan))} error={firstError(errors, `${prefix}plan_id`)} />
+        )}        <FieldRow>
           <Select id="contract-status" label="Contract status" {...field('status')}>
             {CONTRACT_STATUSES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
           </Select>
@@ -70,6 +64,10 @@ export function ContractFields({
         {summary.length > 0 && (
           <p className="onb-summary" aria-live="polite"><Icon name="check" size={16} /> This agency will get <strong>{summary.join(' · ')}</strong>{price ? <> for <strong>{price}</strong></> : null}.</p>
         )}
+      </FormSection>
+
+      <FormSection title="What's included" description="One item per line. Filled in from the plan; edit it for this agency.">
+        <Textarea id="contract-features" label="Included in this contract" rows="6" value={value.features} onChange={(event) => onChange({ ...value, features: event.target.value })} error={firstError(errors, `${prefix}features`)} helperText={`${featuresOf(value).length} item${featuresOf(value).length === 1 ? '' : 's'}`} />
       </FormSection>
 
       <FormSection title="Price and billing">

@@ -132,6 +132,12 @@ export function AdminAgencyDetailPage() {
                 <Fact label="Seats">{agency.limits.seats}</Fact>
                 <Fact label="Included hours">{agency.limits.hours}</Fact>
               </dl>
+              {agency.contract.features?.length > 0 && (
+                <>
+                  <h3 className="agency-docs-title">What's included</h3>
+                  <ul className="agency-docs agency-includes" aria-label="Included in this contract">{agency.contract.features.map((item) => <li key={item}>{item}</li>)}</ul>
+                </>
+              )}
               <h3 className="agency-docs-title">Contract files</h3>
               {agency.documents.length === 0
                 ? <p className="adm-muted">No contract file uploaded yet.</p>

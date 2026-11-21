@@ -114,6 +114,12 @@ export function ContractCard({ dashboard, onRequest }) {
         ) : (
           <EmptyState icon={<Icon name="file" size={22} />} title="No contract">Plans, included hours and renewal dates appear here once your administrator sets up a contract.</EmptyState>
         )}
+        {contract?.features?.length > 0 && (
+          <div>
+            <h3 className="agd-includes-title">What's included</h3>
+            <ul className="agd-includes">{contract.features.map((item) => <li key={item}>{item}</li>)}</ul>
+          </div>
+        )}
         <div className="agd-contract-actions">
           {contract?.document_available
             ? <a className="ui-button ui-button-secondary ui-button-md" href={authService.agencyContractDocumentUrl()}><Icon name="download" size={16} /> Download contract</a>

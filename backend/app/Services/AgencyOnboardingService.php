@@ -195,6 +195,7 @@ class AgencyOnboardingService
             ...$values,
             'plan_id' => $plan?->id,
             'plan_name' => $plan?->name ?? 'Custom',
+            'features' => isset($input['features']) && is_array($input['features']) ? array_values($input['features']) : ($plan?->features ?? []),
             'currency' => strtoupper((string) ($values['currency'] ?? 'USD')),
             'billing_cycle' => $values['billing_cycle'] ?? 'monthly',
             'status' => $status,

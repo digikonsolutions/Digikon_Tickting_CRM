@@ -76,3 +76,26 @@
 .onb-uploads li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); font-size: .9rem; }
 .onb-uploads progress { width: 10rem; height: .5rem; accent-color: var(--color-accent-700); }
 .onb-upload-failed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* Plan cards: like the pricing page. The selected card is outlined in teal and carries a check mark. */
+.onb-plans { margin: 0; padding: 0; border: 0; min-width: 0; }
+.onb-plans legend { margin-bottom: var(--space-2); padding: 0; }
+.onb-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--space-3); }
+.onb-plan { position: relative; display: grid; align-content: start; gap: var(--space-2); padding: var(--space-4); border: 2px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); cursor: pointer; }
+.onb-plan:hover { border-color: var(--color-accent-700); }
+.onb-plan.is-selected { border-color: var(--color-accent-700); background: var(--color-accent-50); }
+.onb-plan.is-custom { border-style: dashed; }
+.onb-plan:has(input:focus-visible) { outline: 2px solid var(--color-accent-700); outline-offset: 2px; }
+.onb-plan input { position: absolute; opacity: 0; pointer-events: none; }
+.onb-plan-check { position: absolute; top: var(--space-3); right: var(--space-3); display: none; width: 1.6rem; height: 1.6rem; place-items: center; border-radius: 50%; background: var(--color-accent-700); color: var(--color-white); }
+.onb-plan.is-selected .onb-plan-check { display: grid; }
+.onb-plan-tag { color: var(--color-accent-700); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.onb-plan-name { color: var(--color-heading); font-size: 1.05rem; line-height: 1.25; padding-right: 2rem; }
+.onb-plan-price { color: var(--color-muted); font-size: .85rem; }
+.onb-plan-price b { color: var(--color-heading); font-size: 1.5rem; letter-spacing: -.02em; }
+.onb-plan-features { display: grid; gap: .3rem; margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: .85rem; color: var(--color-heading); }
+.onb-plan-features li { position: relative; padding-left: 1.3rem; }
+.onb-plan-features li::before { content: ''; position: absolute; left: .15rem; top: .45rem; width: .5rem; height: .5rem; border-radius: 50%; background: var(--color-success-700); }
+.onb-plan-features .onb-plan-more { color: var(--color-muted); }
+.onb-plan-features .onb-plan-more::before { background: var(--color-border-strong); }
+.onb-plan-best { margin-top: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-sunken); color: var(--color-heading); font-size: .8rem; font-weight: 600; }
+.onb-includes { margin: 0; padding-left: 1.1rem; font-size: .85rem; }

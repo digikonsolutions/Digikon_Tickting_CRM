@@ -50,8 +50,13 @@ class AdminStoreAgencyOwnerRequest extends FormRequest
             $merge['agency'] = $agency;
         }
         $contract = $this->input('contract');
-        if (is_array($contract) && is_string($contract['currency'] ?? null)) {
-            $contract['currency'] = strtoupper(trim($contract['currency']));
+        if (is_array($contract)) {
+            if (is_string($contract['currency'] ?? null)) {
+                $contract['currency'] = strtoupper(trim($contract['currency']));
+            }
+            if (is_array($contract['features'] ?? null)) {
+                $contract['features'] = array_values(array_filter(array_map(fn ($line) => is_string($line) ? trim($line) : $line, $contract['features']), fn ($line) => $line !== '' && $line !== null));
+            }
             $merge['contract'] = $contract;
         }
         $setup = $this->input('setup');
@@ -113,6 +118,8 @@ class AdminStoreAgencyOwnerRequest extends FormRequest
             'contract.status' => [...$optional, Rule::in(['trial', 'active'])],
             'contract.trial_end_date' => ['nullable', 'date', 'required_if:contract.status,trial'],
             'contract.payment_terms_days' => [...$optional, 'integer', 'min:0', 'max:365'],
+            'contract.features' => ['nullable', 'array', 'max:30'],
+            'contract.features.*' => ['string', 'max:160'],
             'contract.discount_percent' => [...$optional, 'numeric', 'between:0,100'],
 
             'setup' => ['sometimes', 'nullable', 'array'],

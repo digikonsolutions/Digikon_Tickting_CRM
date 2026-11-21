@@ -58,3 +58,8 @@
 .agd-quick-disabled strong { display: block; color: var(--color-muted); font-size: .9rem; }
 .agd-quick-disabled small { color: var(--color-danger-700); font-size: .8rem; }
 .agd-quick-disabled .adm-quick-icon { background: var(--color-surface-sunken); color: var(--color-muted); }
+
+.agd-includes-title { margin: 0 0 var(--space-2); color: var(--color-heading); font-size: .95rem; }
+.agd-includes { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; font-size: .85rem; color: var(--color-heading); }
+.agd-includes li { position: relative; padding-left: 1.3rem; }
+.agd-includes li::before { content: ''; position: absolute; left: .15rem; top: .45rem; width: .5rem; height: .5rem; border-radius: 50%; background: var(--color-success-700); }
