@@ -194,6 +194,45 @@ export function AppLayout() {
     }
   }
 
+  // The mobile drawer behaves like a dialog: focus moves in and stays in, Escape closes it, the page behind does
+  // not scroll, and focus returns to the Menu button when it closes.
+  useEffect(() => {
+    if (!isNavOpen) return undefined
+    const sidebar = document.getElementById('primary-navigation')
+    const toggle = document.querySelector('.mobile-nav-toggle')
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    sidebar?.querySelector('a[href], button:not([disabled])')?.focus()
+
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsNavOpen(false)
+        return
+      }
+      if (event.key !== 'Tab' || !sidebar) return
+      const focusable = [...sidebar.querySelectorAll('a[href], button:not([disabled])')]
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!sidebar.contains(document.activeElement)) {
+        event.preventDefault()
+        first.focus()
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      toggle?.focus()
+    }
+  }, [isNavOpen])
+
   function toggleSidebar() {
     const next = !isSidebarCollapsed
     setIsSidebarCollapsed(next)
