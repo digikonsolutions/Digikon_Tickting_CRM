@@ -758,7 +758,7 @@ class TicketController extends Controller
         $requestedUnits = (int) round($newTicketHours * 100);
 
         $plan = $scheduler->plan($employee, $start, $searchLimit, $requestedUnits);
-        abort_if($plan === null, 422, 'Could not find enough availability for this specialist in the next 90 days. Try a smaller estimate.');
+        abort_if($plan === null, 422, 'Could not find enough availability for this employee in the next 90 days. Try a smaller estimate.');
 
         foreach ($plan as $slot) {
             DB::table('work_item_allocations')->insert([

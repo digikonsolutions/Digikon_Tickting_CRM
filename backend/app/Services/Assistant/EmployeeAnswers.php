@@ -7,7 +7,7 @@ use App\Services\Reports\Capacity;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
-/** Specialist (employee) questions: only their own schedule, tickets and logged time. */
+/** Employee (employee) questions: only their own schedule, tickets and logged time. */
 class EmployeeAnswers extends AnswerSet
 {
     public function questions(User $user): array

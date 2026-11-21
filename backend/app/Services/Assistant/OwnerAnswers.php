@@ -15,18 +15,18 @@ class OwnerAnswers extends AnswerSet
     public function questions(User $user): array
     {
         return [
-            ['key' => 'owner_agency_overview', 'label' => 'How is my agency doing?', 'description' => 'Open and overdue projects, completion rate and specialists held (last 30 days).', 'category' => 'My agency'],
+            ['key' => 'owner_agency_overview', 'label' => 'How is my agency doing?', 'description' => 'Open and overdue projects, completion rate and employees held (last 30 days).', 'category' => 'My agency'],
             [
                 'key' => 'owner_employee_capacity',
-                'label' => 'How busy are my specialists this week?',
-                'description' => 'Scheduled hours against the 36 h week, for one specialist or all of them.',
-                'category' => 'Specialists',
+                'label' => 'How busy are my employees this week?',
+                'description' => 'Scheduled hours against the 36 h week, for one employee or all of them.',
+                'category' => 'Employees',
                 'params' => [[
                     'name' => 'employee_id',
-                    'label' => 'Specialist',
+                    'label' => 'Employee',
                     'type' => 'select',
                     'required' => false,
-                    'placeholder' => 'All my specialists',
+                    'placeholder' => 'All my employees',
                     'options' => $this->heldEmployees($user),
                 ]],
             ],
@@ -76,7 +76,7 @@ class OwnerAnswers extends AnswerSet
                     ['label' => 'Open projects', 'value' => $open, 'hint' => $o['projects']['completed'].' completed'],
                     ['label' => 'Overdue projects', 'value' => $o['overdue_projects'], 'tone' => $o['overdue_projects'] > 0 ? 'danger' : 'success'],
                     ['label' => 'Completion rate', 'value' => $this->percent($o['completion_rate'])],
-                    ['label' => 'Specialists held', 'value' => $o['employees']['held']],
+                    ['label' => 'Employees held', 'value' => $o['employees']['held']],
                     ['label' => 'Waiting on a client', 'value' => $o['tickets']['waiting_on_client'], 'tone' => $o['tickets']['waiting_on_client'] > 0 ? 'warning' : null],
                     ['label' => 'Tickets done', 'value' => $o['tickets']['done']],
                 ]),
@@ -95,14 +95,14 @@ class OwnerAnswers extends AnswerSet
         $rows = (new EmployeeUtilizationReport())->run($this->filters($from, $to, $extra), $scope)['rows'];
 
         return [
-            'title' => $employeeId ? 'This week for '.($rows[0]['name'] ?? 'this specialist') : 'Your specialists this week',
+            'title' => $employeeId ? 'This week for '.($rows[0]['name'] ?? 'this employee') : 'Your employees this week',
             'blocks' => [
                 $this->progress($this->weekLabel().' · hours scheduled on your projects, not hours worked', array_map(
                     fn (array $r): array => $this->progressItem($r['name'], $r['scheduled_hours'], $r['capacity_hours']),
                     $rows
                 )),
             ],
-            'empty_message' => $rows === [] ? 'You are not holding any specialist right now. Book one from My specialists.' : null,
+            'empty_message' => $rows === [] ? 'You are not holding any employee right now. Book one from My employees.' : null,
         ];
     }
 

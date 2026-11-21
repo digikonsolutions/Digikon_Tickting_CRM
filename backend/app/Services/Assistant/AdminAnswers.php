@@ -17,10 +17,10 @@ class AdminAnswers extends AnswerSet
     public function questions(User $user): array
     {
         return [
-            ['key' => 'admin_platform_overview', 'label' => 'How is the platform doing?', 'description' => 'Agencies, open and overdue projects, completion rate and free specialists (last 30 days).', 'category' => 'Overview'],
+            ['key' => 'admin_platform_overview', 'label' => 'How is the platform doing?', 'description' => 'Agencies, open and overdue projects, completion rate and free employees (last 30 days).', 'category' => 'Overview'],
             ['key' => 'admin_overdue_projects', 'label' => 'Which projects are overdue?', 'description' => 'Open projects past their due date, most late first.', 'category' => 'Projects'],
-            ['key' => 'admin_unassigned_employees', 'label' => 'Which specialists are unassigned?', 'description' => 'Active specialists that no agency holds right now.', 'category' => 'People'],
-            ['key' => 'admin_over_capacity', 'label' => 'Who is over capacity this week?', 'description' => 'Specialists scheduled above 90% of their 36 h week.', 'category' => 'People'],
+            ['key' => 'admin_unassigned_employees', 'label' => 'Which employees are unassigned?', 'description' => 'Active employees that no agency holds right now.', 'category' => 'People'],
+            ['key' => 'admin_over_capacity', 'label' => 'Who is over capacity this week?', 'description' => 'Employees scheduled above 90% of their 36 h week.', 'category' => 'People'],
             ['key' => 'admin_top_agencies', 'label' => 'Which agencies have the most scheduled work this month?', 'description' => 'Top five agencies by scheduled hours.', 'category' => 'Agencies'],
         ];
     }
@@ -55,7 +55,7 @@ class AdminAnswers extends AnswerSet
                     ['label' => 'Overdue projects', 'value' => $o['overdue_projects'], 'tone' => $o['overdue_projects'] > 0 ? 'danger' : 'success'],
                     ['label' => 'Completion rate', 'value' => $this->percent($o['completion_rate'])],
                     ['label' => 'Tickets in flight', 'value' => $inFlight],
-                    ['label' => 'Available specialists', 'value' => $o['employees']['available'] ?? 0, 'hint' => ($o['employees']['held'] ?? 0).' held'],
+                    ['label' => 'Available employees', 'value' => $o['employees']['available'] ?? 0, 'hint' => ($o['employees']['held'] ?? 0).' held'],
                 ]),
             ],
         ];
@@ -90,12 +90,12 @@ class AdminAnswers extends AnswerSet
         $data = (new AssignmentReport())->unassigned();
 
         return [
-            'title' => 'Unassigned specialists',
+            'title' => 'Unassigned employees',
             'blocks' => [
                 $this->stats('Right now', [['label' => 'Unassigned', 'value' => $data['unassigned_count']]]),
-                $this->listBlock('Specialists', array_map(fn (array $e): array => ['title' => $e['name'], 'href' => "/admin/employees/{$e['id']}"], $data['unassigned_employees'])),
+                $this->listBlock('Employees', array_map(fn (array $e): array => ['title' => $e['name'], 'href' => "/admin/employees/{$e['id']}"], $data['unassigned_employees'])),
             ],
-            'empty_message' => $data['unassigned_count'] === 0 ? 'Every active specialist is held by an agency.' : null,
+            'empty_message' => $data['unassigned_count'] === 0 ? 'Every active employee is held by an agency.' : null,
         ];
     }
 
@@ -123,7 +123,7 @@ class AdminAnswers extends AnswerSet
 
         return [
             'title' => 'Agencies by scheduled work this month',
-            'blocks' => [$this->table('Top five', ['Agency', 'Scheduled', 'Open projects', 'Specialists held'], array_map(
+            'blocks' => [$this->table('Top five', ['Agency', 'Scheduled', 'Open projects', 'Employees held'], array_map(
                 fn (array $r): array => [$r['name'], $this->hours($r['scheduled_hours']), $r['open_projects'], $r['employees_held']],
                 $rows
             ))],

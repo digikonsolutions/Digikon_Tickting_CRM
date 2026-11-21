@@ -13,7 +13,7 @@ import { useReportFilters } from '../useReportFilters'
 
 const AGENCY_TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'employees', label: 'Specialists' },
+  { id: 'employees', label: 'Employees' },
   { id: 'projects', label: 'Projects' },
   { id: 'tickets', label: 'Tickets' },
 ]
@@ -74,7 +74,7 @@ export function AgencyReportsPage() {
         <PageHeader
           eyebrow="Analytics"
           title="Reports"
-          subtitle="View project delivery trends, specialist allocation, and ticket throughput."
+          subtitle="View project delivery trends, employee allocation, and ticket throughput."
         />
         <div className="rp-header-actions">
           <Button

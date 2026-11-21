@@ -9,7 +9,7 @@ import { TimeProgress } from './TimeProgress'
 
 const SOURCE_LABEL = { timer: 'Timer', manual: 'Manual' }
 
-// Admin edits and deletes need a reason; the specialist's own changes (first 48 hours) do not.
+// Admin edits and deletes need a reason; the employee's own changes (first 48 hours) do not.
 function EntryDialog({ entry, mode, isAdmin, onClose, onDone }) {
   const [minutes, setMinutes] = useState(String(entry.minutes ?? ''))
   const [note, setNote] = useState(entry.note ?? '')
@@ -94,14 +94,14 @@ export function TimeTab({ ticket, role, isAssignedEmployee, onChanged, version =
       {!visible
         ? <p className="time-tab-note">Individual time entries are not shared with your agency. Totals are shown above.</p>
         : entries.length === 0
-          ? <EmptyState title="No time logged yet">Time appears here once the specialist starts a timer or logs hours.</EmptyState>
+          ? <EmptyState title="No time logged yet">Time appears here once the employee starts a timer or logs hours.</EmptyState>
           : (
             <ul className="time-entries">
               {entries.map((entry) => (
                 <li key={entry.id} className="time-entry">
                   <div className="time-entry-main">
                     <strong>{formatMinutes(entry.minutes)}</strong>
-                    <span>{formatDate(entry.entry_date)} · {entry.user.name ?? 'Specialist'} · {SOURCE_LABEL[entry.source] ?? entry.source}</span>
+                    <span>{formatDate(entry.entry_date)} · {entry.user.name ?? 'Employee'} · {SOURCE_LABEL[entry.source] ?? entry.source}</span>
                     {entry.auto_stopped && <span className="time-entry-flag">Auto-stopped after the time limit</span>}
                     {entry.note && <p className="time-entry-note">{entry.note}</p>}
                   </div>

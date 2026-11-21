@@ -43,7 +43,7 @@ export function AgenciesTab({
     },
     {
       key: 'employees_held',
-      label: 'Specialists held',
+      label: 'Employees held',
       sortKey: 'employees_held',
       align: 'right',
     },

@@ -8,7 +8,7 @@ use App\Services\Reports\ProjectReport;
 use App\Services\Reports\ReportScope;
 use Illuminate\Support\Facades\DB;
 
-/** Agency client questions: only the client's own projects and the specialists they hold. */
+/** Agency client questions: only the client's own projects and the employees they hold. */
 class ClientAnswers extends AnswerSet
 {
     public function questions(User $user): array
@@ -17,7 +17,7 @@ class ClientAnswers extends AnswerSet
             ['key' => 'client_my_projects', 'label' => 'What is the status of my projects?', 'description' => 'Your open projects with ticket progress and due dates.', 'category' => 'My projects'],
             ['key' => 'client_needs_my_input', 'label' => 'Does anything need my input?', 'description' => 'Tickets paused until you answer.', 'category' => 'My projects'],
             ['key' => 'client_upcoming_deadlines', 'label' => 'What is due in the next two weeks?', 'description' => 'Your open projects due within 14 days.', 'category' => 'My projects'],
-            ['key' => 'client_my_specialists', 'label' => 'How busy are my specialists this week?', 'description' => 'Hours scheduled on your projects this week.', 'category' => 'Specialists'],
+            ['key' => 'client_my_specialists', 'label' => 'How busy are my employees this week?', 'description' => 'Hours scheduled on your projects this week.', 'category' => 'Employees'],
         ];
     }
 
@@ -55,7 +55,7 @@ class ClientAnswers extends AnswerSet
             'title' => 'Your open projects',
             'blocks' => [$this->listBlock('By due date', $rows->map(fn (object $r): array => [
                 'title' => $r->title,
-                'subtitle' => ($r->status === 'in_progress' ? 'In progress' : 'Scheduled').' · '.($r->employee ?? 'No specialist yet'),
+                'subtitle' => ($r->status === 'in_progress' ? 'In progress' : 'Scheduled').' · '.($r->employee ?? 'No employee yet'),
                 'meta' => "{$r->done} of {$r->total} tickets done · due ".$this->date((string) $r->due_date),
                 'tone' => substr((string) $r->due_date, 0, 10) < $today ? 'danger' : null,
                 'href' => "/agency/projects/{$r->id}",
@@ -115,12 +115,12 @@ class ClientAnswers extends AnswerSet
         $rows = (new EmployeeUtilizationReport())->run($this->filters($from, $to, ['sort' => 'scheduled_hours', 'direction' => 'desc']), ReportScope::fromUser($user))['rows'];
 
         return [
-            'title' => 'Your specialists this week',
+            'title' => 'Your employees this week',
             'blocks' => [$this->progress($this->weekLabel().' · hours scheduled on your projects, not hours worked', array_map(
                 fn (array $r): array => $this->progressItem($r['name'], $r['scheduled_hours'], $r['capacity_hours']),
                 $rows
             ))],
-            'empty_message' => $rows === [] ? 'No specialist is working on your projects right now.' : null,
+            'empty_message' => $rows === [] ? 'No employee is working on your projects right now.' : null,
         ];
     }
 }

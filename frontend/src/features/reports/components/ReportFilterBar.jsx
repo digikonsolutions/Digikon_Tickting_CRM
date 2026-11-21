@@ -188,7 +188,7 @@ export function ReportFilterBar({
             {canFilterEmployee && (
               <div className="rp-select-group">
                 <label className="rp-sr-only" htmlFor="rp-filter-employee">
-                  {scope === 'admin' ? 'Filter by employee' : 'Filter by specialist'}
+                  {scope === 'admin' ? 'Filter by employee' : 'Filter by employee'}
                 </label>
                 <select
                   id="rp-filter-employee"
@@ -197,7 +197,7 @@ export function ReportFilterBar({
                   onChange={(e) => setEmployeeId(e.target.value)}
                 >
                   <option value="">
-                    {scope === 'admin' ? 'All employees' : 'All specialists'}
+                    {scope === 'admin' ? 'All employees' : 'All employees'}
                   </option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
@@ -375,7 +375,7 @@ export function ReportFilterBar({
           {canFilterEmployee && (
             <div className="rp-drawer-section">
               <label className="rp-drawer-label" htmlFor="rp-drawer-employee">
-                {scope === 'admin' ? 'Employee' : 'Specialist'}
+                {scope === 'admin' ? 'Employee' : 'Employee'}
               </label>
               <select
                 id="rp-drawer-employee"
@@ -384,7 +384,7 @@ export function ReportFilterBar({
                 onChange={(e) => setEmployeeId(e.target.value)}
               >
                 <option value="">
-                  {scope === 'admin' ? 'All employees' : 'All specialists'}
+                  {scope === 'admin' ? 'All employees' : 'All employees'}
                 </option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>

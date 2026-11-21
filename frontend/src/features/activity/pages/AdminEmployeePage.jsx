@@ -35,8 +35,8 @@ export function AdminEmployeePage({ scope = 'admin' }) {
         title={data?.employee?.name ?? 'Employee'}
         subtitle={scope === 'admin'
           ? 'Work activity and performance. Visible to administrators and the employee\'s agency owner only.'
-          : 'Work activity and performance since this specialist joined your agency. Visible to you and administrators only.'}
-        action={<Link className="ui-button ui-button-secondary ui-button-sm" to={scope === 'admin' ? '/admin/employees' : '/agency/employees'}>{scope === 'admin' ? 'Back to employees' : 'Back to specialists'}</Link>}
+          : 'Work activity and performance since this employee joined your agency. Visible to you and administrators only.'}
+        action={<Link className="ui-button ui-button-secondary ui-button-sm" to={scope === 'admin' ? '/admin/employees' : '/agency/employees'}>{scope === 'admin' ? 'Back to employees' : 'Back to employees'}</Link>}
       />
 
       <Card>

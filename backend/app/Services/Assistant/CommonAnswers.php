@@ -11,7 +11,7 @@ class CommonAnswers extends AnswerSet
         'admin' => 'Administrator',
         'team_lead' => 'Team lead',
         'qa' => 'QA',
-        'employee' => 'Specialist',
+        'employee' => 'Employee',
         'agency_owner' => 'Agency owner',
         'agency_member' => 'Agency member',
         'agency_client' => 'Agency client',

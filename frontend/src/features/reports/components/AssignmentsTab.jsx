@@ -20,7 +20,7 @@ export function AssignmentsTab({
   const columns = [
     {
       key: 'employee',
-      label: 'Specialist',
+      label: 'Employee',
       sortKey: 'employee',
       render: (val, row) => (
         <Link
@@ -90,14 +90,14 @@ export function AssignmentsTab({
 
   return (
     <div className="rp-table-tab">
-      {/* Snapshot of currently unassigned specialists */}
+      {/* Snapshot of currently unassigned employees */}
       <Card
-        title={`Unassigned active specialists (${unassignedCount})`}
-        description="Active specialists in the system not held by any agency right now."
+        title={`Unassigned active employees (${unassignedCount})`}
+        description="Active employees in the system not held by any agency right now."
       >
         {unassignedEmployees.length === 0 ? (
           <p style={{ color: 'var(--color-muted)', fontSize: '0.8125rem' }}>
-            All active specialists are currently assigned to agencies.
+            All active employees are currently assigned to agencies.
           </p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>

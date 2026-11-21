@@ -27,7 +27,7 @@ const TABS = [
 const COMMENT_PROMPTS = {
   mark_blocked: { title: 'Mark as blocked', question: 'Why is this blocked?' },
   request_client_input: { title: 'Ask the client', question: 'What do you need from the client?' },
-  provide_input: { title: 'Reply to your specialist', question: 'What is your answer?' },
+  provide_input: { title: 'Reply to your employee', question: 'What is your answer?' },
   request_changes: { title: 'Request changes', question: 'What should change?' },
 }
 
@@ -47,7 +47,7 @@ function describeBanner(ticket, role) {
       case 'in_review':
         return { title: `${ticket.key} is waiting for your review`, body: 'Approve it if it looks right, or tell us what should change.', variant: 'warning' }
       case 'waiting_on_client':
-        return { title: 'Your specialist needs an answer', body: ticket.status_reason, variant: 'warning' }
+        return { title: 'Your employee needs an answer', body: ticket.status_reason, variant: 'warning' }
       case 'changes_requested':
         return { title: 'Changes requested', body: ticket.status_reason, variant: 'warning' }
       case 'blocked':

@@ -620,7 +620,7 @@ export const authService = {
   projectAttachmentUrl(id, { inline = false } = {}) {
     return `${API_URL}/project-attachments/${encodeURIComponent(id)}/download${inline ? '?inline=1' : ''}`
   },
-  // Time tracking. Only the assigned specialist logs; admins correct entries with a reason.
+  // Time tracking. Only the assigned employee logs; admins correct entries with a reason.
   async getActiveTimer({ signal } = {}) {
     if (AUTH_MODE === 'mock') return { entry: null, server_time: new Date().toISOString() }
     return request('/time/active', { signal })

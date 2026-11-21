@@ -5,13 +5,13 @@ import { isAgencyRole } from '../auth/roles'
 export function getAgencyLabels(role) {
   const isAgency = isAgencyRole(role)
   return {
-    employeesHeld: isAgency ? 'My specialists' : 'Employees held',
-    myEmployees: isAgency ? 'My specialists' : 'My employees',
-    holdEmployee: isAgency ? 'Add specialist' : 'Hold employee',
-    selectEmployee: isAgency ? 'Choose specialist' : 'Select employee',
-    endAssignment: isAgency ? 'Release specialist' : 'End assignment',
+    employeesHeld: isAgency ? 'My employees' : 'Employees held',
+    myEmployees: isAgency ? 'My employees' : 'My employees',
+    holdEmployee: isAgency ? 'Add employee' : 'Hold employee',
+    selectEmployee: isAgency ? 'Choose employee' : 'Select employee',
+    endAssignment: isAgency ? 'Release employee' : 'End assignment',
     dueDate: isAgency ? 'Delivery date' : 'Due date',
-    specialist: isAgency ? 'Specialist' : 'Employee',
-    specialists: isAgency ? 'Specialists' : 'Employees',
+    specialist: isAgency ? 'Employee' : 'Employee',
+    specialists: isAgency ? 'Employees' : 'Employees',
   }
 }

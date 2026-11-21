@@ -30,7 +30,7 @@ export function ProjectBriefFields({ errors = {}, defaults = {} }) {
           autoComplete="off"
           defaultValue={defaults.access_details ?? ''}
           error={error('access_details')}
-          helperText="Stored encrypted. Visible only to your agency, the assigned specialist and administrators."
+          helperText="Stored encrypted. Visible only to your agency, the assigned employee and administrators."
         />
         <Input name="budget" label="Budget" maxLength="100" defaultValue={defaults.budget ?? ''} error={error('budget')} />
         <Select name="brief_priority" label="Project priority" defaultValue={defaults.brief_priority ?? ''} error={error('brief_priority')}>

@@ -35,7 +35,7 @@ export function getTicketStatusVariant(status) {
   return TICKET_STATUSES[status]?.variant ?? 'slate'
 }
 
-// Who the ticket is waiting on, relative to the viewer: "you", "client", "specialist"/"employee", "team".
+// Who the ticket is waiting on, relative to the viewer: "you", "client", "employee", "team".
 export function getWaitingLabel(waitingOn, viewerRole = null) {
   const viewerIsAgency = isAgencyRole(viewerRole)
   switch (waitingOn) {
@@ -43,7 +43,7 @@ export function getWaitingLabel(waitingOn, viewerRole = null) {
       return viewerIsAgency ? 'you' : 'client'
     case 'employee':
       if (viewerRole === 'employee') return 'you'
-      return viewerIsAgency ? 'specialist' : 'employee'
+      return 'employee'
     case 'team':
       return 'team'
     default:

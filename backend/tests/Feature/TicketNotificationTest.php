@@ -97,7 +97,7 @@ class TicketNotificationTest extends TestCase
         $this->assertOnly(TicketCommented::class, ['employee'], fn ($n) => $n->payload['excerpt'] === 'From the client');
 
         Notification::fake();
-        $this->actingAs($this->u['employee'])->postJson('/api/tickets/'.$ticket->id.'/comments', ['body' => 'From the specialist'])->assertCreated();
+        $this->actingAs($this->u['employee'])->postJson('/api/tickets/'.$ticket->id.'/comments', ['body' => 'From the employee'])->assertCreated();
         $this->assertOnly(TicketCommented::class, ['owner', 'other']);
     }
 

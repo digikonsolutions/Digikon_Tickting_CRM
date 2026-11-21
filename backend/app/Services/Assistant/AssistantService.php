@@ -11,7 +11,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * The in-app assistant ("Ask ClientHub"). Each role gets its own preset questions; a question that is not
  * in the caller's list answers 404, so one role can never run another role's question. Parameters are
- * validated against the options offered to that user (for example only the owner's own specialists).
+ * validated against the options offered to that user (for example only the owner's own employees).
  */
 class AssistantService
 {

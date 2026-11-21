@@ -46,7 +46,7 @@ export function AdminProjectsPage() {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Project, client, specialist or agency"
+            placeholder="Project, client, employee or agency"
           />
           <Button type="submit" variant="secondary" loading={isLoading && Boolean(searchInput)} loadingText="Searching…">Search</Button>
         </form>

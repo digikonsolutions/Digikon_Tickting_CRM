@@ -54,7 +54,7 @@ class TicketWorkflow
             'to' => 'in_progress',
             'who' => 'client',
             'requires_comment' => true,
-            'label' => 'Reply to specialist',
+            'label' => 'Reply to employee',
         ],
         'approve' => [
             'from' => 'in_review',

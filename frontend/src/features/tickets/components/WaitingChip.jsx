@@ -1,7 +1,7 @@
 import { Badge } from '../../../components/ui'
 import { getWaitingLabel, isWaitingOnViewer } from '../../../lib/ticketStatus'
 
-// "Waiting on you" / "Waiting on specialist" chip, worded for the viewer. Highlighted when the ball
+// "Waiting on you" / "Waiting on employee" chip, worded for the viewer. Highlighted when the ball
 // is in the viewer's court; hidden for closed tickets.
 export function WaitingChip({ ticket, role }) {
   // The status badge already says it for waiting_on_client, and closed tickets are not waiting.

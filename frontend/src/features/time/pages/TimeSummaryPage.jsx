@@ -5,8 +5,8 @@ import { useAsync } from '../../../hooks/useAsync'
 import { addDays, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
 const GROUPS = {
-  admin: [['employee', 'Specialist'], ['agency', 'Agency'], ['project', 'Project']],
-  agency: [['employee', 'Specialist'], ['project', 'Project']],
+  admin: [['employee', 'Employee'], ['agency', 'Agency'], ['project', 'Project']],
+  agency: [['employee', 'Employee'], ['project', 'Project']],
 }
 
 function presetRange(preset) {
@@ -37,7 +37,7 @@ export function TimeSummaryPage({ scope }) {
       <PageHeader
         eyebrow={scope === 'admin' ? 'Admin' : 'Agency'}
         title="Time summary"
-        subtitle="Hours logged by specialists against what was scheduled and estimated."
+        subtitle="Hours logged by employees against what was scheduled and estimated."
       />
 
       <Card>

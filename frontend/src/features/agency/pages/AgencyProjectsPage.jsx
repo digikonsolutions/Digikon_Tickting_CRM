@@ -96,10 +96,10 @@ export function AgencyProjectsPage({ viewAs }) {
 
   // Why the submit button is disabled, said in words next to it.
   let disabledReason = null
-  if (!isLoading && assignments.length === 0) disabledReason = 'Add a specialist first, then you can create a project.'
-  else if (!selectedAssignment) disabledReason = 'Choose a specialist to check their availability.'
+  if (!isLoading && assignments.length === 0) disabledReason = 'Add an employee first, then you can create a project.'
+  else if (!selectedAssignment) disabledReason = 'Choose an employee to check their availability.'
   else if (datesInvalid) disabledReason = 'The due date must be on or after the start date.'
-  else if (isCheckingCapacity) disabledReason = 'Checking the specialist’s capacity…'
+  else if (isCheckingCapacity) disabledReason = 'Checking the employee’s capacity…'
   else if (capacityResult?.error) disabledReason = 'Capacity could not be checked. Try changing the dates.'
   else if (remaining !== null && hours > remaining) disabledReason = `Reduce the hours to ${formatHours(remaining)} or fewer, or extend the dates.`
   else if (!(hours > 0)) disabledReason = 'Enter the estimated hours.'
@@ -158,10 +158,10 @@ export function AgencyProjectsPage({ viewAs }) {
 
   const capacityCallout = (() => {
     if (!selectedAssignment) return null
-    if (isCheckingCapacity) return <Alert variant="info" className="ui-form-callout">Checking {selectedHold?.employee?.name ?? 'the specialist'}’s availability…</Alert>
-    if (capacityResult?.error) return <Alert variant="error" className="ui-form-callout">{capacityResult.error.message ?? 'Could not check specialist capacity.'}</Alert>
+    if (isCheckingCapacity) return <Alert variant="info" className="ui-form-callout">Checking {selectedHold?.employee?.name ?? 'the employee'}’s availability…</Alert>
+    if (capacityResult?.error) return <Alert variant="error" className="ui-form-callout">{capacityResult.error.message ?? 'Could not check employee capacity.'}</Alert>
     if (remaining === null) return null
-    const name = selectedHold?.employee?.name ?? 'This specialist'
+    const name = selectedHold?.employee?.name ?? 'This employee'
     return hours > remaining
       ? <Alert variant="warning" className="ui-form-callout" title="Not enough capacity">{name} has {formatHours(remaining)} available between these dates, but the project needs {formatHours(hours)}. Reduce the hours or extend the dates.</Alert>
       : <Alert variant="info" className="ui-form-callout">{name} has <strong>{formatHours(remaining)}</strong> available between these dates.</Alert>
@@ -173,8 +173,8 @@ export function AgencyProjectsPage({ viewAs }) {
         eyebrow="Agency workspace"
         title="Agency projects"
         subtitle={isClient
-          ? 'View agency projects and statuses. Create projects using your specialists.'
-          : 'Create projects using your specialists and review agency project schedules.'}
+          ? 'View agency projects and statuses. Create projects using your employees.'
+          : 'Create projects using your employees and review agency project schedules.'}
       />
       <ApiErrorMessage error={error ?? (createError?.status === 422 ? null : createError)} />
       <Card
@@ -184,7 +184,7 @@ export function AgencyProjectsPage({ viewAs }) {
       >
         {!isLoading && assignments.length === 0 && (
           <Alert variant="info" className="ui-form-callout">
-            You need to add a specialist before creating a project. <Link to="/agency/employees">Go to My specialists</Link>.
+            You need to add an employee before creating a project. <Link to="/agency/employees">Go to My employees</Link>.
           </Alert>
         )}
         <form className="ui-form" onSubmit={createProject}>
@@ -234,17 +234,17 @@ export function AgencyProjectsPage({ viewAs }) {
             </FieldRow>
           </FormSection>
 
-          <FormSection title="Assignment" description="Only specialists you have added can be used.">
+          <FormSection title="Assignment" description="Only employees you have added can be used.">
             <Select
               id="project-assignment"
-              label="Specialist"
+              label="Employee"
               value={selectedAssignment}
               onChange={(event) => setSelectedAssignment(event.target.value)}
               required
               disabled={isLoading || assignments.length === 0}
               error={fieldError('assignment_id')}
             >
-              <option value="">{isLoading ? 'Loading your specialists…' : 'Choose a specialist'}</option>
+              <option value="">{isLoading ? 'Loading your employees…' : 'Choose an employee'}</option>
               {assignments.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>
               ))}
@@ -252,7 +252,7 @@ export function AgencyProjectsPage({ viewAs }) {
             {capacityCallout}
           </FormSection>
 
-          <FormSection title="Brief and files" description="Optional. Add anything that helps your specialist get started.">
+          <FormSection title="Brief and files" description="Optional. Add anything that helps your employee get started.">
             <ProjectBriefFields errors={createError?.errors} />
             <FilePicker files={briefFiles} onChange={setBriefFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isCreating} />
           </FormSection>
@@ -270,7 +270,7 @@ export function AgencyProjectsPage({ viewAs }) {
 
       <Card title={isClient ? 'My projects' : 'Agency projects'} description="Select a project to view and manage its tickets.">
         <form className="ui-toolbar" onSubmit={submitSearch} role="search">
-          <Input id="project-search" label="Search projects" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, client or specialist" />
+          <Input id="project-search" label="Search projects" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, client or employee" />
           <Button type="submit" variant="secondary" loading={isLoadingProjects && Boolean(searchInput)} loadingText="Searching…">Search</Button>
         </form>
         <FilterChips label="Filter by status" options={STATUS_FILTERS} value={statusFilter} disabled={isLoadingProjects} onChange={(value) => { setStatusFilter(value); setPage(1) }} />

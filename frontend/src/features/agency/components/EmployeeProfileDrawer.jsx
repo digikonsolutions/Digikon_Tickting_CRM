@@ -18,17 +18,17 @@ const period = (start, end) => [start, end].filter(Boolean).map((date) => format
 export function EmployeeProfileDrawer({ employeeId, onClose, footer }) {
   const load = useCallback(() => (employeeId ? authService.getEmployeePublicProfile(employeeId) : noop()), [employeeId])
   const { data, error, isLoading, reload } = useAsync(load)
-  // After switching specialists the previous person's data lingers until the new response arrives; never show it.
+  // After switching employees the previous person's data lingers until the new response arrives; never show it.
   const person = data?.employee?.id === employeeId ? data.employee : null
 
   return (
-    <Drawer open={Boolean(employeeId)} onClose={onClose} title="Specialist profile" description="Public details only. Contact and personal information stay private." width="lg" footer={footer}>
+    <Drawer open={Boolean(employeeId)} onClose={onClose} title="Employee profile" description="Public details only. Contact and personal information stay private." width="lg" footer={footer}>
       {isLoading && !person && (
         <div aria-busy="true"><Skeleton variant="card" /><Skeleton variant="card" /></div>
       )}
       {error && (
         <Alert variant="error" title="Could not load this profile">
-          {error.status === 404 ? 'This specialist is not available.' : error.message}
+          {error.status === 404 ? 'This employee is not available.' : error.message}
           <div className="ui-retry"><Button type="button" size="sm" variant="secondary" onClick={reload}>Try again</Button></div>
         </Alert>
       )}
@@ -141,7 +141,7 @@ export function PublicProfile({ person }) {
       )}
 
       {!person.bio && person.skills.length === 0 && person.experiences.length === 0 && (
-        <p className="pub-note">This specialist has not added profile details yet.</p>
+        <p className="pub-note">This employee has not added profile details yet.</p>
       )}
     </div>
   )

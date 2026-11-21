@@ -28,8 +28,8 @@ function formatMinutes(minutes) {
 const CANCEL_CAUSES = {
   ticket: '',
   project: ' because the project was cancelled',
-  assignment_ended: ' because the specialist was released',
-  employee_deactivated: ' because the specialist is no longer available',
+  assignment_ended: ' because the employee was released',
+  employee_deactivated: ' because the employee is no longer available',
 }
 
 function describe(item, viewerRole) {

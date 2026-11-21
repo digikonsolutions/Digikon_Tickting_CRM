@@ -113,7 +113,7 @@ export function AgencyEmployeesPage() {
       }
       showToast(
         confirm.kind === 'assign'
-          ? `${confirm.employee.name} was added to your specialists.`
+          ? `${confirm.employee.name} was added to your employees.`
           : `${confirm.assignment.employee.name} was released.`,
       )
       setConfirm(null)
@@ -135,7 +135,7 @@ export function AgencyEmployeesPage() {
       <PageHeader
         eyebrow="Agency workspace"
         title={labels.myEmployees}
-        subtitle="The specialists you have added for your projects, with their weekly capacity."
+        subtitle="The employees you have added for your projects, with their weekly capacity."
         action={
           <Button type="button" onClick={() => setDrawerOpen(true)}>
             + {labels.holdEmployee}
@@ -262,14 +262,14 @@ export function AgencyEmployeesPage() {
         </div>
       ) : (
         <EmptyState
-          title="No specialists yet"
+          title="No employees yet"
           action={
             <Button type="button" onClick={() => setDrawerOpen(true)}>
               {labels.holdEmployee}
             </Button>
           }
         >
-          These are the specialists you work with. Add a specialist to start assigning them to your projects.
+          These are the employees you work with. Add an employee to start assigning them to your projects.
         </EmptyState>
       )}
 
@@ -286,11 +286,11 @@ export function AgencyEmployeesPage() {
         open={drawerOpen && !profileId}
         onClose={() => { setDrawerOpen(false); setDrawerSearch('') }}
         title={labels.holdEmployee}
-        description="Choosing a specialist makes them exclusive to you until you release them."
+        description="Choosing an employee makes them exclusive to you until you release them."
       >
         <Input
-          id="specialist-search"
-          label="Search specialists"
+          id="employee-search"
+          label="Search employees"
           type="search"
           placeholder="Name or email"
           value={drawerSearch}
@@ -336,7 +336,7 @@ export function AgencyEmployeesPage() {
           </div>
         ) : (
           <p className="ae-drawer-empty">
-            {isLoading ? 'Loading…' : 'No specialists are currently available.'}
+            {isLoading ? 'Loading…' : 'No employees are currently available.'}
           </p>
         )}
       </Drawer>
@@ -384,7 +384,7 @@ export function AgencyEmployeesPage() {
         {confirm?.kind === 'assign' ? (
           <p>
             <strong>{confirm.employee.name}</strong> will become exclusive to you.
-            Other agency clients will no longer be able to choose this specialist.
+            Other agency clients will no longer be able to choose this employee.
           </p>
         ) : (
           <>

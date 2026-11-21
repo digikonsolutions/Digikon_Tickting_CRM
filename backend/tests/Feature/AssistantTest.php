@@ -193,7 +193,7 @@ class AssistantTest extends TestCase
 
         $this->assertSame(2, $this->stat($answer, 'Open projects'));
         $this->assertSame(1, $this->stat($answer, 'Overdue projects'));
-        $this->assertSame(2, $this->stat($answer, 'Specialists held'));
+        $this->assertSame(2, $this->stat($answer, 'Employees held'));
         $this->assertSame(1, $this->stat($answer, 'Waiting on a client')); // ALPH-1 only, never BETA-1
     }
 
@@ -212,7 +212,7 @@ class AssistantTest extends TestCase
         $this->assertCount(1, $this->block($one, 'progress')['items']);
         $this->assertEquals(18, $this->block($one, 'progress')['items'][0]['used']);
 
-        // the options are the owner's own specialists; another agency's is refused
+        // the options are the owner's own employees; another agency's is refused
         $options = collect($this->actingAs($this->u['ownerA'])->getJson('/api/assistant/questions')->json('categories'))
             ->flatMap(fn ($c) => $c['questions'])->firstWhere('key', 'owner_employee_capacity')['params'][0]['options'];
         $this->assertEqualsCanonicalizing(['Eve One', 'Eli Two'], array_column($options, 'label'));
@@ -284,7 +284,7 @@ class AssistantTest extends TestCase
         $overview = $this->ask('admin', 'admin_platform_overview')->assertOk()->json();
         $this->assertSame(2, $this->stat($overview, 'Active agencies'));
         $this->assertSame(1, $this->stat($overview, 'Overdue projects'));
-        $this->assertSame(1, $this->stat($overview, 'Available specialists'));
+        $this->assertSame(1, $this->stat($overview, 'Available employees'));
 
         $this->assertSame(['Ed Free'], array_column($this->block($this->ask('admin', 'admin_unassigned_employees')->json(), 'list')['items'], 'title'));
 

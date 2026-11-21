@@ -13,7 +13,7 @@ return [
     'max_days_back' => 14,
     'max_daily_hours' => 16,
 
-    // The specialist may edit or delete their own entry for this long; after that only an admin can.
+    // The employee may edit or delete their own entry for this long; after that only an admin can.
     'edit_window_hours' => 48,
 
     // When false, agency users see logged totals only, not the individual entries.

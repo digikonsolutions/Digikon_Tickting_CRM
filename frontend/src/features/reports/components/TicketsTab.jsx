@@ -57,7 +57,7 @@ export function TicketsTab({
     },
     {
       key: 'employee',
-      label: scope === 'admin' ? 'Employee' : 'Specialist',
+      label: scope === 'admin' ? 'Employee' : 'Employee',
       sortKey: 'employee',
       render: (val) => val || <span style={{ color: 'var(--color-subtle)' }}>—</span>,
     },

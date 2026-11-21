@@ -40,7 +40,7 @@ export function EmployeesTab({
   const columns = [
     {
       key: 'name',
-      label: scope === 'admin' ? 'Employee' : 'Specialist',
+      label: scope === 'admin' ? 'Employee' : 'Employee',
       sortKey: 'name',
       render: (val, row) => (
         scope === 'admin' ? (
@@ -126,7 +126,7 @@ export function EmployeesTab({
     return (
       <tr>
         <td colSpan={colSpan}>
-          <strong>Total ({t.employees} {scope === 'admin' ? 'employees' : 'specialists'})</strong>
+          <strong>Total ({t.employees} {scope === 'admin' ? 'employees' : 'employees'})</strong>
         </td>
         <td style={{ textAlign: 'right' }}><strong>{t.projects}</strong></td>
         <td>—</td>
@@ -158,9 +158,9 @@ export function EmployeesTab({
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
-      emptyTitle="No specialists found"
-      emptyText="No specialists match the current filters or date range."
-      noun={scope === 'admin' ? 'employee' : 'specialist'}
+      emptyTitle="No employees found"
+      emptyText="No employees match the current filters or date range."
+      noun={scope === 'admin' ? 'employee' : 'employee'}
     />
   )
 }

@@ -119,13 +119,13 @@ export function ProjectDetailPage() {
   async function openProjectEditor() {
     setMutationError(null)
     setProjectEditor({ assignments: [] })
-    // Only open projects can change specialist, so only then is the list needed.
+    // Only open projects can change employee, so only then is the list needed.
     if (isOpen) {
       try {
         const { assignments } = await authService.listMyAssignments()
         setProjectEditor({ assignments })
       } catch {
-        // The specialist select then only offers the current one.
+        // The employee select then only offers the current one.
       }
     }
   }
@@ -138,7 +138,7 @@ export function ProjectDetailPage() {
       description: String(formData.get('description')).trim(),
       ...readProjectBrief(formData),
     }
-    // Hours, dates and specialist reschedule the project, so they are only sent when they changed.
+    // Hours, dates and employee reschedule the project, so they are only sent when they changed.
     if (isOpen) {
       const hours = Number(formData.get('estimated_hours'))
       if (hours !== Number(project.estimated_hours)) payload.estimated_hours = hours
@@ -193,7 +193,7 @@ export function ProjectDetailPage() {
       <PageHeader
         eyebrow="Project"
         title={project.title}
-        subtitle={`${project.employee?.name ?? 'Specialist'} · due ${formatDate(project.due_date)}`}
+        subtitle={`${project.employee?.name ?? 'Employee'} · due ${formatDate(project.due_date)}`}
         action={(
           <div className="project-header-actions">
             {isOwner && <Button type="button" size="sm" onClick={openProjectEditor}>Edit project</Button>}
@@ -208,7 +208,7 @@ export function ProjectDetailPage() {
             <p>{project.description}</p>
             <dl>
               <div>
-                <dt>Specialist</dt>
+                <dt>Employee</dt>
                 <dd>
                   {project.employee?.name ?? '—'}
                   {project.employee && (
@@ -283,7 +283,7 @@ export function ProjectDetailPage() {
           </ol>
           : <EmptyState title="No tickets yet" action={canAddTicket ? <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add the first ticket</Button> : null}>Break the project’s hours into tickets so work can be planned.</EmptyState>}
       </Card>
-      {isOwner && project.employee && <ActivityTimeline projectId={project.id} title="Specialist timeline" />}
+      {isOwner && project.employee && <ActivityTimeline projectId={project.id} title="Employee timeline" />}
       {canEdit && ['scheduled', 'in_progress'].includes(project.status) && (
         <div className="project-detail-actions">
           {!['completed', 'cancelled'].includes(project.status) && (
@@ -333,12 +333,12 @@ export function ProjectDetailPage() {
             </FormSection>
             <FormSection
               title="Planning"
-              description={isOpen ? 'Changing hours, dates or specialist re-plans the remaining schedule.' : 'Hours, dates and specialist are locked once a project is completed or cancelled. The status does not change when you edit.'}
+              description={isOpen ? 'Changing hours, dates or employee re-plans the remaining schedule.' : 'Hours, dates and employee are locked once a project is completed or cancelled. The status does not change when you edit.'}
             >
               <FieldRow>
                 <Input name="estimated_hours" label="Project hours" type="number" inputMode="decimal" min="0.01" step="0.01" defaultValue={project.estimated_hours} disabled={!isOpen} error={mutationError?.errors?.estimated_hours?.[0]} />
-                <Select name="assignment_id" label="Specialist" defaultValue={String(project.assignment_id)} disabled={!isOpen} error={mutationError?.errors?.assignment_id?.[0]}>
-                  {!projectEditor.assignments.some((assignment) => assignment.id === project.assignment_id) && <option value={project.assignment_id}>{project.employee?.name ?? 'Current specialist'}</option>}
+                <Select name="assignment_id" label="Employee" defaultValue={String(project.assignment_id)} disabled={!isOpen} error={mutationError?.errors?.assignment_id?.[0]}>
+                  {!projectEditor.assignments.some((assignment) => assignment.id === project.assignment_id) && <option value={project.assignment_id}>{project.employee?.name ?? 'Current employee'}</option>}
                   {projectEditor.assignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.employee.name}</option>)}
                 </Select>
               </FieldRow>

@@ -122,7 +122,7 @@ export function OverviewTab({
 
         {scope === 'admin' && employees.active !== null && (
           <KpiCard
-            title="Available specialists"
+            title="Available employees"
             value={employees.available ?? 0}
             subtext={`${employees.held ?? 0} assigned of ${employees.active ?? 0} active`}
             icon="users"
@@ -132,9 +132,9 @@ export function OverviewTab({
 
         {scope !== 'admin' && (
           <KpiCard
-            title="Active specialists"
+            title="Active employees"
             value={employees.held ?? 0}
-            subtext="Assigned specialists across projects"
+            subtext="Assigned employees across projects"
             icon="users"
             tone="teal"
           />
@@ -201,14 +201,14 @@ export function OverviewTab({
               )}
             </div>
 
-            {/* Unassigned specialists (Admin only) */}
+            {/* Unassigned employees (Admin only) */}
             {scope === 'admin' && (
               <div className="rp-attention-col">
                 <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-heading)' }}>
-                  Unassigned specialists ({unassignedCount})
+                  Unassigned employees ({unassignedCount})
                 </h4>
                 {unassignedEmployees.length === 0 ? (
-                  <p className="rp-attention-empty">All active specialists are currently assigned.</p>
+                  <p className="rp-attention-empty">All active employees are currently assigned.</p>
                 ) : (
                   <ul className="rp-attention-list">
                     {unassignedEmployees.map((emp) => (
@@ -237,7 +237,7 @@ export function OverviewTab({
                 Over-capacity weeks ({overCapacityWeeks.length})
               </h4>
               {overCapacityWeeks.length === 0 ? (
-                <p className="rp-attention-empty">No specialists exceed weekly capacity (36h limit).</p>
+                <p className="rp-attention-empty">No employees exceed weekly capacity (36h limit).</p>
               ) : (
                 <ul className="rp-attention-list">
                   {overCapacityWeeks.map((oc, idx) => (

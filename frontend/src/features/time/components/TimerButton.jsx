@@ -3,7 +3,7 @@ import { authService } from '../../../auth/authService'
 import { Button, Icon, useToast } from '../../../components/ui'
 import { announceTimerChanged, TIMER_STATUSES } from '../timeEvents'
 
-// Start / Stop for the assigned specialist. `ticket.timer_running` comes from the API; the server decides
+// Start / Stop for the assigned employee. `ticket.timer_running` comes from the API; the server decides
 // whether a start is allowed, this only hides the button where it can never work.
 export function TimerButton({ ticket, size = 'sm' }) {
   const { showToast } = useToast()

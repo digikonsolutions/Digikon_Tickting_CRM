@@ -6,7 +6,7 @@ import { announceTimerChanged, formatClock, onTimerChanged } from '../timeEvents
 
 const RESYNC_MS = 60_000
 
-// Header pill for the specialist's running timer. The clock ticks locally from the server's start time
+// Header pill for the employee's running timer. The clock ticks locally from the server's start time
 // (corrected by the server/browser clock offset) and resyncs every minute, on focus, and when any
 // Start/Stop button announces a change. The slot keeps a fixed width so the header never shifts.
 export function TimerPill() {

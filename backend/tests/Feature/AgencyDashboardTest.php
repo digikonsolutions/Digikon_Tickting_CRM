@@ -119,15 +119,15 @@ class AgencyDashboardTest extends TestCase
     {
         $carla = $this->makeClient($this->agency, 'Carla Client');
         $dan = $this->makeClient($this->agency, 'Dan Client');
-        $carlaAssignment = $this->hold($this->makeEmployee('Carla Specialist'), $this->agency, $carla);
-        $danAssignment = $this->hold($this->makeEmployee('Dan Specialist'), $this->agency, $dan);
+        $carlaAssignment = $this->hold($this->makeEmployee('Carla Employee'), $this->agency, $carla);
+        $danAssignment = $this->hold($this->makeEmployee('Dan Employee'), $this->agency, $dan);
         $this->book($carlaAssignment, 'in_progress', [[$this->monday, 12]], null, 'Carla project');
         $this->book($danAssignment, 'in_progress', [[$this->monday, 24]], null, 'Dan project');
 
         $response = $this->dash($carla)->assertJsonPath('dashboard.role', 'agency_client');
         $d = $response->json('dashboard');
 
-        $this->assertSame(['Carla Specialist'], array_column($d['employees'], 'name'));
+        $this->assertSame(['Carla Employee'], array_column($d['employees'], 'name'));
         $this->assertSame(['Carla project'], array_column($d['recent_projects'], 'title'));
         $this->assertSame(1, $d['limits']['employees']['used']);
         $this->assertSame([1, 3, false], [$d['limits']['open_projects']['used'], $d['limits']['open_projects']['allowed'], $d['limits']['open_projects']['reached']]);
@@ -142,7 +142,7 @@ class AgencyDashboardTest extends TestCase
         }
         // The owner sees both clients' employees and projects.
         $owner = $this->dash($this->owner)->json('dashboard');
-        $this->assertEqualsCanonicalizing(['Carla Specialist', 'Dan Specialist'], array_column($owner['employees'], 'name'));
+        $this->assertEqualsCanonicalizing(['Carla Employee', 'Dan Employee'], array_column($owner['employees'], 'name'));
     }
 
     public function test_a_client_at_the_open_project_limit_is_told_so(): void
@@ -163,12 +163,12 @@ class AgencyDashboardTest extends TestCase
         $other = $this->makeAgency('Rival Ltd');
         $rivalOwner = $this->makeOwner($other, 'Rita Rival');
         $rivalClient = $this->makeClient($other, 'Rex Rival');
-        $rivalEmployee = $this->makeEmployee('Rival Specialist');
+        $rivalEmployee = $this->makeEmployee('Rival Employee');
         $rivalEmployee->employeeProfile()->create(['headline' => 'Rival headline']);
         $rivalAssignment = $this->hold($rivalEmployee, $other, $rivalClient);
         $this->book($rivalAssignment, 'in_progress', [[$this->monday, 30], [$this->today->subDay(), 30]], $this->today->subDays(3), 'Rival secret project');
 
-        $ours = $this->makeEmployee('Our Specialist');
+        $ours = $this->makeEmployee('Our Employee');
         $client = $this->makeClient($this->agency);
         $this->book($this->hold($ours, $this->agency, $client), 'in_progress', [[$this->monday, 6]], null, 'Our project');
 
@@ -179,7 +179,7 @@ class AgencyDashboardTest extends TestCase
                 $this->assertStringNotContainsString($leak, $body, "{$viewer->role->value} saw '{$leak}'");
             }
             $d = $response->json('dashboard');
-            $this->assertSame(['Our Specialist'], array_column($d['employees'], 'name'));
+            $this->assertSame(['Our Employee'], array_column($d['employees'], 'name'));
             $this->assertSame(['Our project'], array_column($d['recent_projects'], 'title'));
             $this->assertSame([], $d['attention']);                                    // the rival's overdue project is not ours
             $this->assertSame(1, $d['limits']['open_projects']['used']);
@@ -188,7 +188,7 @@ class AgencyDashboardTest extends TestCase
         $this->assertSame(6.0, (float) $this->dash($this->owner)->json('dashboard.usage.week_hours'));
         // And the rival sees none of ours.
         $rival = $this->dash($rivalOwner)->getContent();
-        foreach (['Our Specialist', 'Our project', 'Olivia'] as $leak) {
+        foreach (['Our Employee', 'Our project', 'Olivia'] as $leak) {
             $this->assertStringNotContainsString($leak, $rival);
         }
     }

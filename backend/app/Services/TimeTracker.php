@@ -303,7 +303,7 @@ class TimeTracker
 
     private function assertAssignedEmployee(User $user, Ticket $ticket): void
     {
-        abort_unless($this->access->isAssignedEmployee($user, $ticket), 403, 'Only the specialist assigned to this ticket can log time.');
+        abort_unless($this->access->isAssignedEmployee($user, $ticket), 403, 'Only the employee assigned to this ticket can log time.');
     }
 
     /* ---- presentation ----------------------------------------------------------------------- */

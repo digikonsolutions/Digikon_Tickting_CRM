@@ -6,7 +6,7 @@ import { EmptyState } from './EmptyState'
 import { ScheduleSummary } from './ScheduleSummary'
 import { StatusBadge } from './StatusBadge'
 
-// One project as a card: title and who it is for on top, then status, specialist, hours and due date,
+// One project as a card: title and who it is for on top, then status, employee, hours and due date,
 // and the schedule at a glance. Used by every projects list so they all read the same on any screen.
 // `to` is the detail route; `showAgency` / `showClient` choose what the second line names.
 export function ProjectCard({ project, to, showAgency = false, showClient = true, actions = null }) {
@@ -30,7 +30,7 @@ export function ProjectCard({ project, to, showAgency = false, showClient = true
 
       <dl className="ui-project-card-facts">
         <div className="ui-project-card-fact">
-          <dt>Specialist</dt>
+          <dt>Employee</dt>
           <dd>
             {employee
               ? <><Avatar name={employee} size="sm" /><span>{employee}</span></>
