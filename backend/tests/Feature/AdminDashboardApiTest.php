@@ -71,6 +71,26 @@ class AdminDashboardApiTest extends TestCase
         $this->getJson('/api/admin/dashboard?status=bogus')->assertUnprocessable()->assertJsonValidationErrors('status');
     }
 
+    public function test_dashboard_counts_overdue_and_due_soon_open_projects_and_lists_them_for_attention(): void
+    {
+        $admin = User::factory()->create(['role' => Role::Admin]);
+        $today = CarbonImmutable::now(config('app.timezone'))->startOfDay();
+        $overdue = $this->project('Overdue', 'in_progress', [[$today->addDay(), 1]]);
+        $soon = $this->project('Due soon', 'scheduled', [[$today->addDay(), 1]]);
+        $later = $this->project('Due later', 'scheduled', [[$today->addDay(), 1]]);
+        $lateButDone = $this->project('Late but completed', 'completed', [[$today->addDay(), 1]]);
+        $overdue->update(['due_date' => $today->subDays(3)->toDateString()]);
+        $soon->update(['due_date' => $today->addDays(2)->toDateString()]);
+        $later->update(['due_date' => $today->addDays(9)->toDateString()]);
+        $lateButDone->update(['due_date' => $today->subDays(5)->toDateString()]);
+
+        $response = $this->actingAs($admin)->getJson('/api/admin/dashboard')->assertOk()
+            ->assertJsonPath('projects.overdue', 1)
+            ->assertJsonPath('projects.due_soon', 1)
+            ->assertJsonCount(2, 'attention_projects');
+        $this->assertSame(['Overdue', 'Due soon'], collect($response->json('attention_projects'))->pluck('title')->all());
+    }
+
     public function test_dashboard_is_admin_only_and_uses_a_constant_number_of_queries(): void
     {
         $this->getJson('/api/admin/dashboard')->assertUnauthorized();
