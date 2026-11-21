@@ -121,6 +121,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::patch('/projects/{workItem}/tickets/reorder', [TicketController::class, 'reorder'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    Route::get('/tickets', [TicketController::class, 'agencyIndex'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::patch('/tickets/{ticket}', [TicketController::class, 'update'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])

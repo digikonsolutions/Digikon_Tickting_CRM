@@ -59,7 +59,7 @@ function ClientDrawer({ clientId, onClose, onEdit, onChanged }) {
   return (
     <>
       <Drawer
-        open={Boolean(clientId)}
+        open={Boolean(clientId) && !confirm}
         onClose={onClose}
         title={client?.name ?? 'Client'}
         description={client?.company_name ?? client?.email}
@@ -234,7 +234,8 @@ export function AgencyClientsPage() {
       <ClientDrawer
         clientId={selectedId}
         onClose={() => update({ client: '' })}
-        onEdit={(client) => setForm({ open: true, client })}
+        // The drawer sits above dialogs, so it closes before the edit dialog opens (otherwise it covers Save).
+        onEdit={(client) => { update({ client: '' }); setForm({ open: true, client }) }}
         onChanged={reload}
       />
       {form.open && <ClientFormModal client={form.client} onClose={() => setForm({ open: false, client: null })} onSaved={saved} />}

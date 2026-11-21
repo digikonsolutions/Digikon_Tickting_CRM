@@ -24,6 +24,7 @@ import {
   AgencyEmployeesPage,
   AgencyOwnerProjectsPage,
   AgencyClientsPage,
+  AgencyTicketsPage,
   ProjectDetailPage,
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
@@ -111,6 +112,7 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/reports" element={<AgencyReportsPage />} />
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/agency/tickets" element={<AgencyTicketsPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />

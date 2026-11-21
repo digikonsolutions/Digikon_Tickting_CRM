@@ -525,6 +525,10 @@ export const authService = {
   requestAttachmentUrl(id) {
     return `${API_URL}/agency/request-attachments/${encodeURIComponent(id)}/download`
   },
+  async listAgencyTickets(query = new URLSearchParams()) {
+    if (AUTH_MODE === 'mock') return { tickets: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
+    return request(`/agency/tickets?${query.toString()}`)
+  },
   async getAgencyEmployeesSummary() {
     if (AUTH_MODE === 'mock') return { seats: null, can_add: false, requests: [] }
     return request('/agency/employees/summary')

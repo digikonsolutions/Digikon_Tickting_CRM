@@ -1246,3 +1246,18 @@
 .ae-requests li:last-child { border-bottom: 0; }
 .ae-requests p { margin: 0.3rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ae-request-files { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+/* Tickets page: view toggle and the board */
+.tk-toggle { display: inline-flex; overflow: hidden; border: 1px solid var(--color-border-strong, var(--color-border)); border-radius: var(--radius-control); }
+.tk-toggle button { padding: 0.55rem 0.9rem; border: 0; background: var(--color-card); color: var(--color-muted); font: inherit; font-weight: 600; cursor: pointer; }
+.tk-toggle button[aria-pressed="true"] { background: var(--color-accent-700); color: var(--color-white); }
+.tk-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--space-4); align-items: start; }
+.tk-column { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface-sunken, var(--color-page)); }
+.tk-column h2 { display: flex; justify-content: space-between; margin: 0 0 var(--space-3); font-size: 0.95rem; }
+.tk-column h2 span { color: var(--color-muted); font-weight: 600; }
+.tk-column ul { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tk-card { display: grid; gap: 0.35rem; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-card); }
+.tk-card-top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.tk-card-title { color: var(--color-heading); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.tk-card-title:hover { text-decoration: underline; }
+.tk-card small { color: var(--color-muted); }

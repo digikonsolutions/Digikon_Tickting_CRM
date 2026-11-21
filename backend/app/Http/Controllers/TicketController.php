@@ -386,6 +386,68 @@ class TicketController extends Controller
     }
 
     /**
+     * Every ticket across the caller's agency (owner) or across their own projects (client), for the Tickets page.
+     * Filters: project_id, client_id (owner only), status, priority, waiting=you, search (title or key), page, per_page.
+     */
+    public function agencyIndex(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $filters = $request->validate([
+            'project_id' => ['sometimes', 'nullable', 'integer'],
+            'client_id' => ['sometimes', 'nullable', 'integer'],
+            'status' => ['sometimes', 'nullable', 'string', 'in:todo,in_progress,in_review,waiting_on_client,changes_requested,blocked,done,cancelled'],
+            'priority' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'waiting' => ['sometimes', 'nullable', 'in:you'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+        $isOwner = $user->role === Role::AgencyOwner;
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        $tickets = Ticket::query()
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent'])
+            ->withCount(['comments' => $this->commentVisibility($user)])
+            ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
+            ->where('agency_id', $user->agency_id)
+            ->whereHas('workItem', fn ($q) => $q->where('agency_id', $user->agency_id)
+                ->when(! $isOwner, fn ($q) => $q->where('client_id', $user->id))
+                ->when(($filters['project_id'] ?? null) !== null, fn ($q) => $q->whereKey($filters['project_id']))
+                ->when($isOwner && ($filters['client_id'] ?? null) !== null, fn ($q) => $q->where('client_id', $filters['client_id'])))
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when(($filters['waiting'] ?? null) === 'you', fn ($query) => $query->whereIn('status', ['in_review', 'waiting_on_client']))
+            ->when($search !== '', function ($query) use ($search): void {
+                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+                $query->where(function ($q) use ($like, $search): void {
+                    $q->where('title', 'like', $like);
+                    $hyphen = strrpos($search, '-');
+                    if ($hyphen !== false && ctype_digit(substr($search, $hyphen + 1))) {
+                        $q->orWhere(fn ($sub) => $sub->where('number', (int) substr($search, $hyphen + 1))
+                            ->whereHas('agency', fn ($a) => $a->where('ticket_prefix', substr($search, 0, $hyphen))));
+                    }
+                });
+            })
+            ->orderByDesc('updated_at')->orderByDesc('id')
+            ->paginate($filters['per_page'] ?? 25);
+
+        return response()->json([
+            'tickets' => collect($tickets->items())->map(fn (Ticket $ticket): array => [
+                ...$this->ticketPayload($ticket, $user),
+                'project_id' => $ticket->work_item_id,
+                'project_title' => $ticket->workItem->title,
+                'client_name' => $ticket->workItem->client?->name,
+            ])->values(),
+            'pagination' => [
+                'current_page' => $tickets->currentPage(),
+                'last_page' => $tickets->lastPage(),
+                'per_page' => $tickets->perPage(),
+                'total' => $tickets->total(),
+            ],
+        ]);
+    }
+
+    /**
      * Tickets in the caller's agency that are waiting on the client (review or a question),
      * longest-waiting first. Limited to 5 for the dashboard card; `total` is the full count.
      */
