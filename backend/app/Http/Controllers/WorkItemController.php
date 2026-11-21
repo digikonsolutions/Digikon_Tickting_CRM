@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Http\Requests\AdminDashboardRequest;
 use App\Http\Requests\StoreWorkItemRequest;
 use App\Http\Requests\UpdateWorkItemRequest;
+use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
 use App\Models\User;
@@ -15,11 +16,12 @@ use App\Services\AdminDashboardService;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use App\Services\TimeTracker;
+use App\Services\WorkflowNotificationService;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -226,7 +228,7 @@ class WorkItemController extends Controller
             return $item;
         });
 
-        app(\App\Services\WorkflowNotificationService::class)->projectCreated($item->fresh()->load(['employee', 'agency']), $creator);
+        app(WorkflowNotificationService::class)->projectCreated($item->fresh()->load(['employee', 'agency']), $creator);
 
         return response()->json([
             'project' => $this->payload($item->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
@@ -284,7 +286,7 @@ class WorkItemController extends Controller
      * past untouched, replaces everything from today onward with a fresh plan for the (possibly
      * new) employee, and re-plans ticket schedules against the resulting pool.
      */
-    private function rescheduleProject(WorkItem $lockedItem, \App\Models\Agency $agency, User $user, array $data, WorkItemScheduler $scheduler, TicketPlanner $planner): void
+    private function rescheduleProject(WorkItem $lockedItem, Agency $agency, User $user, array $data, WorkItemScheduler $scheduler, TicketPlanner $planner): void
     {
         $start = CarbonImmutable::parse($data['start_date'] ?? $lockedItem->start_date->toDateString(), config('app.timezone'));
         $due = CarbonImmutable::parse($data['due_date'] ?? $lockedItem->due_date->toDateString(), config('app.timezone'));
@@ -359,13 +361,13 @@ class WorkItemController extends Controller
             404
         );
 
-        abort_unless(
-            ! in_array($workItem->status, ['completed', 'cancelled'], true),
-            422,
-            'Completed or cancelled projects cannot be cancelled.'
-        );
+        $closed = 'Completed or cancelled projects cannot be cancelled.';
+        abort_unless(! in_array($workItem->status, ['completed', 'cancelled'], true), 422, $closed);
 
-        DB::transaction(function () use ($workItem, $user, $recorder): void {
+        DB::transaction(function () use (&$workItem, $user, $recorder, $closed): void {
+            // Lock the row and check again: two cancels (or a cancel racing a completion) must not both run.
+            $workItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
+            abort_unless(! in_array($workItem->status, ['completed', 'cancelled'], true), 422, $closed);
             $workItem->update(['status' => 'cancelled']);
             $today = now(config('app.timezone'))->toDateString();
             DB::table('work_item_allocations')
@@ -389,7 +391,7 @@ class WorkItemController extends Controller
             }
         });
 
-        app(\App\Services\WorkflowNotificationService::class)->projectCancelled($workItem->fresh()->load(['employee', 'client']), $user);
+        app(WorkflowNotificationService::class)->projectCancelled($workItem->fresh()->load(['employee', 'client']), $user);
 
         return response()->json([
             'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
@@ -507,6 +509,7 @@ class WorkItemController extends Controller
             'recent_projects' => $recent,
         ]);
     }
+
     public function adminShow(WorkItem $workItem): JsonResponse
     {
         $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']);
