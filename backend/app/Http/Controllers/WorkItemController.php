@@ -457,6 +457,24 @@ class WorkItemController extends Controller
             return ['date' => $date, 'hours' => number_format((float) ($bookedByDate[$date] ?? 0), 2, '.', '')];
         })->values();
 
+        // Open projects past due, or due within the at-risk window (2 days, matching the frontend).
+        $openProjects = fn () => WorkItem::query()->whereIn('status', ['scheduled', 'in_progress']);
+        $overdueCount = $openProjects()->whereDate('due_date', '<', $today->toDateString())->count();
+        $dueSoonCount = $openProjects()
+            ->whereDate('due_date', '>=', $today->toDateString())
+            ->whereDate('due_date', '<=', $today->addDays(2)->toDateString())
+            ->count();
+        $attention = $openProjects()
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->withTicketProgress()
+            ->whereDate('due_date', '<=', $today->addDays(2)->toDateString())
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->limit(5)
+            ->get()
+            ->map(fn (WorkItem $item): array => $this->payload($item))
+            ->values();
+
         $recent = WorkItem::query()
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->withTicketProgress()
@@ -476,8 +494,11 @@ class WorkItemController extends Controller
                 'in_progress' => (int) ($counts['in_progress'] ?? 0),
                 'completed' => (int) ($counts['completed'] ?? 0),
                 'cancelled' => (int) ($counts['cancelled'] ?? 0),
+                'overdue' => $overdueCount,
+                'due_soon' => $dueSoonCount,
             ],
             'tickets' => ['total' => Ticket::query()->count()],
+            'attention_projects' => $attention,
             'scheduled_hours' => $scheduledHours,
             'recent_projects' => $recent,
         ]);

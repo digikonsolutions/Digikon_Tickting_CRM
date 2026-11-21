@@ -5,6 +5,7 @@ import { useAsync } from '../../../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
 import { Button, Card, DueText, EmptyState, Icon, KpiCard, PageHeader, Spinner, StatusBadge } from '../../../../../components/ui'
 import { getDueInfo } from '../../../../../lib/format'
+import { AT_RISK_DAYS } from '../../../../../lib/constants'
 
 const PROJECT_FILTERS = [
   { id: 'all', label: 'All' },
@@ -13,7 +14,7 @@ const PROJECT_FILTERS = [
   { id: 'completed', label: 'Completed' },
 ]
 const EMPTY_WEEK_HOURS = Array.from({ length: 7 }, () => 0)
-const EMPTY_COUNTS = { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 }
+const EMPTY_COUNTS = { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0, overdue: 0, due_soon: 0 }
 
 // One request feeds the whole dashboard: counts, ticket total, scheduled hours and the recent projects.
 function loadDashboard() {
@@ -103,6 +104,10 @@ export const AdminDashboard = () => {
   const inProgressCount = counts.in_progress
   const completedCount = counts.completed
   const activeCount = scheduledCount + inProgressCount
+  const overdueCount = counts.overdue ?? 0
+  const dueSoonCount = counts.due_soon ?? 0
+  const attentionTotal = overdueCount + dueSoonCount
+  const attentionProjects = dashboard.data?.attention_projects ?? []
   const completionPercent = projectsTotal > 0
     ? Math.round((completedCount / projectsTotal) * 100)
     : 0
@@ -129,78 +134,78 @@ export const AdminDashboard = () => {
         <Button type="button" variant="secondary" onClick={dashboard.reload}>Try again</Button>
       )}
 
-      {!dashboard.error && (
-        <Card className="admin-hero-card">
-          {dashboard.isLoading
-            ? <div className="admin-dashboard-loading" role="status"><Spinner /> Loading workspace data…</div>
-            : (
-            <div className="admin-hero-content">
-              <div>
-                <p className="admin-hero-eyebrow">Project delivery</p>
-                <strong className="admin-hero-number">{projectsTotal}</strong>
-                <p className="admin-hero-caption">Projects across all agencies</p>
-              </div>
-              <div className="admin-hero-progress">
-                <div className="admin-hero-progress-heading">
-                  <strong>{completedCount} completed · {activeCount} active</strong>
-                  <span>{completionPercent}%</span>
-                </div>
-                <div
-                  className="admin-progress-track"
-                  role="progressbar"
-                  aria-label="Project completion"
-                  aria-valuemin="0"
-                  aria-valuemax={projectsTotal}
-                  aria-valuenow={completedCount}
-                >
-                  <span style={{ width: `${completionPercent}%` }} />
-                </div>
-                <div className="admin-hero-substats">
-                  <span><strong>{scheduledCount}</strong> scheduled</span>
-                  <span>·</span>
-                  <span><strong>{inProgressCount}</strong> in progress</span>
-                  <span>·</span>
-                  <span><strong>{completedCount}</strong> completed</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
+      {dashboard.isLoading && (
+        <div className="admin-dashboard-loading" role="status"><Spinner /> Loading workspace data…</div>
       )}
 
       {!dashboard.isLoading && !dashboard.error && (
         <>
+          <Card className="admin-attention-card">
+            <div className="admin-card-heading">
+              <div>
+                <h2>Needs attention</h2>
+                <p>{attentionTotal > 0
+                  ? `${overdueCount} overdue · ${dueSoonCount} due within ${AT_RISK_DAYS} days`
+                  : 'Nothing is overdue or due soon.'}</p>
+              </div>
+              {attentionTotal > 0 && <Link className="admin-text-link" to="/admin/projects">View all projects</Link>}
+            </div>
+            {attentionTotal > 0 ? (
+              <>
+                <ul className="admin-project-list">
+                  {attentionProjects.map((project) => <ProjectRow key={project.id} project={project} />)}
+                </ul>
+                {attentionTotal > attentionProjects.length && (
+                  <Link className="admin-list-more" to="/admin/projects">
+                    {attentionTotal - attentionProjects.length} more need attention
+                    <Icon name="arrow" size={16} />
+                  </Link>
+                )}
+              </>
+            ) : (
+              <p className="admin-attention-clear"><Icon name="check" size={18} /> All projects are on track.</p>
+            )}
+          </Card>
+
           <div className="dashboard-kpis">
-            <StatCard
-              label="Active projects"
-              value={activeCount}
-              hint="Scheduled or in progress"
-              icon="queue"
-              tone="teal"
-            />
-            <StatCard
-              label="Scheduled hours"
-              value={`${totalScheduledHours.toFixed(1)} h`}
-              hint="Across the next 7 days"
-              icon="clock"
-              tone="info"
-              sparkline={scheduledHoursPath}
-              sparklineLabel={`Scheduled hours across the next seven days: ${scheduledHours.map((hours, index) => `day ${index + 1}, ${hours.toFixed(1)} hours`).join('; ')}`}
-            />
-            <StatCard
-              label="Completed"
-              value={completedCount}
-              hint="Projects delivered"
-              icon="check"
-              tone="success"
-            />
-            <StatCard
-              label="Tickets"
-              value={dashboard.data?.tickets.total ?? 0}
-              hint="Across all projects"
-              icon="ticket"
-              tone="teal"
-            />
+            <Link className="admin-kpi-link" to="/admin/projects">
+              <StatCard
+                label="Active projects"
+                value={activeCount}
+                hint={`${scheduledCount} scheduled · ${inProgressCount} in progress`}
+                icon="queue"
+                tone="teal"
+              />
+            </Link>
+            <Link className="admin-kpi-link" to="/admin/projects">
+              <StatCard
+                label="Overdue"
+                value={overdueCount}
+                hint={overdueCount > 0 ? 'Past their due date' : 'None overdue'}
+                icon="clock"
+                tone={overdueCount > 0 ? 'danger' : 'success'}
+              />
+            </Link>
+            <Link className="admin-kpi-link" to="/admin/tickets">
+              <StatCard
+                label="Tickets"
+                value={dashboard.data?.tickets.total ?? 0}
+                hint="Across all projects"
+                icon="ticket"
+                tone="teal"
+              />
+            </Link>
+            <Link className="admin-kpi-link" to="/admin/assignments">
+              <StatCard
+                label="Scheduled hours"
+                value={`${totalScheduledHours.toFixed(1)} h`}
+                hint={`Next 7 days · ${completionPercent}% of projects completed`}
+                icon="calendar"
+                tone="info"
+                sparkline={scheduledHoursPath}
+                sparklineLabel={`Scheduled hours across the next seven days: ${scheduledHours.map((hours, index) => `day ${index + 1}, ${hours.toFixed(1)} hours`).join('; ')}`}
+              />
+            </Link>
           </div>
 
           <div className="admin-dashboard-content">
