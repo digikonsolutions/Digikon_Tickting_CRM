@@ -26,11 +26,22 @@ class EmployeeAssignmentController extends Controller
                 $query->where('agency_id', $agency->id)->orWhereNull('agency_id');
             })
             ->whereDoesntHave('employeeAssignments', fn ($query) => $query->where('status', 'active'))
+            ->with(['employeeProfile', 'skills'])
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['id', 'name', 'email', 'role', 'agency_id']);
+            ->get();
 
-        return response()->json(['employees' => $employees]);
+        // Each card carries the public summary (photo, headline, top skills, availability) only.
+        $profiles = app(\App\Services\EmployeeProfileService::class);
+
+        return response()->json(['employees' => $employees->map(fn (User $employee): array => [
+            'id' => $employee->id,
+            'name' => $employee->name,
+            'email' => $employee->email,
+            'role' => $employee->role->value,
+            'agency_id' => $employee->agency_id,
+            ...$profiles->publicSummary($employee),
+        ])->values()]);
     }
 
     public function store(Request $request): JsonResponse

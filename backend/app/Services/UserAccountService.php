@@ -26,10 +26,12 @@ class UserAccountService
 
     /**
      * @param  array{name: string, email: string, role: string, agency_id?: int|null, agency_name?: string}  $data
+     * @param  (callable(User): void)|null  $afterCreate  runs inside the same transaction, before the invitation is
+     *                                                    sent, so a failed invitation rolls its work back too
      */
-    public function createInvitedUser(array $data): User
+    public function createInvitedUser(array $data, ?callable $afterCreate = null): User
     {
-        $user = DB::transaction(function () use ($data): User {
+        $user = DB::transaction(function () use ($data, $afterCreate): User {
             $agencyId = $data['agency_id'] ?? null;
 
             if (Role::from($data['role']) === Role::AgencyOwner) {
@@ -48,6 +50,10 @@ class UserAccountService
                 'agency_id' => $agencyId,
                 'is_active' => true,
             ]);
+
+            if ($afterCreate !== null) {
+                $afterCreate($user);
+            }
 
             $status = $this->sendInvitationLink($user);
 
@@ -212,6 +218,11 @@ class UserAccountService
 
     public function deleteUser(User $user): void
     {
+        // HR documents are files, so the foreign-key cascade cannot remove them: note them first, delete
+        // them only once the account is really gone.
+        $documents = app(EmployeeDocumentService::class);
+        $files = $documents->pathsFor($user);
+
         DB::transaction(function () use ($user): void {
             // Free the employees this user holds (and release their booked hours) before the
             // assignment rows are removed by the foreign-key cascade.
@@ -220,6 +231,8 @@ class UserAccountService
             DB::table(config('auth.passwords.users.table'))->where('email', $user->email)->delete();
             $user->delete();
         });
+
+        $documents->deleteFiles($files, $user->id);
     }
 
     /**

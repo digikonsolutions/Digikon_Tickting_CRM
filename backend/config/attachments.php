@@ -45,6 +45,18 @@ return [
     // Only these may be displayed inline (image previews); everything else is always a download.
     'inline_mimes' => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
 
+    // HR documents on an employee record (CNIC, CV, contract...). Private disk, admin-only, pdf/jpg/png.
+    'employee_documents' => [
+        'max_kb' => (int) env('EMPLOYEE_DOCUMENT_MAX_KB', 5120),
+        'max_per_employee' => (int) env('EMPLOYEE_DOCUMENT_MAX_PER_EMPLOYEE', 40),
+        'allowed' => [
+            'pdf' => ['application/pdf'],
+            'jpg' => ['image/jpeg'],
+            'jpeg' => ['image/jpeg'],
+            'png' => ['image/png'],
+        ],
+    ],
+
     // Profile photos: small images only, on the PUBLIC disk (they are shown in the header, sidebar
     // and employee timeline, so unlike every other attachment they must have a public URL).
     'avatar_max_kb' => (int) env('AVATAR_MAX_KB', 4096),

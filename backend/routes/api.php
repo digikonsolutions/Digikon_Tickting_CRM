@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdminEmployeeController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AgencyEmployeeProfileController;
+use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AgencyUserController;
 use App\Http\Controllers\AgencyBrandingController;
@@ -51,6 +54,9 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/employees/available', [EmployeeAssignmentController::class, 'available'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    // The limited public profile (no contact, CNIC, finance or documents), viewable before holding an employee.
+    Route::get('/employees/{id}/profile', [AgencyEmployeeProfileController::class, 'show'])
+        ->whereNumber('id')->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/assignments', [EmployeeAssignmentController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/assignments', [EmployeeAssignmentController::class, 'index'])
@@ -141,6 +147,24 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);
     Route::get('/admin/employees/{id}/activity', [AdminEmployeeActivityController::class, 'activity'])->whereNumber('id');
     Route::get('/admin/employees/{id}/performance', [AdminEmployeeActivityController::class, 'performance'])->whereNumber('id');
+
+    // Employee profiles (personal, employment, finance, documents). Admin only; sensitive reads are audited.
+    Route::post('/admin/employees', [AdminEmployeeController::class, 'store'])->middleware('throttle:auth-admin-signup');
+    Route::get('/admin/employees/{id}', [AdminEmployeeController::class, 'show'])->whereNumber('id');
+    Route::patch('/admin/employees/{id}', [AdminEmployeeController::class, 'update'])->whereNumber('id');
+    Route::post('/admin/employees/{id}/reveal-cnic', [AdminEmployeeController::class, 'revealCnic'])
+        ->whereNumber('id')->middleware('throttle:sensitive-reveal');
+    Route::post('/admin/employees/{id}/photo', [AdminEmployeeController::class, 'uploadPhoto'])
+        ->whereNumber('id')->middleware('throttle:attachments');
+    Route::delete('/admin/employees/{id}/photo', [AdminEmployeeController::class, 'deletePhoto'])->whereNumber('id');
+    Route::post('/admin/employees/{id}/documents', [EmployeeDocumentController::class, 'store'])
+        ->whereNumber('id')->middleware('throttle:attachments');
+    Route::get('/admin/employees/{id}/documents/{document}', [EmployeeDocumentController::class, 'download'])
+        ->whereNumber(['id', 'document']);
+    Route::patch('/admin/employees/{id}/documents/{document}/verify', [EmployeeDocumentController::class, 'verify'])
+        ->whereNumber(['id', 'document']);
+    Route::delete('/admin/employees/{id}/documents/{document}', [EmployeeDocumentController::class, 'destroy'])
+        ->whereNumber(['id', 'document']);
 });
 
 Route::middleware('web')->group(function () {

@@ -47,6 +47,9 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('notifications', fn (Request $request) => Limit::perMinute(60)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        // Revealing a full CNIC: 10 a minute per signed-in admin (each call is also audited).
+        RateLimiter::for('sensitive-reveal', fn (Request $request) => Limit::perMinute(10)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('auth-password-reset', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
 
         RateLimiter::for('insights', fn (Request $request) => Limit::perMinute(60)

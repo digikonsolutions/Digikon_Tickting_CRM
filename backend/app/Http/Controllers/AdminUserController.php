@@ -35,14 +35,15 @@ class AdminUserController extends Controller
         ]);
 
         $users = User::query()
-            ->with('agency')
+            ->with(['agency', 'employeeProfile', 'skills', 'educations', 'experiences', 'employeeDocuments'])
             ->whereKeyNot($request->user()->id)
             ->where('email', '<>', $request->user()->email)
             ->when($filters['role'] ?? null, fn ($query, string $role) => $query->where('role', $role))
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('name', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%');
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhereHas('employeeProfile', fn ($profile) => $profile->where('employee_code', 'like', '%'.$search.'%'));
                 });
             })
             ->orderBy('name')
@@ -54,6 +55,7 @@ class AdminUserController extends Controller
                 ...$accounts->userPayload($user),
                 'is_active' => $user->is_active,
                 'can_manage' => in_array($user->role->value, $accounts->adminManagedRoles(), true),
+                'profile' => $user->role === Role::Employee ? app(\App\Services\EmployeeProfileService::class)->adminSummary($user) : null,
             ]),
             'pagination' => [
                 'current_page' => $users->currentPage(),
