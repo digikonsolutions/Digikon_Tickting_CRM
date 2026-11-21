@@ -23,6 +23,9 @@ return new class extends Migration
             $table->index(['holder_id', 'status']);
         });
 
+        // work_items.assignment_id is nullable only for rows created before assignments existed. There is no
+        // production data with null values (confirmed by the project owner), so no backfill migration is needed.
+        // Should that ever change, match employee_id + agency_id to the best assignment in a new migration.
         Schema::table('work_items', function (Blueprint $table) {
             $table->foreignId('assignment_id')
                 ->nullable()
