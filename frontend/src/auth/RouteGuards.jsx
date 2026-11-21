@@ -61,13 +61,14 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.QA]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   [ROLES.EMPLOYEE]: [{ to: '/my-work', label: 'My work', icon: 'ticket' }],
   [ROLES.AGENCY_OWNER]: [
-    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/agency/projects', label: 'Projects', icon: 'ticket' },
-    { to: '/agency/reports', label: 'Reports', icon: 'chart' },
-    { to: '/agency/time', label: 'Time summary', icon: 'clock' },
-    { to: '/agency/employees', label: 'My employees', icon: 'users' },
-    { to: '/agency/users', label: 'Agency accounts', icon: 'users' },
-    { to: '/agency/branding', label: 'Branding', icon: 'palette' },
+    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Workspace' },
+    { to: '/agency/clients', label: 'Clients', icon: 'user', section: 'Workspace' },
+    { to: '/agency/projects', label: 'Projects', icon: 'briefcase', section: 'Workspace' },
+    { to: '/agency/tickets', label: 'Tickets', icon: 'ticket', section: 'Workspace' },
+    { to: '/agency/employees', label: 'Employees', icon: 'users', section: 'Manage' },
+    { to: '/agency/reports', label: 'Reports', icon: 'chart', section: 'Manage' },
+    { to: '/agency/time', label: 'Time summary', icon: 'clock', section: 'Manage' },
+    { to: '/agency/branding', label: 'Branding', icon: 'palette', section: 'Manage' },
   ],
   [ROLES.AGENCY_MEMBER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -77,10 +78,25 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/my-projects', label: 'Agency projects', icon: 'ticket' },
     { to: '/agency/reports', label: 'Reports', icon: 'chart' },
-    { to: '/agency/employees', label: 'My employees', icon: 'users' },
+    { to: '/agency/employees', label: 'Employees', icon: 'users' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
 })
+
+// Detail pages show "Parent / Page" in the header; the parent is a link back to the list.
+const BREADCRUMB_PARENTS = [
+  [/^\/agency\/projects\/\d+$/, { label: 'Projects', to: '/agency/projects' }],
+  [/^\/agency\/clients\/\d+$/, { label: 'Clients', to: '/agency/clients' }],
+  [/^\/agency\/employees\/\d+\/activity$/, { label: 'Employees', to: '/agency/employees' }],
+  [/^\/admin\/projects\/\d+$/, { label: 'All projects', to: '/admin/projects' }],
+  [/^\/admin\/agencies\/\d+$/, { label: 'Agencies', to: '/admin/agencies' }],
+  [/^\/admin\/employees\/\d+(\/activity)?$/, { label: 'Employees', to: '/admin/employees' }],
+  [/^\/admin\/(employees|agency-owners)\/new$/, null],
+]
+function breadcrumbParent(pathname) {
+  for (const [pattern, parent] of BREADCRUMB_PARENTS) if (pattern.test(pathname)) return parent
+  return null
+}
 
 export function AppLayout() {
   const { user, signOut } = useAuth()
@@ -116,6 +132,10 @@ export function AppLayout() {
       ? 'Employee'
       : /^\/admin\/agencies\/\d+$/.test(location.pathname)
       ? 'Agency'
+      : /^\/agency\/clients\/\d+$/.test(location.pathname)
+      ? 'Client'
+      : /^\/agency\/employees\/\d+\/activity$/.test(location.pathname)
+      ? 'Employee activity'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/')
       ? 'Project details'
       : ({
@@ -139,11 +159,14 @@ export function AppLayout() {
       '/agency/projects': 'Projects',
       '/agency/my-projects': 'Agency projects',
       '/agency/reports': 'Reports',
-      '/agency/employees': 'My employees',
-      '/agency/users': 'Agency accounts',
+      '/agency/employees': 'Employees',
+      '/agency/clients': 'Clients',
+      '/agency/tickets': 'Tickets',
       '/agency/branding': 'Branding',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace'))
+
+  const breadcrumb = breadcrumbParent(location.pathname)
 
   // "Agencies · ClientHub" in the tab and in history; falls back to the plain name when the page has no title.
   useEffect(() => {
@@ -256,7 +279,15 @@ export function AppLayout() {
               {isNavOpen ? 'Close menu' : 'Menu'}
             </Button>
             {/* Not a heading: every page renders its own <h1>, and two per page break the outline. */}
-            <p className="dashboard-page-title">{pageTitle}</p>
+            {breadcrumb
+              ? (
+                <nav className="dashboard-breadcrumb" aria-label="Breadcrumb">
+                  <Link to={breadcrumb.to}>{breadcrumb.label}</Link>
+                  <span aria-hidden="true">/</span>
+                  <span className="dashboard-page-title" aria-current="page">{pageTitle}</span>
+                </nav>
+              )
+              : <p className="dashboard-page-title">{pageTitle}</p>}
           </div>
           <div className="dashboard-header-tools">
             {user.role === ROLES.EMPLOYEE && <TimerPill />}

@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminAgencyOwnerController;
 use App\Http\Controllers\AdminPlanController;
 use App\Http\Controllers\ContractDocumentController;
 use App\Http\Controllers\AdminEmployeeController;
+use App\Http\Controllers\AgencyClientController;
 use App\Http\Controllers\AgencyDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AgencyEmployeeProfileController;
@@ -56,6 +57,15 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/directory', [AgencyUserController::class, 'agencyDirectory'])
         ->middleware(['auth', 'role:agency_owner,agency_member,agency_client', 'agency.active']);
+        // The owner's Clients tab (profile fields, search, status filter, invitation, impact of deactivating).
+    Route::middleware(['auth', 'role:agency_owner', 'agency.active'])->prefix('clients')->whereNumber('client')->group(function () {
+        Route::get('/', [AgencyClientController::class, 'index']);
+        Route::post('/', [AgencyClientController::class, 'store'])->middleware('throttle:auth-admin-signup');
+        Route::get('/{client}', [AgencyClientController::class, 'show']);
+        Route::patch('/{client}', [AgencyClientController::class, 'update']);
+        Route::post('/{client}/invite', [AgencyClientController::class, 'invite'])->middleware('throttle:auth-admin-signup');
+        Route::delete('/{client}', [AgencyClientController::class, 'destroy']);
+    });
     Route::get('/users', [AgencyUserController::class, 'agencyUsers'])
         ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::post('/users', [AgencyUserController::class, 'createAgencyUser'])

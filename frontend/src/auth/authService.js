@@ -367,6 +367,34 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { message: 'The account was permanently deleted.' }
     return request(`/agency/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
+  // The owner's Clients tab. Filters: search, status (active|inactive), page, perPage.
+  async listAgencyClients({ search = '', status = '', page = 1, perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { clients: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 }, limit: { used: 0, allowed: null, reached: false } }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    if (search) query.set('search', search)
+    if (status) query.set('status', status)
+    return request(`/agency/clients?${query.toString()}`)
+  },
+  async getAgencyClient(id) {
+    if (AUTH_MODE === 'mock') return { client: { id } }
+    return request(`/agency/clients/${encodeURIComponent(id)}`)
+  },
+  async createAgencyClient(data) {
+    if (AUTH_MODE === 'mock') return { client: { id: `${Date.now()}`, ...data } }
+    return request('/agency/clients', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateAgencyClient(id, data) {
+    if (AUTH_MODE === 'mock') return { client: { id, ...data } }
+    return request(`/agency/clients/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async inviteAgencyClient(id) {
+    if (AUTH_MODE === 'mock') return { message: 'Invitation sent.' }
+    return request(`/agency/clients/${encodeURIComponent(id)}/invite`, { method: 'POST' })
+  },
+  async deleteAgencyClient(id) {
+    if (AUTH_MODE === 'mock') return { message: 'The client was permanently deleted.' }
+    return request(`/agency/clients/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
   async listAvailableEmployees() {
     if (AUTH_MODE === 'mock') return { employees: [] }
     return request('/agency/employees/available')

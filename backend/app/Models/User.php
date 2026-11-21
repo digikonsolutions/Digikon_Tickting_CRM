@@ -80,6 +80,11 @@ class User extends Authenticatable
         return $this->hasOne(OwnerProfile::class);
     }
 
+    public function clientProfile(): HasOne
+    {
+        return $this->hasOne(ClientProfile::class);
+    }
+
     public function skills(): HasMany
     {
         return $this->hasMany(EmployeeSkill::class)->orderBy('name');

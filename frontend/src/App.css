@@ -771,6 +771,25 @@
   gap: 0.75rem;
 }
 
+.dashboard-breadcrumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.dashboard-breadcrumb a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.dashboard-breadcrumb a:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
 .dashboard-title-area .dashboard-page-title {
   margin: 0;
   overflow: hidden;
@@ -1200,3 +1219,22 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Clients tab */
+.client-filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); margin: var(--space-4) 0; }
+.client-filters .ui-field { min-width: 12rem; flex: 1 1 14rem; }
+.client-limit { margin: 0 0 var(--space-3); color: var(--color-muted); font-size: 0.9rem; }
+.client-modal { width: min(100%, 44rem); }
+.client-detail h3 { margin: var(--space-5) 0 var(--space-2); font-size: 1rem; }
+.client-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--space-3) var(--space-5); margin: var(--space-4) 0 0; }
+.client-detail-grid dt { color: var(--color-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.client-detail-grid dd { margin: 0.15rem 0 0; overflow-wrap: anywhere; }
+.client-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.client-project-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.client-project-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.client-project-list li > span { color: var(--color-muted); font-size: 0.85rem; }
+.ui-muted { color: var(--color-muted); }
+.ui-link-button { padding: 0; border: 0; background: none; color: var(--brand-hover); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.ui-link-button:hover { text-decoration: underline; }
+.ui-checkbox-row { display: flex; align-items: center; gap: 0.6rem; margin: var(--space-3) 0; }
+.ui-checkbox-row input { width: 1.1rem; height: 1.1rem; }
