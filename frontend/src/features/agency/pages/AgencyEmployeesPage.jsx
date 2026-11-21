@@ -9,8 +9,9 @@ import {
 } from '../../../components/ui'
 import { AVAILABILITY, AVAILABILITY_VARIANT, labelOf } from '../../admin/employee/employeeForm'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
+import { RequestModal } from '../components/RequestModal'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
-import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
+import { addDays, formatDateRange, formatShortDate, mondayOf, pluralize, toDateStr, todayStr } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 
 /* helpers */
@@ -40,6 +41,7 @@ export function AgencyEmployeesPage() {
   const [drawerSearch, setDrawerSearch] = useState('')
   const [impactData, setImpactData] = useState(null)
   const [profileId, setProfileId] = useState(null)
+  const [requesting, setRequesting] = useState(false)
 
   /* auto-dismiss the error alert */
   useEffect(() => {
@@ -49,16 +51,24 @@ export function AgencyEmployeesPage() {
   }, [actionError])
 
   const loadData = useCallback(async () => {
-    const [available, mine] = await Promise.all([
-      authService.listAvailableEmployees(),
+    // The server decides who may add employees (plan, seats, role); only then is the list of free employees needed.
+    const [summary, mine] = await Promise.all([
+      authService.getAgencyEmployeesSummary(),
       authService.listMyAssignments({ week }),
     ])
-    return { available: available.employees, mine: mine.assignments }
+    const available = summary.can_add ? (await authService.listAvailableEmployees()).employees : []
+    return { available, mine: mine.assignments, summary }
   }, [week])
 
   const { data, error, isLoading, reload } = useAsync(loadData)
   const available = data?.available ?? []
   const mine = data?.mine ?? []
+  const summary = data?.summary
+  const seats = summary?.seats
+  const canAdd = Boolean(summary?.can_add)
+  // Owners manage their own employees on a Custom plan, or when the admin assigned nobody; otherwise it is read-only.
+  const ownerManaged = isOwner && Boolean(seats && (seats.custom_plan || !seats.admin_assigned))
+  const addBlockedReason = isOwner && ownerManaged && !canAdd ? seats?.reason : null
 
   // Only an employee who can still be held offers "select" from inside the profile (team members cannot).
   const profileCandidate = available.find((employee) => employee.id === profileId) ?? null
@@ -134,14 +144,19 @@ export function AgencyEmployeesPage() {
     <section className="page ae-page">
       <PageHeader
         eyebrow="Agency workspace"
-        title={labels.myEmployees}
-        subtitle="The employees you have added for your projects, with their weekly capacity."
-        action={
-          <Button type="button" onClick={() => setDrawerOpen(true)}>
-            + {labels.holdEmployee}
-          </Button>
-        }
+        title="Employees"
+        subtitle={ownerManaged ? 'Employees working for your agency, with their weekly capacity.' : 'Employees are assigned by your account manager. Their weekly capacity is shown below.'}
+        action={isOwner && (ownerManaged
+          ? <Button type="button" disabled={!canAdd} title={addBlockedReason ?? undefined} onClick={() => setDrawerOpen(true)}>+ Add employee</Button>
+          : <Button type="button" onClick={() => setRequesting(true)}>Request an employee</Button>)}
       />
+      {seats && (
+        <p className="ae-seats" aria-live="polite">
+          {seats.seats != null ? `${seats.used} of ${seats.seats} employee ${pluralize(seats.seats, 'seat')} used` : `${seats.used} ${pluralize(seats.used, 'employee')} assigned`}
+          {addBlockedReason ? ` · ${addBlockedReason}` : ''}
+          {isOwner && !ownerManaged ? ' · Employees are assigned by your account manager.' : ''}
+        </p>
+      )}
 
       {/* Alerts */}
       <div aria-live="polite" className="ae-alerts">
@@ -247,15 +262,11 @@ export function AgencyEmployeesPage() {
                     Work activity
                   </Link>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ae-danger-outline"
-                  onClick={() => openEndConfirm(assignment)}
-                >
-                  {labels.endAssignment}
-                </Button>
+                {ownerManaged && (
+                  <Button type="button" variant="ghost" size="sm" className="ae-danger-outline" onClick={() => openEndConfirm(assignment)}>
+                    Release employee
+                  </Button>
+                )}
               </Card>
             )
           })}
@@ -263,27 +274,39 @@ export function AgencyEmployeesPage() {
       ) : (
         <EmptyState
           title="No employees yet"
-          action={
-            <Button type="button" onClick={() => setDrawerOpen(true)}>
-              {labels.holdEmployee}
-            </Button>
-          }
+          action={isOwner && (ownerManaged
+            ? canAdd && <Button type="button" onClick={() => setDrawerOpen(true)}>Add employee</Button>
+            : <Button type="button" onClick={() => setRequesting(true)}>Request an employee</Button>)}
         >
-          These are the employees you work with. Add an employee to start assigning them to your projects.
+          {isOwner ? (ownerManaged ? 'Add an employee to start assigning them to your projects.' : 'Employees are assigned by your account manager. Request one and tell us what you need.') : 'Your agency owner manages employees.'}
         </EmptyState>
       )}
 
+      {isOwner && summary?.requests?.length > 0 && (
+        <Card title="Your employee requests" description="What you asked your account manager for.">
+          <ul className="ae-requests">
+            {summary.requests.map((item) => (
+              <li key={item.id}>
+                <strong>{formatShortDate(item.created_at)}</strong> · {item.status === 'open' ? 'Open' : item.status}
+                {item.message && <p>{item.message}</p>}
+                {item.attachments.length > 0 && <p className="ae-request-files">{item.attachments.map((file) => <a key={file.id} href={authService.requestAttachmentUrl(file.id)}>{file.name}</a>)}</p>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {isOwner && (
         <p className="ae-footnote">
           <Link to="/agency/projects">Review agency projects</Link>
         </p>
       )}
+      {requesting && <RequestModal type="employee" onClose={() => setRequesting(false)} onSent={reload} />}
 
       {/* Hold employee drawer */}
       {/* The profile drawer replaces the hold drawer while it is open (two stacked drawers would both
           answer Escape and fight over focus). Closing the profile brings the list back as it was. */}
       <Drawer
-        open={drawerOpen && !profileId}
+        open={drawerOpen && !profileId && canAdd}
         onClose={() => { setDrawerOpen(false); setDrawerSearch('') }}
         title={labels.holdEmployee}
         description="Choosing an employee makes them exclusive to you until you release them."
@@ -358,7 +381,7 @@ export function AgencyEmployeesPage() {
       <Modal
         open={Boolean(confirm)}
         onClose={() => !isSaving && (setConfirm(null), setImpactData(null))}
-        title={confirm?.kind === 'assign' ? `?` : `?`}
+        title={confirm?.kind === 'assign' ? 'Add this employee?' : 'Release this employee?'}
         footer={
           <>
             <Button
@@ -376,15 +399,14 @@ export function AgencyEmployeesPage() {
               loadingText="Saving…"
               onClick={confirmAction}
             >
-              {confirm?.kind === 'assign' ? labels.selectEmployee : labels.endAssignment}
+              {confirm?.kind === 'assign' ? 'Add employee' : 'Release employee'}
             </Button>
           </>
         }
       >
         {confirm?.kind === 'assign' ? (
           <p>
-            <strong>{confirm.employee.name}</strong> will become exclusive to you.
-            Other agency clients will no longer be able to choose this employee.
+            <strong>{confirm.employee.name}</strong> will work for your agency and uses one employee seat.
           </p>
         ) : (
           <>

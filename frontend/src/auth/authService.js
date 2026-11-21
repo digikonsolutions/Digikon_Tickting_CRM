@@ -522,6 +522,9 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { requests: [] }
     return request(`/agency/requests${type ? `?type=${encodeURIComponent(type)}` : ''}`)
   },
+  requestAttachmentUrl(id) {
+    return `${API_URL}/agency/request-attachments/${encodeURIComponent(id)}/download`
+  },
   async getAgencyEmployeesSummary() {
     if (AUTH_MODE === 'mock') return { seats: null, can_add: false, requests: [] }
     return request('/agency/employees/summary')
