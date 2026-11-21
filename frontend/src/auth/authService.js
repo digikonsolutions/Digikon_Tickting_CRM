@@ -525,6 +525,52 @@ export const authService = {
   requestAttachmentUrl(id) {
     return `${API_URL}/agency/request-attachments/${encodeURIComponent(id)}/download`
   },
+  // Timeline review. `scope` is 'admin', 'employee' or 'agency' and picks the audience's own endpoints.
+  async listTimelineReviews({ status, agency, search, page = 1, perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { reviews: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 }, summary: { pending: 0, overdue: 0 } }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    if (status) query.set('status', status)
+    if (agency) query.set('agency', String(agency))
+    if (search) query.set('search', search)
+    return request(`/admin/timeline-reviews?${query.toString()}`)
+  },
+  async getTimelineReviewCount() {
+    if (AUTH_MODE === 'mock') return { pending: 0, overdue: 0 }
+    return request('/admin/timeline-reviews/count')
+  },
+  async listAwaitingTimelines() {
+    if (AUTH_MODE === 'mock') return { awaiting: [] }
+    return request('/work-items/awaiting-timeline')
+  },
+  timelinePath(scope, id) {
+    const base = scope === 'admin' ? '/admin/projects' : scope === 'employee' ? '/work-items' : '/agency/projects'
+    return `${base}/${encodeURIComponent(id)}/timeline`
+  },
+  async getTimeline(scope, id) {
+    if (AUTH_MODE === 'mock') return null
+    return request(this.timelinePath(scope, id))
+  },
+  async startTimelineReview(id) {
+    return request(`${this.timelinePath('admin', id)}/start-review`, { method: 'POST' })
+  },
+  async saveTimeline(scope, id, { days, dueDate, note }) {
+    return request(this.timelinePath(scope, id), { method: 'PATCH', body: JSON.stringify({ days, ...(dueDate ? { due_date: dueDate } : {}), ...(note ? { note } : {}) }) })
+  },
+  async confirmTimeline(scope, id) {
+    return request(`${this.timelinePath(scope, id)}/confirm`, { method: 'POST' })
+  },
+  async requestTimelineChanges(id, message) {
+    return request(`${this.timelinePath('admin', id)}/request-changes`, { method: 'POST', body: JSON.stringify({ message }) })
+  },
+  async respondToTimeline(id, { note, files = [] }) {
+    if (files.length > 0) {
+      const form = new FormData()
+      if (note) form.append('note', note)
+      files.forEach((file) => form.append('files[]', file, file.name))
+      return request(`${this.timelinePath('agency', id)}/respond`, { method: 'POST', body: form })
+    }
+    return request(`${this.timelinePath('agency', id)}/respond`, { method: 'POST', body: JSON.stringify({ note }) })
+  },
   async listAgencyTickets(query = new URLSearchParams()) {
     if (AUTH_MODE === 'mock') return { tickets: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }
     return request(`/agency/tickets?${query.toString()}`)

@@ -29,6 +29,7 @@ import {
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
 import { AdminEmployeePage } from '../features/activity'
+import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeline'
 import { AdminHistoryPage } from '../features/history'
 import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
@@ -89,12 +90,15 @@ export function AppRoutes() {
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
             <Route path="/admin/agency-owners/new" element={<AdminCreateAgencyOwnerPage />} />
             <Route path="/admin/plans" element={<AdminPlansPage />} />
+            <Route path="/admin/timeline-reviews" element={<AdminTimelineReviewsPage />} />
+            <Route path="/admin/timeline-reviews/:id" element={<TimelineReviewPage />} />
             <Route path="/admin/agency-clients" element={<AdminUsersPage key={ROLES.AGENCY_CLIENT} role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />
             <Route path="/admin/users" element={<Navigate to="/admin/employees" replace />} />
             <Route path="/admin/users/new" element={<Navigate to="/admin/employees/new" replace />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE]} />}>
             <Route path="/my-work" element={<InternalEmployeeWorkPage />} />
+            <Route path="/my-work/timeline/:id" element={<TimelineReviewPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/dashboard" element={<AgencyDashboard />} />

@@ -940,6 +940,7 @@ class TicketController extends Controller
                 'related_ticket_ids' => $ticket->related_ticket_ids ?? [],
             ],
             'status' => $ticket->status,
+            'timeline_status' => $ticket->timeline_status,
             'position' => $ticket->position,
             'start_date' => $ticket->start_date?->toDateString(),
             'due_date' => $ticket->due_date?->toDateString(),
