@@ -8,7 +8,7 @@ const dash = <span className="adm-muted" aria-label="Not set">—</span>
 // Hours this week (a plain function, not a component, so this file only exports helpers): a mini bar against the included hours when the agency has a contract, plain hours otherwise.
 function hoursCell(row) {
   const used = Number(row.hours_booked_this_week) || 0
-  if (!row.hours_included) return <span className="adm-num">{used.toFixed(1)} h <span className="adm-muted">this week</span></span>
+  if (!row.hours_included) return <span className="adm-num adm-nowrap">{used.toFixed(1)} h <span className="adm-muted">this week</span></span>
   const percent = Math.min(100, Math.round((used / row.hours_included) * 100))
   return (
     <span className="adm-hours-cell">
@@ -50,7 +50,7 @@ export function agencyColumns({ onToggle }) {
       ),
     },
     { key: 'status', label: 'Status', render: (value) => <Badge variant={value === 'active' ? 'success' : 'warning'}>{value === 'active' ? 'Active' : 'Suspended'}</Badge> },
-    { key: 'plan', label: 'Plan', render: (_value, row) => (row.plan ? <Badge variant="info">{row.plan}</Badge> : <span className="adm-muted">No contract</span>) },
+    { key: 'plan', label: 'Plan', render: (_value, row) => (row.plan ? <Badge variant="info">{row.plan}</Badge> : <span className="adm-muted adm-nowrap">No contract</span>) },
     {
       key: 'seats',
       label: 'Seats',
