@@ -93,7 +93,7 @@
 .emp-person a { color: var(--color-heading); font-weight: 650; text-decoration: none; }
 .emp-person a:hover { color: var(--color-accent-700); text-decoration: underline; }
 .emp-person small { display: block; color: var(--color-muted); font-size: .8rem; }
-.emp-code { font: 600 .8rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--color-muted); }
+.emp-code { white-space: nowrap; font: 600 .8rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--color-muted); }
 .emp-meter { display: grid; grid-template-columns: 4.5rem auto; align-items: center; gap: var(--space-2); font-size: .8rem; font-weight: 650; }
 .emp-meter progress { width: 100%; height: .5rem; accent-color: var(--color-accent-600); }
 

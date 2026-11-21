@@ -1,3 +1,4 @@
+export { ActionMenu } from './ActionMenu'
 export { Alert } from './Alert'
 export { Avatar } from './Avatar'
 export { Badge } from './Badge'

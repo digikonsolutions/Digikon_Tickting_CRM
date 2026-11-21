@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Avatar, Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
+import { ActionMenu, Avatar, Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
 import { AVAILABILITY, AVAILABILITY_VARIANT, DEPARTMENTS, EMPLOYMENT_STATUSES, STATUS_VARIANT, labelOf } from '../employee/employeeForm'
 import '../employee/employee.css'
 
@@ -167,15 +167,18 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
       key: 'actions',
       label: 'Actions',
       render: (_value, user) => user.can_manage ? (
-        <div className="agency-user-actions">
-          {user.role === 'employee' && <Link className="ui-button ui-button-secondary ui-button-sm" to={`/admin/employees/${user.id}`}>Profile</Link>}
-          {user.role === 'employee' && <Link className="ui-button ui-button-secondary ui-button-sm" to={`/admin/employees/${user.id}/activity`}>Activity</Link>}
-          <Button type="button" variant="secondary" size="sm" onClick={() => { setEditError(null); setEditingUser(user) }}>Edit</Button>
-          <Button type="button" variant="secondary" size="sm" onClick={() => setAction({ kind: 'status', user })}>
-            {user.is_active ? 'Deactivate' : 'Reactivate'}
-          </Button>
-          <Button type="button" variant="danger" size="sm" onClick={() => setAction({ kind: 'delete', user })}>Delete</Button>
-        </div>
+        <ActionMenu
+          label={`Actions for ${user.name}`}
+          items={[
+            ...(user.role === 'employee' ? [
+              { label: 'View profile', to: `/admin/employees/${user.id}` },
+              { label: 'Work activity', to: `/admin/employees/${user.id}/activity` },
+            ] : []),
+            { label: 'Edit account', onClick: () => { setEditError(null); setEditingUser(user) } },
+            { label: user.is_active ? 'Deactivate' : 'Reactivate', onClick: () => setAction({ kind: 'status', user }) },
+            { label: 'Delete', danger: true, separator: true, onClick: () => setAction({ kind: 'delete', user }) },
+          ]}
+        />
       ) : <span>View only</span>,
     },
   ]
