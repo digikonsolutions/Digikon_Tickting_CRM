@@ -158,11 +158,11 @@ function ProfileEditor({ initial }) {
         </Alert>
       )}
 
-      <Card>
+      <Card className="emp-summary-card">
         <div className="emp-summary">
           <Avatar name={employee.name} src={employee.photo_url} size="xl" />
           <div>
-            <h2>{profile.headline || 'No headline yet'}</h2>
+            <h2 className={profile.headline ? undefined : 'emp-placeholder'}>{profile.headline || 'No headline yet'}</h2>
             <p>{[profile.city, profile.timezone].filter(Boolean).join(' · ') || 'No location yet'}</p>
             <div className="emp-summary-badges">
               {profile.department && <Badge variant="info">{labelOf(DEPARTMENTS, profile.department)}</Badge>}
@@ -177,7 +177,7 @@ function ProfileEditor({ initial }) {
             {completeness.missing.length > 0 && (
               <details>
                 <summary>{completeness.missing.length} item{completeness.missing.length === 1 ? '' : 's'} missing</summary>
-                <ul>{completeness.missing.map((item) => <li key={item}>{item}</li>)}</ul>
+                <ul className="emp-missing">{completeness.missing.map((item) => <li key={item}>{item}</li>)}</ul>
               </details>
             )}
           </div>

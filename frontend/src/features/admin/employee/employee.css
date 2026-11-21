@@ -7,8 +7,26 @@
 .emp-icon-button:hover { background: var(--color-surface-sunken); color: var(--color-heading); }
 .emp-icon-button:focus-visible { outline: 2px solid var(--color-accent-600); outline-offset: 1px; }
 
+/* Wider form card, with each section as a label column plus a fields column on large screens. */
+.emp-page .ui-form-card { max-width: 72rem; }
+.emp-page .emp-summary-card { max-width: 72rem; }
+@media (min-width: 1000px) {
+  .emp-tabpanel .ui-form-section { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+  .emp-tabpanel .ui-form-section:first-child, .emp-tabpanel > .ui-alert + .ui-form-section { border-top: 0; padding-top: 0; }
+  .emp-tabpanel .ui-form-section-header { position: sticky; top: var(--space-4); align-self: start; }
+}
+
+/* Progress bars: one rounded teal style instead of the browser default. */
+.emp-page progress, .emp-doc progress, .emp-meter progress { appearance: none; -webkit-appearance: none; border: 0; border-radius: var(--radius-pill); background: var(--color-surface-sunken); overflow: hidden; }
+.emp-page progress::-webkit-progress-bar, .emp-meter progress::-webkit-progress-bar { background: var(--color-surface-sunken); border-radius: var(--radius-pill); }
+.emp-page progress::-webkit-progress-value, .emp-meter progress::-webkit-progress-value { background: var(--color-accent-600); border-radius: var(--radius-pill); }
+.emp-page progress::-moz-progress-bar, .emp-meter progress::-moz-progress-bar { background: var(--color-accent-600); border-radius: var(--radius-pill); }
+.emp-missing { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 0; padding: 0; list-style: none; }
+.emp-missing li { padding: .15rem .6rem; border: 1px solid var(--color-warning-200); border-radius: var(--radius-pill); background: var(--color-warning-50); color: var(--color-warning-700); font-size: .8rem; }
+.emp-placeholder { color: var(--color-muted); font-style: italic; font-weight: 500; }
+
 /* Header card */
-.emp-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(14rem, 18rem); align-items: center; gap: var(--space-5); }
+.emp-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(16rem, 22rem); align-items: start; gap: var(--space-5); }
 .emp-summary-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .emp-summary h2 { margin: 0; font-size: 1.15rem; color: var(--color-heading); }
 .emp-summary p { margin: .15rem 0 0; color: var(--color-muted); font-size: .85rem; }
