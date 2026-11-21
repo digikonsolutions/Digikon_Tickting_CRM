@@ -506,10 +506,25 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { dashboard: null }
     return request('/agency/dashboard')
   },
-  // "Request more hours", "Request upgrade" and "Request renewal": type is 'more_hours', 'upgrade' or 'renewal'.
-  async sendAgencyRequest({ type, message }) {
+  // Requests to the administrators: type is 'more_hours', 'employee', 'upgrade' or 'renewal'; notes and files are optional.
+  async sendAgencyRequest({ type, message, files = [] }) {
     if (AUTH_MODE === 'mock') return { message: 'Your request was sent.', notified: 0 }
+    if (files.length > 0) {
+      const form = new FormData()
+      form.append('type', type)
+      if (message) form.append('message', message)
+      files.forEach((file) => form.append('files[]', file, file.name))
+      return request('/agency/requests', { method: 'POST', body: form })
+    }
     return request('/agency/requests', { method: 'POST', body: JSON.stringify({ type, ...(message ? { message } : {}) }) })
+  },
+  async listAgencyRequests({ type } = {}) {
+    if (AUTH_MODE === 'mock') return { requests: [] }
+    return request(`/agency/requests${type ? `?type=${encodeURIComponent(type)}` : ''}`)
+  },
+  async getAgencyEmployeesSummary() {
+    if (AUTH_MODE === 'mock') return { seats: null, can_add: false, requests: [] }
+    return request('/agency/employees/summary')
   },
   // Admin agency status (active or suspended). Suspending ends every session of that agency's users.
   async updateAdminAgency(id, status) {

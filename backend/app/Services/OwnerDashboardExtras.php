@@ -141,7 +141,7 @@ class OwnerDashboardExtras
         }
 
         if ($employees === []) {
-            $items[] = ['type' => 'no_employee', 'severity' => 'warning', 'count' => 1, 'label' => $seats !== null && $seatsUsed < $seats ? 'No employee is assigned to your agency yet' : 'Your agency has no employee assigned', 'action' => ['label' => 'Request an employee', 'to' => '/agency/employees']];
+            $items[] = ['type' => 'no_employee', 'severity' => 'warning', 'count' => 1, 'label' => $seats !== null && $seatsUsed < $seats ? 'No employee is assigned to your agency yet' : 'Your agency has no employee assigned', 'action' => ['label' => 'Request an employee', 'request' => 'employee']];
         }
         $full = array_filter($employees, fn (array $e): bool => $e['utilization_percent'] >= 100);
         $busy = array_filter($employees, fn (array $e): bool => $e['utilization_percent'] >= 90 && $e['utilization_percent'] < 100);

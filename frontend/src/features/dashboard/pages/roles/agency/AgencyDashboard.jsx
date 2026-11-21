@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../../../auth/useAuth'
 import { authService } from '../../../../../auth/authService'
 import { ROLES, ROLE_LABELS } from '../../../../../auth/roles'
-import { Alert, Button, Modal, Textarea, useToast } from '../../../../../components/ui'
-import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
+import { Alert, Button } from '../../../../../components/ui'
+import { RequestModal } from '../../../../agency/components/RequestModal'
 import { WelcomeBanner } from '../../../components'
 import { NeedsAttentionCard } from '../../../../tickets'
 import { EmployeeProfileDrawer } from '../../../../agency/components/EmployeeProfileDrawer'
@@ -15,6 +15,7 @@ import {
   LimitWarnings, RecentProjectsCard,
 } from './AgencyDashboardCards'
 import { limitState } from './agencyLimits'
+import { OwnerDashboard } from './OwnerDashboard'
 import './agencyDashboard.css'
 
 // Legacy agency members only get a welcome card and the directory: they have no projects or holds.
@@ -28,65 +29,6 @@ function AgencyMemberDashboard() {
         <Link to="/agency/directory" className="ui-button ui-button-secondary ui-button-sm">Agency directory</Link>
       </WelcomeBanner>
     </section>
-  )
-}
-
-const REQUEST_COPY = {
-  more_hours: { title: 'Request more hours', hint: 'Tell us how many hours you need and for what.', send: 'Send request' },
-  upgrade: { title: 'Request a plan upgrade', hint: 'Tell us what you need: more seats, hours, projects or client accounts.', send: 'Send request' },
-  renewal: { title: 'Request a renewal', hint: 'Anything we should know about your renewal?', send: 'Send request' },
-}
-
-// Sends one request to the administrators (an in-app notification for each of them).
-function RequestModal({ type, onClose }) {
-  const { showToast } = useToast()
-  const [message, setMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState(null)
-  const copy = REQUEST_COPY[type] ?? REQUEST_COPY.more_hours
-
-  async function send(event) {
-    event.preventDefault()
-    if (sending) return
-    setSending(true)
-    setError(null)
-    try {
-      await authService.sendAgencyRequest({ type, message: message.trim() })
-      showToast('Request sent. An administrator will get back to you.')
-      onClose()
-    } catch (reason) {
-      setError(reason)
-    } finally {
-      setSending(false)
-    }
-  }
-
-  return (
-    <Modal
-      open={Boolean(type)}
-      onClose={() => !sending && onClose()}
-      title={copy.title}
-      footer={(
-        <>
-          <Button type="button" variant="secondary" disabled={sending} onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="agency-request-form" loading={sending} loadingText="Sending…">{copy.send}</Button>
-        </>
-      )}
-    >
-      <form id="agency-request-form" className="ui-form" onSubmit={send}>
-        <Textarea
-          id="agency-request-message"
-          label="Message (optional)"
-          rows="4"
-          maxLength="500"
-          value={message}
-          helperText={`${copy.hint} ${message.length} of 500 characters.`}
-          onChange={(event) => setMessage(event.target.value)}
-          error={error?.errors?.message?.[0]}
-        />
-        <ApiErrorMessage error={error?.status === 422 ? null : error} />
-      </form>
-    </Modal>
   )
 }
 
@@ -160,5 +102,6 @@ function AgencyWorkspaceDashboard() {
 
 export const AgencyDashboard = () => {
   const { user } = useAuth()
-  return user.role === ROLES.AGENCY_MEMBER ? <AgencyMemberDashboard /> : <AgencyWorkspaceDashboard />
+  if (user.role === ROLES.AGENCY_MEMBER) return <AgencyMemberDashboard />
+  return user.role === ROLES.AGENCY_OWNER ? <OwnerDashboard /> : <AgencyWorkspaceDashboard />
 }
