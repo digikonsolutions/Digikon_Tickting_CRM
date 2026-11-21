@@ -248,9 +248,9 @@ class AgencyDashboardTest extends TestCase
 
         $this->postJson('/api/agency/requests', [])->assertUnprocessable()->assertJsonValidationErrors('type');
         $this->postJson('/api/agency/requests', ['type' => 'free_money'])->assertUnprocessable()->assertJsonValidationErrors('type');
-        $this->postJson('/api/agency/requests', ['type' => 'upgrade', 'message' => str_repeat('a', 501)])->assertUnprocessable()->assertJsonValidationErrors('message');
+        $this->postJson('/api/agency/requests', ['type' => 'upgrade', 'message' => str_repeat('a', 1001)])->assertUnprocessable()->assertJsonValidationErrors('message');
         $this->postJson('/api/agency/requests', ['type' => 'renewal'])->assertCreated();
-        $this->postJson('/api/agency/requests', ['type' => 'upgrade', 'message' => str_repeat('a', 500)])->assertCreated();
+        $this->postJson('/api/agency/requests', ['type' => 'upgrade', 'message' => str_repeat('a', 1000)])->assertCreated();
     }
 
     public function test_requests_are_limited_to_five_a_minute_so_admins_are_not_flooded(): void
