@@ -40,17 +40,27 @@ Available routes:
 | PATCH | `/api/auth/profile` | Any signed-in, active user updates their own display name (trimmed, whitespace collapsed, max 120). `email`, `role`, `agency_id`, `is_active` and `password` are rejected with 422. The only self-service profile route; the former `/api/agency/profile` was removed |
 | PUT | `/api/auth/password` | Change your own password: `current_password`, `password` (reset-flow policy, must differ) and `password_confirmation`. Ends every other session, rotates the remember token and the current session id. Throttled to 5 a minute per user |
 | POST | `/api/auth/users` | Admin-only account invitation; role and agency assignment are validated |
-| GET | `/api/admin/users` | Admin-only paginated directory of all roles (optionally filtered by `role`); supports `search`, `page`, and `per_page` |
+| GET | `/api/admin/users` | Admin-only paginated directory of all roles (optionally filtered by `role`); supports `search` (name, email, employee code), `page`, and `per_page`. Employees carry a `profile` summary: `employee_code`, `department`, `availability`, `employment_status`, `completeness` |
 | PATCH | `/api/admin/users/{user}` | Admin update of employee or agency-owner details and activation |
 | DELETE | `/api/admin/users/{user}` | Admin permanent deletion of an employee or agency owner |
 | PATCH | `/api/admin/agencies/{agency}` | Admin activates or suspends an agency; suspension revokes its users' sessions |
+| POST | `/api/admin/employees` | Admin creates an employee with a full profile. Only `name` and `email` are required. Optional: personal, public and employment fields, `skills`, `educations`, `experiences`, `certifications`, `checklist`, and multipart `documents[n][file\|type\|expires_at]`. One transaction creates the account, profile, lists and files, then sends the invitation; if the email fails everything (including stored files) is rolled back. Returns the masked admin profile (201) |
+| GET | `/api/admin/employees/{id}` | Admin reads the full profile: personal, employment, finance, lists, documents and server-computed `completeness`. CNIC and bank account are masked (`34101-*******-1`, `****1234`). Writes a `viewed_sensitive` audit row |
+| PATCH | `/api/admin/employees/{id}` | Admin partial update; absent keys are untouched, `null` clears a field, a list key replaces that list. Login email, role and `is_active` are rejected (use `PATCH /api/admin/users/{user}`). CNIC must be 13 digits (`12345-1234567-1` is normalised) and unique |
+| POST | `/api/admin/employees/{id}/reveal-cnic` | Admin only, throttled to 10 a minute. Returns the full CNIC with `Cache-Control: no-store` and writes a `revealed_cnic` audit row. 404 when none is on file |
+| POST / DELETE | `/api/admin/employees/{id}/photo` | Admin sets or removes the employee's photo through the existing avatar pipeline (jpg/png/webp, max 4 MB, Cloudinary) |
+| POST | `/api/admin/employees/{id}/documents` | Admin uploads one document: multipart `file` (pdf/jpg/jpeg/png, max 5 MB, real MIME checked), `type` (`cnic_front`, `cnic_back`, `cv`, `degree`, `experience_letter`, `contract`, `nda`, `other`), optional `expires_at`. Stored on the private disk as `employees/{id}/{uuid}.ext`; storage paths are never returned. Max 40 per employee. Throttled like other uploads |
+| GET | `/api/admin/employees/{id}/documents/{document}` | Admin only. Streams the file (`?inline=1` for images only), `nosniff`, `no-store`; writes a `downloaded_document` audit row. A document of another employee is 404 |
+| PATCH | `/api/admin/employees/{id}/documents/{document}/verify` | Admin marks a document verified or not (`verified`: boolean); records who and when |
+| DELETE | `/api/admin/employees/{id}/documents/{document}` | Admin deletes the row and the file |
+| GET | `/api/agency/employees/{id}/profile` | Agency owner and client (active agency only). The public profile, from a strict whitelist: id, name, photo, headline, bio, department, skills, educations, experiences, certifications, english level, time zone, availability, preferred hours, portfolio links, weekly capacity. Never email, phone, CNIC, address, bank, pay rate, notes, checklist or documents. Only active employees that the agency could hold (its own or shared); everything else is 404 |
 | GET | `/api/agency/users` | Agency-owner list of agency accounts; employee accounts are read-only |
 | POST | `/api/agency/users` | Agency owners invite clients into their active agency |
 | PATCH | `/api/agency/users/{user}` | Owners update same-agency client details and activation |
 | DELETE | `/api/agency/users/{user}` | Owners delete same-agency clients |
 | GET | `/api/agency/directory` | Agency-owner, legacy agency-member, and agency-client directory including shared admin-created employees |
 | GET | `/api/agency/team` | Agency-owner/client roster of shared admin-created employees |
-| GET | `/api/agency/employees/available` | Agency client/owner list of active same-agency and shared employees with no active holder |
+| GET | `/api/agency/employees/available` | Agency client/owner list of active same-agency and shared employees with no active holder. Each carries the public summary: `photo_url`, `headline`, `department`, `availability`, `top_skills` |
 | POST | `/api/agency/assignments` | Hold an available employee exclusively for the current client or owner |
 | GET | `/api/agency/assignments` | List the caller's own active assignments (holder only; `scope` is rejected with 422) |
 | GET | `/api/agency/assignments/{assignment}/usage` | Read usage of an assignment the caller holds for a requested `?week=YYYY-MM-DD` (404 otherwise) |
@@ -83,7 +93,7 @@ Available routes:
 | GET | `/api/admin/tickets` | Admin read-only paginated ticket directory |
 | GET | `/api/work-items/mine` | Employee list of assigned projects |
 | GET | `/api/admin/projects` | Admin read-only, searchable paginated view of all projects and schedules |
-| GET | `/api/admin/dashboard?status=` | Admin dashboard summary in one call: project counts by status, ticket total, scheduled hours per day for the next 7 days (excludes cancelled/completed) and the 4 most recent projects, optionally filtered by `status` |
+| GET | `/api/admin/dashboard?status=` | Admin dashboard summary in one call: project counts by status, ticket total, scheduled hours per day for the next 7 days (excludes cancelled/completed) and the 4 most recent projects, optionally filtered by `status`. `projects` also carries `overdue` and `due_soon` (open projects past due / due within 2 days) and `attention_projects` lists up to five of them, most overdue first |
 | GET | `/api/admin/assignments` | Admin read-only paginated employee-assignment directory |
 | DELETE | `/api/admin/assignments/{assignment}` | Admin ends an assignment and releases its future work allocations |
 | POST | `/api/auth/login` | Sign in |
