@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\AdminAgencyController;
+use App\Http\Controllers\AdminAgencyOwnerController;
+use App\Http\Controllers\AdminPlanController;
+use App\Http\Controllers\ContractDocumentController;
 use App\Http\Controllers\AdminEmployeeController;
 use App\Http\Controllers\AgencyDashboardController;
 use App\Http\Controllers\AdminUserController;
@@ -47,6 +50,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/requests', [AgencyDashboardController::class, 'request'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:agency-requests']);
+    Route::get('/contract/document', [AgencyDashboardController::class, 'contractDocument'])
+        ->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/team', [AgencyUserController::class, 'agencyTeam'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/directory', [AgencyUserController::class, 'agencyDirectory'])
@@ -144,6 +149,15 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::get('/admin/users',[AdminUserController::class, 'adminUsers']);
     Route::patch('/admin/users/{adminUser}', [AdminUserController::class, 'updateAdminUser']);
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
+    // Agency onboarding wizard, drafts, contract files and plans (admin only).
+    Route::post('/admin/agency-owners', [AdminAgencyOwnerController::class, 'store'])->middleware('throttle:auth-admin-signup');
+    Route::get('/admin/plans', [AdminPlanController::class, 'index']);
+    Route::post('/admin/plans', [AdminPlanController::class, 'store']);
+    Route::patch('/admin/plans/{plan}', [AdminPlanController::class, 'update'])->whereNumber('plan');
+    Route::post('/admin/agencies/{agency}/activate', [AdminAgencyController::class, 'activate'])->whereNumber('agency');
+    Route::post('/admin/agencies/{agency}/logo', [AdminAgencyController::class, 'uploadLogo'])->whereNumber('agency')->middleware('throttle:attachments');
+    Route::post('/admin/agencies/{agency}/contract-documents', [ContractDocumentController::class, 'store'])->whereNumber('agency')->middleware('throttle:attachments');
+    Route::get('/admin/agencies/{agency}/contract-documents/{document}', [ContractDocumentController::class, 'download'])->whereNumber(['agency', 'document']);
     Route::get('/admin/agencies', [AdminAgencyController::class, 'index']);
     Route::get('/admin/agencies/{agency}', [AdminAgencyController::class, 'show'])->whereNumber('agency');
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);

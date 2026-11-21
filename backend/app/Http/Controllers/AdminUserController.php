@@ -94,6 +94,9 @@ class AdminUserController extends Controller
     public function updateAdminAgency(AdminUpdateAgencyRequest $request, Agency $agency): JsonResponse
     {
         $status = $request->validated('status');
+        if ($agency->status === 'draft') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['status' => 'This agency is a draft. Activate it to send the owner their invitation.']);
+        }
 
         DB::transaction(function () use ($agency, $status): void {
             $agency->update(['status' => $status]);

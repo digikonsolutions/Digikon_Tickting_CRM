@@ -37,7 +37,7 @@ class AdminAgenciesTest extends TestCase
         }
     }
 
-    public function test_dashboard_agency_rows_carry_plan_seat_hour_and_renewal_fields_as_no_contract(): void
+    public function test_dashboard_agency_rows_carry_plan_seat_hour_and_renewal_fields_empty_without_a_contract(): void
     {
         $agency = $this->makeAgency('Northwind');
         $this->makeOwner($agency, 'Olivia Owner');
@@ -56,7 +56,7 @@ class AdminAgenciesTest extends TestCase
         }
         $this->assertFalse($row['has_contract']);
         $this->assertArrayHasKey('owner_email', $row);
-        $response->assertJsonPath('contracts.available', false)->assertJsonPath('contracts.without_contract', 1)->assertJsonPath('contracts.expiring', []);
+        $response->assertJsonPath('contracts.available', true)->assertJsonPath('contracts.with_contract', 0)->assertJsonPath('contracts.without_contract', 1)->assertJsonPath('contracts.expiring', []);
     }
 
     public function test_agency_list_is_searchable_and_paginated(): void

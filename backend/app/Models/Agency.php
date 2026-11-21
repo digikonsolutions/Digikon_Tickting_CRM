@@ -13,6 +13,9 @@ class Agency extends Model
 {
     use HasFactory;
 
+    /** draft: created from the wizard but not yet activated (no invite sent, owner cannot sign in). */
+    public const STATUSES = ['draft', 'active', 'suspended'];
+
     protected $fillable = [
         'name',
         'status',
@@ -44,6 +47,16 @@ class Agency extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(AgencyProfile::class);
+    }
+
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(AgencyContract::class);
     }
 
     public function branding(): HasOne

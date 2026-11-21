@@ -33,4 +33,14 @@ class AgencyDashboardController extends Controller
             'notified' => $notified,
         ], 201);
     }
+
+    /** The agency owner downloads the current contract's most recent document (clients and admins use their own routes). */
+    public function contractDocument(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $contract = ContractDocumentController::currentContract($request->user()->agency_id);
+        $document = $contract?->documents()->latest('id')->first();
+        abort_if($document === null, 404, 'No contract document is available.');
+
+        return ContractDocumentController::stream($document);
+    }
 }

@@ -196,6 +196,7 @@ class AdminDashboardService
             'total' => (int) $counts->sum(),
             'active' => (int) ($counts['active'] ?? 0),
             'suspended' => (int) ($counts['suspended'] ?? 0),
+            'draft' => (int) ($counts['draft'] ?? 0),
         ];
     }
 

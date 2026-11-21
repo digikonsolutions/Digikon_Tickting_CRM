@@ -2,45 +2,122 @@
 
 namespace App\Services;
 
+use App\Models\AgencyContract;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 
 /**
- * The single place that knows about plans and contracts.
+ * The single place that turns contract rows into the array every dashboard and page reads. An agency with no
+ * contract gets null, and a null limit means "no limit known", never "zero".
  *
- * There are no plan or contract tables yet, so every agency has no contract and every method here returns the
- * "no contract" answer (null, or null limits). All dashboards and pages already render those states. When the
- * plans-and-contracts tables arrive, load them in forAgency() and return the array shape documented below;
- * nothing else needs to change.
+ * Contract shape: plan_name, status, billing_cycle, starts_on, ends_on, renews_on (Y-m-d), trial_ends_on,
+ * auto_renew, payment_terms, price, currency, discount, overage_rate, document_available, seats_allowed,
+ * hours_included, open_projects_allowed, client_accounts_allowed.
  *
- * Contract shape: plan_name, status, starts_on, ends_on, renews_on (Y-m-d), auto_renew, payment_terms, price,
- * currency, document_available, seats_allowed, hours_included, open_projects_allowed, client_accounts_allowed.
+ * The agency's current contract is its trial or active one; failing that the most recent one. Limits only apply
+ * while a contract is trial, active or paused: an expired or cancelled contract shows its dates but sets no limits.
  */
 class AgencyContracts
 {
     /** @return array<string, mixed>|null */
     public function forAgency(int $agencyId): ?array
     {
-        return null;
+        return $this->summaries([$agencyId])[$agencyId] ?? null;
     }
 
     /**
+     * One query for the contracts and one for their documents, however many agencies are asked about.
+     *
      * @param  list<int>  $agencyIds
      * @return array<int, array<string, mixed>|null>
      */
     public function summaries(array $agencyIds): array
     {
-        $result = [];
-        foreach ($agencyIds as $id) {
-            $result[$id] = $this->forAgency($id);
+        $result = array_fill_keys($agencyIds, null);
+        if ($agencyIds === []) {
+            return $result;
+        }
+
+        $contracts = AgencyContract::query()
+            ->whereIn('agency_id', $agencyIds)
+            ->orderByRaw('CASE WHEN live_agency_id IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('start_date')->orderByDesc('id')
+            ->get()
+            ->groupBy('agency_id')
+            ->map(fn ($group) => $group->first());
+
+        $withDocuments = DB::table('contract_documents')->whereIn('agency_contract_id', $contracts->pluck('id'))
+            ->distinct()->pluck('agency_contract_id')->flip();
+
+        foreach ($contracts as $agencyId => $contract) {
+            $result[(int) $agencyId] = self::present($contract, $withDocuments->has($contract->id));
         }
 
         return $result;
     }
 
-    /** @return array{available: bool, with_contract: int, without_contract: int, expiring: list<array<string, mixed>>} */
+    /** @return array<string, mixed> */
+    public static function present(AgencyContract $contract, bool $hasDocument = false): array
+    {
+        $limitsApply = in_array($contract->status, ['trial', 'active', 'paused'], true);
+        $start = $contract->start_date?->toDateString();
+        $end = $contract->end_date?->toDateString();
+
+        return [
+            'id' => $contract->id,
+            'plan_name' => $contract->plan_name,
+            'status' => $contract->status,
+            'billing_cycle' => $contract->billing_cycle,
+            'starts_on' => $start,
+            'ends_on' => $end,
+            'renews_on' => $contract->auto_renew ? $end : null,
+            'trial_ends_on' => $contract->trial_end_date?->toDateString(),
+            'auto_renew' => $contract->auto_renew,
+            'payment_terms' => $contract->payment_terms_days !== null ? 'Net '.$contract->payment_terms_days : null,
+            'price' => $contract->price !== null ? (float) $contract->price : null,
+            'currency' => $contract->currency,
+            'discount' => $contract->discount_percent !== null ? rtrim(rtrim((string) $contract->discount_percent, '0'), '.').'%' : null,
+            'overage_rate' => $contract->overage_rate !== null ? (float) $contract->overage_rate : null,
+            'notice_period_days' => $contract->notice_period_days,
+            'document_available' => $hasDocument,
+            'seats_allowed' => $limitsApply ? $contract->employees : null,
+            'hours_included' => $limitsApply && $contract->hours_per_month !== null ? (float) $contract->hours_per_month : null,
+            'open_projects_allowed' => $limitsApply ? $contract->max_open_projects : null,
+            'client_accounts_allowed' => $limitsApply ? $contract->max_client_accounts : null,
+        ];
+    }
+
+    /**
+     * What the "Contracts expiring" card shows: how many agencies have a live contract, and those ending within 30 days.
+     *
+     * @return array{available: bool, with_contract: int, without_contract: int, expiring: list<array<string, mixed>>}
+     */
     public function overview(int $totalAgencies): array
     {
-        return ['available' => false, 'with_contract' => 0, 'without_contract' => $totalAgencies, 'expiring' => []];
+        $today = CarbonImmutable::now(config('app.timezone'))->startOfDay();
+        $with = (int) AgencyContract::query()->whereNotNull('live_agency_id')->count();
+        $expiring = DB::table('agency_contracts as c')
+            ->join('agencies as a', 'a.id', '=', 'c.agency_id')
+            ->whereNotNull('c.live_agency_id')
+            ->whereNotNull('c.end_date')
+            ->whereDate('c.end_date', '>=', $today->toDateString())
+            ->whereDate('c.end_date', '<=', $today->addDays(30)->toDateString())
+            ->orderBy('c.end_date')->limit(5)
+            ->get(['a.id as agency_id', 'a.name', 'c.plan_name', 'c.end_date'])
+            ->map(fn (object $row): array => [
+                'agency_id' => (int) $row->agency_id,
+                'name' => $row->name,
+                'plan_name' => $row->plan_name,
+                'ends_on' => CarbonImmutable::parse($row->end_date)->toDateString(),
+                'days_remaining' => (int) $today->diffInDays(CarbonImmutable::parse($row->end_date)->startOfDay(), false),
+            ])->values()->all();
+
+        return [
+            'available' => true,
+            'with_contract' => $with,
+            'without_contract' => max(0, $totalAgencies - $with),
+            'expiring' => $expiring,
+        ];
     }
 
     /**

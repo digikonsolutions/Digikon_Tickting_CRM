@@ -45,6 +45,18 @@ return [
     // Only these may be displayed inline (image previews); everything else is always a download.
     'inline_mimes' => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
 
+    // Signed contract files on an agency. Private disk, admin upload, pdf/jpg/png, up to 10 MB.
+    'contract_documents' => [
+        'max_kb' => (int) env('CONTRACT_DOCUMENT_MAX_KB', 10240),
+        'max_per_contract' => (int) env('CONTRACT_DOCUMENT_MAX_PER_CONTRACT', 20),
+        'allowed' => [
+            'pdf' => ['application/pdf'],
+            'jpg' => ['image/jpeg'],
+            'jpeg' => ['image/jpeg'],
+            'png' => ['image/png'],
+        ],
+    ],
+
     // HR documents on an employee record (CNIC, CV, contract...). Private disk, admin-only, pdf/jpg/png.
     'employee_documents' => [
         'max_kb' => (int) env('EMPLOYEE_DOCUMENT_MAX_KB', 5120),

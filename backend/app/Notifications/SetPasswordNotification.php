@@ -11,7 +11,7 @@ class SetPasswordNotification extends ResetPassword
 {
     private bool $isEmployee = false;
 
-    public function __construct($token, public bool $invite = false)
+    public function __construct($token, public bool $invite = false, public ?string $welcomeLine = null)
     {
         parent::__construct($token);
     }
@@ -31,7 +31,14 @@ class SetPasswordNotification extends ResetPassword
 
         $message = (new MailMessage)
             ->subject('Set your password')
-            ->line('Use the button below to set or reset your password.')
+            ->line('Use the button below to set or reset your password.');
+
+        // An optional personal line from the administrator, shown above the button text.
+        if ($this->invite && filled($this->welcomeLine)) {
+            $message->line(trim($this->welcomeLine));
+        }
+
+        $message
             ->action('Set your password', $url)
             ->line('This link expires in '.config('auth.passwords.'.config('auth.defaults.passwords').'.expire').' minutes.');
 

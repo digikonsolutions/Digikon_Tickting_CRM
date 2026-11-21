@@ -272,10 +272,16 @@ class UserAccountService
 
     private function sendInvitationLink(User $user): string
     {
+        return $this->sendInvitation($user);
+    }
+
+    /** Sends the set-password invitation, optionally with a personal line from the administrator. Returns the broker status. */
+    public function sendInvitation(User $user, ?string $welcomeLine = null): string
+    {
         return Password::broker()->sendResetLink(
             ['email' => $user->email],
-            function (User $notifiable, string $token): string {
-                $notifiable->notify(new SetPasswordNotification($token, true));
+            function (User $notifiable, string $token) use ($welcomeLine): string {
+                $notifiable->notify(new SetPasswordNotification($token, true, $welcomeLine));
 
                 return Password::RESET_LINK_SENT;
             }

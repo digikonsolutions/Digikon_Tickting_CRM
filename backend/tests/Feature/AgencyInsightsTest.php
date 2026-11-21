@@ -37,8 +37,6 @@ class AgencyInsightsTest extends TestCase
     public function test_without_a_contract_every_limit_is_unknown_not_zero(): void
     {
         $this->assertSame(['seats' => null, 'hours' => null, 'open_projects' => null, 'client_accounts' => null], AgencyContracts::limits(null));
-        $this->assertNull((new AgencyContracts)->forAgency(1));
-        $this->assertSame(['available' => false, 'with_contract' => 0, 'without_contract' => 4, 'expiring' => []], (new AgencyContracts)->overview(4));
         $this->assertNull(AgencyContracts::redactForClient(null));
         $this->assertSame([], AgencyInsights::contractAttention(null, 500));
     }
