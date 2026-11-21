@@ -13,7 +13,7 @@ use App\Models\User;
  */
 class AgencyDashboardService
 {
-    public function __construct(private AgencyInsights $insights, private AgencyContracts $contracts) {}
+    public function __construct(private AgencyInsights $insights, private AgencyContracts $contracts, private OwnerDashboardExtras $extras, private EmployeeSeats $seats) {}
 
     /** @return array<string, mixed> */
     public function payload(User $viewer): array
@@ -58,6 +58,8 @@ class AgencyDashboardService
         $counts = $this->insights->counts($agency->id);
         $employees = $this->insights->heldEmployees($agency->id);
         $hours = $this->limit($usage['month_hours'], $limits['hours']);
+        $seatSummary = $this->seats->summary($agency->id);
+        $employees = $this->extras->withDailyHours($agency->id, $employees);
 
         return [
             'role' => Role::AgencyOwner->value,
@@ -80,6 +82,12 @@ class AgencyDashboardService
             'employees' => $employees,
             'attention' => $this->insights->attention($agency->id, null, '/agency/projects', $contract, $usage['month_hours']),
             'recent_projects' => $this->insights->recentProjects($agency->id, null, 5),
+            // The redesigned owner dashboard reads these (one request instead of many).
+            'seats' => $seatSummary,
+            'kpis' => $this->extras->kpis($agency->id),
+            'needs_attention' => $this->extras->needsAttention($agency->id, $contract, $usage['month_hours'], $employees, $seatSummary['used'], $seatSummary['seats']),
+            'active_projects' => $this->extras->activeProjects($agency->id, 5),
+            'activity' => $this->extras->activity($agency->id, 10),
         ];
     }
 
