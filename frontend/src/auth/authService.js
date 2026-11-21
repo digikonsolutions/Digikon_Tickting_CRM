@@ -67,7 +67,8 @@ async function request(path, options = {}) {
   const isStateChanging = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())
 
   try {
-    if (isStateChanging) await establishCsrfCookie()
+    // The cookie only needs fetching when it is missing; an expired one still triggers the 419 retry below.
+    if (isStateChanging && !xsrfToken()) await establishCsrfCookie()
 
     let response = await send(path, options, isStateChanging)
 
@@ -118,7 +119,7 @@ async function request(path, options = {}) {
 // Multipart upload with progress (fetch cannot report upload progress). Mirrors request(): CSRF cookie,
 // credentials, and ApiError for failures. `onProgress` receives a 0 to 100 percentage.
 async function uploadForm(path, formData, { onProgress, signal } = {}) {
-  await establishCsrfCookie()
+  if (!xsrfToken()) await establishCsrfCookie()
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${API_URL}${path}`)
