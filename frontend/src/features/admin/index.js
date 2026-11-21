@@ -1,4 +1,6 @@
 export { AdminCreateUserPage } from './pages/AdminCreateUserPage'
+export { AdminCreateEmployeePage } from './pages/AdminCreateEmployeePage'
+export { AdminEmployeeProfilePage } from './pages/AdminEmployeeProfilePage'
 export { AdminProjectsPage } from './pages/AdminProjectsPage'
 export { AdminProjectDetailPage } from './pages/AdminProjectDetailPage'
 export { AdminTicketsPage } from './pages/AdminTicketsPage'

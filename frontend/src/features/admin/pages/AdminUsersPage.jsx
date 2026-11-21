@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
+import { Avatar, Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
+import { AVAILABILITY, AVAILABILITY_VARIANT, DEPARTMENTS, EMPLOYMENT_STATUSES, STATUS_VARIANT, labelOf } from '../employee/employeeForm'
+import '../employee/employee.css'
 
 export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [users, setUsers] = useState([])
@@ -101,26 +103,73 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
     }
   }
 
+  const isEmployeeList = role === ROLES.EMPLOYEE
+  const identityColumns = isEmployeeList
+    ? [
+      {
+        key: 'name',
+        label: 'Employee',
+        render: (_name, user) => (
+          <div className="emp-person">
+            <Avatar name={user.name} src={user.photo_url} size="md" />
+            <div>
+              <Link to={`/admin/employees/${user.id}`}>{user.name}</Link>
+              <small>{user.email}</small>
+            </div>
+          </div>
+        ),
+      },
+      { key: 'employee_code', label: 'Code', render: (_v, user) => <span className="emp-code">{user.profile?.employee_code ?? '—'}</span> },
+      { key: 'department', label: 'Department', render: (_v, user) => (user.profile?.department ? labelOf(DEPARTMENTS, user.profile.department) : '—') },
+      {
+        key: 'availability',
+        label: 'Availability',
+        render: (_v, user) => (user.profile
+          ? <Badge variant={AVAILABILITY_VARIANT[user.profile.availability] ?? 'slate'}>{labelOf(AVAILABILITY, user.profile.availability)}</Badge>
+          : '—'),
+      },
+      {
+        key: 'employment_status',
+        label: 'Status',
+        render: (_v, user) => (!user.is_active
+          ? <Badge variant="slate">Inactive</Badge>
+          : <Badge variant={STATUS_VARIANT[user.profile?.employment_status] ?? 'success'}>{labelOf(EMPLOYMENT_STATUSES, user.profile?.employment_status ?? 'active')}</Badge>),
+      },
+      {
+        key: 'completeness',
+        label: 'Profile',
+        render: (_v, user) => (
+          <span className="emp-meter">
+            <progress value={user.profile?.completeness ?? 0} max="100" aria-label={`Profile ${user.profile?.completeness ?? 0}% complete`} />
+            {user.profile?.completeness ?? 0}%
+          </span>
+        ),
+      },
+    ]
+    : [
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      {
+        key: 'role',
+        label: 'Role',
+        render: (value) => <Badge variant={value === 'admin' ? 'primary' : 'slate'}>{ROLE_LABELS[value] ?? value}</Badge>,
+      },
+      { key: 'agency_name', label: 'Agency', render: (name) => name || 'Internal' },
+      {
+        key: 'is_active',
+        label: 'Status',
+        render: (isActive) => <Badge variant={isActive ? 'success' : 'slate'}>{isActive ? 'Active' : 'Inactive'}</Badge>,
+      },
+    ]
   const columns = [
-    { key: 'name', label: 'Name' },
-    { key: 'email', label: 'Email' },
-    {
-      key: 'role',
-      label: 'Role',
-      render: (role) => <Badge variant={role === 'admin' ? 'primary' : 'slate'}>{ROLE_LABELS[role] ?? role}</Badge>,
-    },
-    { key: 'agency_name', label: 'Agency', render: (name) => name || 'Internal' },
-    {
-      key: 'is_active',
-      label: 'Status',
-      render: (isActive) => <Badge variant={isActive ? 'success' : 'slate'}>{isActive ? 'Active' : 'Inactive'}</Badge>,
-    },
+    ...identityColumns,
     {
       key: 'actions',
       label: 'Actions',
       render: (_value, user) => user.can_manage ? (
         <div className="agency-user-actions">
-          {user.role === 'employee' && <Link className="ui-button ui-button-secondary ui-button-sm" to={`/admin/employees/${user.id}`}>Activity</Link>}
+          {user.role === 'employee' && <Link className="ui-button ui-button-secondary ui-button-sm" to={`/admin/employees/${user.id}`}>Profile</Link>}
+          {user.role === 'employee' && <Link className="ui-button ui-button-secondary ui-button-sm" to={`/admin/employees/${user.id}/activity`}>Activity</Link>}
           <Button type="button" variant="secondary" size="sm" onClick={() => { setEditError(null); setEditingUser(user) }}>Edit</Button>
           <Button type="button" variant="secondary" size="sm" onClick={() => setAction({ kind: 'status', user })}>
             {user.is_active ? 'Deactivate' : 'Reactivate'}
@@ -152,7 +201,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by name or email"
+            placeholder={isEmployeeList ? 'Search by name, email or employee code' : 'Search by name or email'}
           />
           <Button type="submit" variant="secondary" loading={isLoading} loadingText="Searching…">Search</Button>
         </form>

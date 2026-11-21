@@ -7,6 +7,8 @@ import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
   EmptyState, Input, Modal, PageHeader, Skeleton, useToast,
 } from '../../../components/ui'
+import { AVAILABILITY, AVAILABILITY_VARIANT, labelOf } from '../../admin/employee/employeeForm'
+import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDateRange, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
@@ -35,6 +37,7 @@ export function AgencyEmployeesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerSearch, setDrawerSearch] = useState('')
   const [impactData, setImpactData] = useState(null)
+  const [profileId, setProfileId] = useState(null)
 
   /* auto-dismiss the error alert */
   useEffect(() => {
@@ -54,6 +57,9 @@ export function AgencyEmployeesPage() {
   const { data, error, isLoading, reload } = useAsync(loadData)
   const available = data?.available ?? []
   const mine = data?.mine ?? []
+
+  // Only an employee who can still be held offers "select" from inside the profile (team members cannot).
+  const profileCandidate = available.find((employee) => employee.id === profileId) ?? null
 
   const filteredAvailable = drawerSearch.trim()
     ? available.filter((e) => {
@@ -231,6 +237,9 @@ export function AgencyEmployeesPage() {
                   })}
                 </div>
 
+                <Button type="button" variant="secondary" size="sm" onClick={() => setProfileId(assignment.employee.id)}>
+                  View profile
+                </Button>
                 {isOwner && (
                   <Link className="ui-button ui-button-secondary ui-button-sm" to={`/agency/employees/${assignment.employee.id}/activity`}>
                     Work activity
@@ -269,8 +278,10 @@ export function AgencyEmployeesPage() {
       )}
 
       {/* Hold employee drawer */}
+      {/* The profile drawer replaces the hold drawer while it is open (two stacked drawers would both
+          answer Escape and fight over focus). Closing the profile brings the list back as it was. */}
       <Drawer
-        open={drawerOpen}
+        open={drawerOpen && !profileId}
         onClose={() => { setDrawerOpen(false); setDrawerSearch('') }}
         title={labels.holdEmployee}
         description="Choosing a specialist makes them exclusive to you until you release them."
@@ -287,21 +298,37 @@ export function AgencyEmployeesPage() {
           <div className="ae-drawer-list">
             {filteredAvailable.map((employee) => (
               <div className="ae-drawer-row" key={employee.id}>
-                <Avatar name={employee.name} size="md" />
+                <Avatar name={employee.name} src={employee.photo_url} size="md" />
                 <div className="ae-drawer-row-info">
                   <strong>{employee.name}</strong>
+                  {employee.headline && <span className="ae-drawer-headline">{employee.headline}</span>}
                   <span>{employee.email}</span>
+                  <div className="ae-drawer-row-extra">
+                    <Badge variant={AVAILABILITY_VARIANT[employee.availability] ?? 'slate'}>{labelOf(AVAILABILITY, employee.availability)}</Badge>
+                    {(employee.top_skills ?? []).map((skill) => <Badge key={skill} variant="slate">{skill}</Badge>)}
+                  </div>
                 </div>
                 <Badge variant={employee.agency_id ? 'primary' : 'info'}>
                   {employee.agency_id ? 'Agency' : 'Shared'}
                 </Badge>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setConfirm({ kind: 'assign', employee })}
-                >
-                  {labels.selectEmployee}
-                </Button>
+                <div className="ae-drawer-row-actions">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    aria-label={`View ${employee.name}'s profile`}
+                    onClick={() => setProfileId(employee.id)}
+                  >
+                    View profile
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setConfirm({ kind: 'assign', employee })}
+                  >
+                    {labels.selectEmployee}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -311,6 +338,19 @@ export function AgencyEmployeesPage() {
           </p>
         )}
       </Drawer>
+
+      <EmployeeProfileDrawer
+        employeeId={profileId}
+        onClose={() => setProfileId(null)}
+        footer={profileCandidate && (
+          <>
+            <Button type="button" variant="secondary" onClick={() => setProfileId(null)}>Back to list</Button>
+            <Button type="button" onClick={() => { setProfileId(null); setConfirm({ kind: 'assign', employee: profileCandidate }) }}>
+              {labels.selectEmployee}
+            </Button>
+          </>
+        )}
+      />
 
       {/* Confirm Modal */}
       <Modal

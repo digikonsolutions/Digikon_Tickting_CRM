@@ -45,7 +45,7 @@ export function EmployeesTab({
       render: (val, row) => (
         scope === 'admin' ? (
           <Link
-            to={`/admin/employees/${row.id}`}
+            to={`/admin/employees/${row.id}/activity`}
             style={{ color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}
           >
             {val}

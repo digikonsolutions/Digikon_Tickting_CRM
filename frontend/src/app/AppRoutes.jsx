@@ -5,7 +5,9 @@ import { ROLES } from '../auth/roles'
 import { Loader } from '../components/ui'
 import {
   AdminAssignmentsPage,
+  AdminCreateEmployeePage,
   AdminCreateUserPage,
+  AdminEmployeeProfilePage,
   AdminProjectDetailPage,
   AdminProjectsPage,
   AdminTicketsPage,
@@ -73,9 +75,10 @@ export function AppRoutes() {
             <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
             <Route path="/admin/time" element={<TimeSummaryPage scope="admin" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
-            <Route path="/admin/employees/:id" element={<AdminEmployeePage />} />
+            <Route path="/admin/employees/new" element={<AdminCreateEmployeePage />} />
+            <Route path="/admin/employees/:id" element={<AdminEmployeeProfilePage />} />
+            <Route path="/admin/employees/:id/activity" element={<AdminEmployeePage />} />
             <Route path="/admin/history" element={<AdminHistoryPage />} />
-            <Route path="/admin/employees/new" element={<AdminCreateUserPage role={ROLES.EMPLOYEE} />} />
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
             <Route path="/admin/agency-owners/new" element={<AdminCreateUserPage role={ROLES.AGENCY_OWNER} />} />
             <Route path="/admin/agency-clients" element={<AdminUsersPage key={ROLES.AGENCY_CLIENT} role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />

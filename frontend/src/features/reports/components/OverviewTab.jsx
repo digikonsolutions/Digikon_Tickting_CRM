@@ -215,7 +215,7 @@ export function OverviewTab({
                       <li key={emp.id} className="rp-attention-item">
                         <div className="rp-attention-item-info">
                           <Link
-                            to={`/admin/employees/${emp.id}`}
+                            to={`/admin/employees/${emp.id}/activity`}
                             className="rp-attention-item-title"
                             style={{ color: 'var(--brand)', textDecoration: 'none' }}
                           >

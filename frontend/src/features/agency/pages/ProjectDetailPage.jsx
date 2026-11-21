@@ -10,6 +10,7 @@ import { getAgencyLabels } from '../../../lib/labels'
 import { WaitingChip } from '../../tickets'
 import { BRIEF_LIMITS, FilePicker, ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
 import { ActivityTimeline } from '../../activity'
+import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
@@ -22,6 +23,7 @@ export function ProjectDetailPage() {
   const [editor, setEditor] = useState(null)
   const [projectEditor, setProjectEditor] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [profileId, setProfileId] = useState(null)
   const [mutationError, setMutationError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [ticketFiles, setTicketFiles] = useState([])
@@ -205,7 +207,15 @@ export function ProjectDetailPage() {
           <div className="project-overview-details">
             <p>{project.description}</p>
             <dl>
-              <div><dt>Specialist</dt><dd>{project.employee?.name ?? '—'}</dd></div>
+              <div>
+                <dt>Specialist</dt>
+                <dd>
+                  {project.employee?.name ?? '—'}
+                  {project.employee && (
+                    <button type="button" className="project-profile-link" onClick={() => setProfileId(project.employee.id)}>View profile</button>
+                  )}
+                </dd>
+              </div>
               <div><dt>Project hours</dt><dd>{formatHours(project.estimated_hours)}</dd></div>
               <div><dt>Dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
               <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>
@@ -281,6 +291,7 @@ export function ProjectDetailPage() {
           )}
         </div>
       )}
+      <EmployeeProfileDrawer employeeId={profileId} onClose={() => setProfileId(null)} />
       <Modal
         open={Boolean(editor)}
         onClose={() => !isSaving && setEditor(null)}

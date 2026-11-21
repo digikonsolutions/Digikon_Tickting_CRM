@@ -240,6 +240,59 @@ export const authService = {
       }),
     })
   },
+  // Employee profiles. Admin only, except getEmployeePublicProfile (agency owners and clients), which returns
+  // a limited profile without contact details, CNIC, finance or documents.
+  async createEmployee(data) {
+    if (AUTH_MODE === 'mock') return { employee: { id: 'demo-employee', name: data.name, email: data.email } }
+    return request('/admin/employees', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getAdminEmployee(id) {
+    if (AUTH_MODE === 'mock') return { employee: null }
+    return request(`/admin/employees/${encodeURIComponent(id)}`)
+  },
+  async updateAdminEmployee(id, data) {
+    if (AUTH_MODE === 'mock') return { employee: null }
+    return request(`/admin/employees/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  // The full CNIC. Each call is audited on the server.
+  async revealEmployeeCnic(id) {
+    if (AUTH_MODE === 'mock') return { cnic: null }
+    return request(`/admin/employees/${encodeURIComponent(id)}/reveal-cnic`, { method: 'POST' })
+  },
+  async uploadEmployeePhoto(id, file) {
+    if (AUTH_MODE === 'mock') return { employee: null }
+    const form = new FormData()
+    form.append('photo', file, file.name)
+    return uploadForm(`/admin/employees/${encodeURIComponent(id)}/photo`, form)
+  },
+  async deleteEmployeePhoto(id) {
+    if (AUTH_MODE === 'mock') return { employee: null }
+    return request(`/admin/employees/${encodeURIComponent(id)}/photo`, { method: 'DELETE' })
+  },
+  // One document per request so each file shows its own progress and error.
+  async uploadEmployeeDocument(id, { file, type, expiresAt, onProgress, signal }) {
+    if (AUTH_MODE === 'mock') return { document: null, completeness: null }
+    const form = new FormData()
+    form.append('file', file, file.name)
+    form.append('type', type)
+    if (expiresAt) form.append('expires_at', expiresAt)
+    return uploadForm(`/admin/employees/${encodeURIComponent(id)}/documents`, form, { onProgress, signal })
+  },
+  async verifyEmployeeDocument(id, documentId, verified) {
+    if (AUTH_MODE === 'mock') return { document: null }
+    return request(`/admin/employees/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}/verify`, { method: 'PATCH', body: JSON.stringify({ verified }) })
+  },
+  async deleteEmployeeDocument(id, documentId) {
+    if (AUTH_MODE === 'mock') return { message: 'The document was removed.', completeness: null }
+    return request(`/admin/employees/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' })
+  },
+  employeeDocumentUrl(id, documentId, { inline = false } = {}) {
+    return `${API_URL}/admin/employees/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}${inline ? '?inline=1' : ''}`
+  },
+  async getEmployeePublicProfile(id) {
+    if (AUTH_MODE === 'mock') return { employee: null }
+    return request(`/agency/employees/${encodeURIComponent(id)}/profile`)
+  },
   // Agency branding. Reading is open to the whole agency; everything else is owner-only (the server enforces it).
   // Every call resolves to { branding }. `kind` is 'logo', 'logo-collapsed' or 'favicon'.
   async getAgencyBranding() {

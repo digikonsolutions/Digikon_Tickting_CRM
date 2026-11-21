@@ -24,7 +24,7 @@ export function AssignmentsTab({
       sortKey: 'employee',
       render: (val, row) => (
         <Link
-          to={`/admin/employees/${row.employee_id}`}
+          to={`/admin/employees/${row.employee_id}/activity`}
           style={{ color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}
         >
           {val}
@@ -104,7 +104,7 @@ export function AssignmentsTab({
             {unassignedEmployees.map((emp) => (
               <Link
                 key={emp.id}
-                to={`/admin/employees/${emp.id}`}
+                to={`/admin/employees/${emp.id}/activity`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
