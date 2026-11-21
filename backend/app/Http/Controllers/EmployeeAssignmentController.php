@@ -6,13 +6,15 @@ use App\Enums\Role;
 use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Services\AssignmentService;
+use App\Services\EmployeeProfileService;
+use App\Services\WorkflowNotificationService;
 use App\Services\WorkItemScheduler;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Carbon\CarbonImmutable;
 
 class EmployeeAssignmentController extends Controller
 {
@@ -32,7 +34,7 @@ class EmployeeAssignmentController extends Controller
             ->get();
 
         // Each card carries the public summary (photo, headline, top skills, availability) only.
-        $profiles = app(\App\Services\EmployeeProfileService::class);
+        $profiles = app(EmployeeProfileService::class);
 
         return response()->json(['employees' => $employees->map(fn (User $employee): array => [
             'id' => $employee->id,
@@ -91,7 +93,7 @@ class EmployeeAssignmentController extends Controller
             ]);
         }
 
-        app(\App\Services\WorkflowNotificationService::class)->assignmentHeld($assignment->load(['employee', 'agency']), $holder);
+        app(WorkflowNotificationService::class)->assignmentHeld($assignment->load(['employee', 'agency']), $holder);
 
         return response()->json([
             'assignment' => $this->payload($assignment->load(['employee', 'agency', 'holder'])),
@@ -136,6 +138,37 @@ class EmployeeAssignmentController extends Controller
             'assignment_id' => $assignment->id,
             'capacity' => WorkItemScheduler::capacity(),
             ...$this->weeklyUsage($assignment, $week),
+        ]);
+    }
+
+    /**
+     * Hours the held employee can still be booked between two dates, from the scheduler itself, so non-working
+     * dates, Sundays, the cut-off for today and every other booking on the employee (any holder) are respected.
+     */
+    public function availability(Request $request, EmployeeAssignment $assignment): JsonResponse
+    {
+        $this->authorizeAssignment($request->user(), $assignment);
+        $data = $request->validate([
+            'start_date' => ['required', 'date_format:Y-m-d'],
+            'due_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+        ]);
+        $timezone = config('app.timezone');
+        $start = CarbonImmutable::parse($data['start_date'], $timezone)->startOfDay();
+        $due = CarbonImmutable::parse($data['due_date'], $timezone)->startOfDay();
+        if ($start->diffInDays($due) > 366) {
+            throw ValidationException::withMessages(['due_date' => 'Choose a range of at most 366 days.']);
+        }
+
+        $scheduler = app(WorkItemScheduler::class);
+        abort_unless($assignment->status === 'active' && $assignment->employee !== null, 404);
+
+        return response()->json([
+            'assignment_id' => $assignment->id,
+            'start_date' => $start->toDateString(),
+            'due_date' => $due->toDateString(),
+            'available_hours' => WorkItemScheduler::unitsToHours($scheduler->availableUnits($assignment->employee, $start, $due)),
+            'capacity' => WorkItemScheduler::capacity(),
+            'days' => $scheduler->dailyAvailability($assignment->employee, $start, $due),
         ]);
     }
 

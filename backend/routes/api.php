@@ -73,6 +73,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/assignments', [EmployeeAssignmentController::class, 'index'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    Route::get('/assignments/{assignment}/availability', [EmployeeAssignmentController::class, 'availability'])
+        ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/assignments/{assignment}/usage', [EmployeeAssignmentController::class, 'usage'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/assignments/{assignment}', [EmployeeAssignmentController::class, 'destroy'])
