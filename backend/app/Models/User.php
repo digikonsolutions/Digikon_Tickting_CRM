@@ -9,6 +9,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -67,6 +68,36 @@ class User extends Authenticatable
     {
         // Photos live in Cloudinary now (avatar_url); older local uploads (photo_path) keep working.
         return $this->avatar_url ?: ($this->photo_path ? Storage::disk('public')->url($this->photo_path) : null);
+    }
+
+    public function employeeProfile(): HasOne
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
+    public function skills(): HasMany
+    {
+        return $this->hasMany(EmployeeSkill::class)->orderBy('name');
+    }
+
+    public function educations(): HasMany
+    {
+        return $this->hasMany(EmployeeEducation::class)->orderByDesc('end_date')->orderByDesc('id');
+    }
+
+    public function experiences(): HasMany
+    {
+        return $this->hasMany(EmployeeExperience::class)->orderByDesc('end_date')->orderByDesc('id');
+    }
+
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(EmployeeCertification::class)->orderBy('name');
+    }
+
+    public function employeeDocuments(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class)->orderBy('type')->orderBy('id');
     }
 
     public function heldEmployeeAssignments(): HasMany
