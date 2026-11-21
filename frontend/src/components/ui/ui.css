@@ -1157,8 +1157,8 @@
 .admin-project-ticket-content > .ticket-comments-toggle { margin-top: .75rem; }
 
 /* ---- Phase 1 primitives: ticket key, timeline, stepper, banner, day strip ---- */
-.ui-ticket-key { display: inline-block; border: 1px solid var(--color-primary-200); border-radius: .4rem; padding: .1rem .45rem; background: var(--brand-soft); color: var(--brand-hover); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .74rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
-.ui-relative-time { color: var(--color-muted); font-size: .74rem; white-space: nowrap; }
+.ui-ticket-key { display: inline-block; border: 1px solid var(--color-primary-200); border-radius: .4rem; padding: .1rem .45rem; background: var(--brand-soft); color: var(--brand-hover); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .75rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.ui-relative-time { color: var(--color-muted); font-size: .75rem; white-space: nowrap; }
 .ui-plain-text { margin: 0; overflow-wrap: anywhere; }
 .ui-plain-text a { color: var(--brand); text-decoration: underline; text-underline-offset: .15em; }
 .ui-plain-text a:hover { color: var(--brand-hover); }

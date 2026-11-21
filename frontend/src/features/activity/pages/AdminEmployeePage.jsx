@@ -82,7 +82,7 @@ export function AdminEmployeePage({ scope = 'admin' }) {
           </Card>
 
           <Card title="Scheduled vs actual" description="Active is time with the app open and in use; logged is time recorded on tickets.">
-            <div className="time-summary-scroll">
+            <div className="time-summary-scroll" tabIndex={0} role="region" aria-label="Scheduled vs actual table">
               <table className="time-summary-table">
                 <thead>
                   <tr><th scope="col">Day</th><th scope="col">Scheduled</th><th scope="col">Logged</th><th scope="col">Active</th><th scope="col">Idle</th><th scope="col">First sign-in</th></tr>

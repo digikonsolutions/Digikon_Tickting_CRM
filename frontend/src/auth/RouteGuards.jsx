@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './useAuth'
 import { BrandMark } from '../branding/BrandMark'
 import { useBranding } from '../branding/useBranding'
-import { ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
+import { postLoginPath, ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon, Loader } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
@@ -16,7 +16,7 @@ export function ProtectedRoute() {
   const location = useLocation()
   if (isLoading) return <Loader label="Checking your session…" />
   if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (!user) return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />
   // Employees see nothing else until they accept the monitoring notice.
   if (user.role === ROLES.EMPLOYEE && user.monitoring_consent_required) return <MonitoringConsent />
   return <Outlet />
@@ -24,9 +24,10 @@ export function ProtectedRoute() {
 
 export function PublicOnlyRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
+  const location = useLocation()
   if (isLoading) return <Loader label="Checking your session…" />
   if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
-  return user ? <Navigate to={ROLE_HOME[user.role]} replace /> : <Outlet />
+  return user ? <Navigate to={postLoginPath(user, location.state?.from)} replace /> : <Outlet />
 }
 
 export function HomeRedirect() {
@@ -144,6 +145,13 @@ export function AppLayout() {
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace'))
 
+  // "Agencies · ClientHub" in the tab and in history; falls back to the plain name when the page has no title.
+  useEffect(() => {
+    const brand = displayName || 'ClientHub'
+    document.title = pageTitle && pageTitle !== 'Workspace' ? `${pageTitle} · ${brand}` : brand
+    return () => { document.title = 'ClientHub' }
+  }, [pageTitle, displayName])
+
   async function handleSignOut() {
     setSignOutError(null)
     setIsSigningOut(true)
@@ -247,7 +255,8 @@ export function AppLayout() {
             >
               {isNavOpen ? 'Close menu' : 'Menu'}
             </Button>
-            <h1>{pageTitle}</h1>
+            {/* Not a heading: every page renders its own <h1>, and two per page break the outline. */}
+            <p className="dashboard-page-title">{pageTitle}</p>
           </div>
           <div className="dashboard-header-tools">
             {user.role === ROLES.EMPLOYEE && <TimerPill />}

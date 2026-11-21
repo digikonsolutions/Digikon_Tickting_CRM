@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } from '../auth/RouteGuards'
 import { ROLES } from '../auth/roles'
+import { useAuth } from '../auth/useAuth'
 import { Loader } from '../components/ui'
 import {
   AdminAgenciesPage,
@@ -123,7 +124,14 @@ export function AppRoutes() {
       </Route>
       <Route path="/404" element={<NotFoundPage />} />
       <Route path="/" element={<HomeRedirect />} />
-      <Route path="*" element={<HomeRedirect />} />
+      <Route path="*" element={<UnknownRoute />} />
     </Routes>
   )
+}
+
+// Signed-in users get a real 404; signed-out users are sent to sign in as before.
+function UnknownRoute() {
+  const { user, isLoading } = useAuth()
+  if (isLoading || !user) return <HomeRedirect />
+  return <NotFoundPage />
 }

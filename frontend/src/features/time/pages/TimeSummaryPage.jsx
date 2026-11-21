@@ -78,7 +78,7 @@ export function TimeSummaryPage({ scope }) {
           {data.rows.length === 0
             ? <EmptyState title="No time in this range">Try a wider date range.</EmptyState>
             : (
-              <div className="time-summary-scroll">
+              <div className="time-summary-scroll" tabIndex={0} role="region" aria-label="Time summary table">
                 <table className="time-summary-table">
                   <thead>
                     <tr>

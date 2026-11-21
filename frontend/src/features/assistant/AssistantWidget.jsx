@@ -122,6 +122,7 @@ export function AssistantWidget() {
         ref={launcherRef}
         type="button"
         className={`as-launcher${open ? ' is-open' : ''}`}
+        aria-label={open ? 'Close assistant' : 'Ask the assistant'}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={toggle}

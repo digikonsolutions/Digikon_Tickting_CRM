@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
-import { ROLE_HOME } from '../../../auth/roles'
+import { postLoginPath } from '../../../auth/roles'
 import { AuthLayout } from '../components/AuthLayout'
 import { Alert, Button, Input } from '../../../components/ui'
 
@@ -30,7 +30,7 @@ export function LoginPage() {
         email: String(data.get('email')).trim(),
         password: data.get('password'),
       })
-      navigate(ROLE_HOME[user.role], { replace: true })
+      navigate(postLoginPath(user, location.state?.from), { replace: true })
     } catch (reason) {
       setError(reason)
     } finally {

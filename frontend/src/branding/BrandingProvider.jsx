@@ -131,14 +131,7 @@ export function BrandingProvider({ children }) {
     }
   }, [faviconUrl])
 
-  useEffect(() => {
-    if (!displayName) return undefined
-    const previous = document.title
-    document.title = displayName
-    return () => {
-      document.title = previous
-    }
-  }, [displayName])
+  // The tab title is set per page by AppLayout (it includes this display name).
 
   const value = useMemo(() => ({
     branding,

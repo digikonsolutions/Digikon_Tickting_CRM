@@ -94,7 +94,7 @@ export function AdminTicketsPage() {
   return (
     <section className="page">
       <PageHeader eyebrow="Administration" title="All tickets" subtitle="Read-only view of project tickets across agencies." />
-      <Card title="Ticket directory" description={`${pagination.total} ticket${pagination.total === 1 ? '' : 's'}${hasFilters ? ' match these filters' : ' total'}.`}>
+      <Card title="Ticket directory" description={isLoading && !data ? 'Loading tickets…' : `${pagination.total} ticket${pagination.total === 1 ? '' : 's'}${hasFilters ? ' match these filters' : ' total'}.`}>
         <form className="admin-ticket-filters" onSubmit={submitSearch} aria-label="Filter tickets">
           <Input id="ticket-search" label="Search" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Key or title" />
           <Select id="ticket-status" label="Status" value={filters.status} onChange={(event) => setFilter('status', event.target.value)}>

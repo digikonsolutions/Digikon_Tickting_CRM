@@ -6,6 +6,13 @@ import { AT_RISK_DAYS } from './constants'
 const MS_PER_DAY = 86400000
 const OPEN_STATUSES = ['scheduled', 'in_progress', 'todo', 'in_review']
 
+// pluralize(1, 'agency') -> "agency"; pluralize(4, 'agency') -> "agencies"; pass `plural` for irregular nouns.
+export function pluralize(count, noun, plural) {
+  if (count === 1) return noun
+  if (plural) return plural
+  return /[^aeiou]y$/i.test(noun) ? `${noun.slice(0, -1)}ies` : `${noun}s`
+}
+
 function parseLocal(dateStr) {
   if (typeof dateStr !== 'string') return null
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)

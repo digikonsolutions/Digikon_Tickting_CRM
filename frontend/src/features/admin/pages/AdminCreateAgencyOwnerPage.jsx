@@ -71,6 +71,13 @@ export function AdminCreateAgencyOwnerPage() {
     if (!result && hasContent(values)) saveDraft({ values, step: stepId })
   }, [values, stepId, result])
 
+  // After a failed submit or Next, put the keyboard on the first invalid field of the step now showing.
+  const [focusInvalid, setFocusInvalid] = useState(0)
+  useEffect(() => {
+    if (focusInvalid === 0) return
+    document.querySelector('.onb-page [aria-invalid="true"]')?.focus()
+  }, [focusInvalid, stepId])
+
   const section = (name) => (next) => setValues((current) => ({ ...current, [name]: next }))
   const onKnown = useCallback((employees) => setKnown((current) => ({ ...current, ...Object.fromEntries(employees.map((employee) => [employee.id, employee])) })), [])
 
@@ -91,7 +98,10 @@ export function AdminCreateAgencyOwnerPage() {
   function next() {
     const found = validateStep(stepId, values)
     setErrors((current) => ({ ...withoutStep(current, stepId), ...found }))
-    if (Object.keys(found).length > 0) return
+    if (Object.keys(found).length > 0) {
+      setFocusInvalid((tick) => tick + 1)
+      return
+    }
     goTo(STEPS[index + 1].id)
   }
 
@@ -106,6 +116,7 @@ export function AdminCreateAgencyOwnerPage() {
     const all = FORM_STEPS.reduce((found, step) => ({ ...found, ...validateStep(step.id, values) }), {})
     if (Object.keys(all).length > 0) {
       setErrors(all)
+      setFocusInvalid((tick) => tick + 1)
       goTo(Object.keys(all).map(stepOfKey).sort((a, b) => stepIndex(a) - stepIndex(b))[0])
       return
     }
@@ -119,6 +130,7 @@ export function AdminCreateAgencyOwnerPage() {
     } catch (reason) {
       if (reason.status === 422 && Object.keys(reason.errors ?? {}).length > 0) {
         setErrors(reason.errors)
+        setFocusInvalid((tick) => tick + 1)
         goTo(Object.keys(reason.errors).map(stepOfKey).sort((a, b) => stepIndex(a) - stepIndex(b))[0])
       } else {
         setApiError(reason)

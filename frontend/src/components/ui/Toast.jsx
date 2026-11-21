@@ -30,7 +30,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="ui-toast-region" aria-live="polite" aria-label="Notifications">
+      <div className="ui-toast-region" role="status" aria-live="polite" aria-label="Notifications">
         {toasts.map((toast) => (
           <Alert key={toast.id} variant={toast.variant} className="ui-toast">
             {toast.message}

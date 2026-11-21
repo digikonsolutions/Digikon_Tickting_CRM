@@ -29,6 +29,17 @@ export const ROLE_HOME = Object.freeze({
   [ROLES.AGENCY_CLIENT]: '/agency/dashboard',
 })
 
+// Where to send someone after signing in: the page they were on when the session ended, if their role may open it.
+const SHARED_PREFIXES = ['/profile', '/notifications', '/settings/', '/tickets/']
+export function postLoginPath(user, from) {
+  const home = ROLE_HOME[user.role]
+  if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) return home
+  if (['/login', '/forgot-password', '/reset-password', '/unauthorized', '/404'].some((path) => from.startsWith(path))) return home
+  const area = `/${home.split('/')[1]}`
+  const inOwnArea = area !== '/profile' && (from === area || from.startsWith(`${area}/`))
+  return inOwnArea || SHARED_PREFIXES.some((prefix) => from.startsWith(prefix)) ? from : home
+}
+
 const INTERNAL_ROLES = new Set([ROLES.ADMIN, ROLES.TEAM_LEAD, ROLES.EMPLOYEE, ROLES.QA])
 const AGENCY_ROLES = new Set([
   ROLES.AGENCY_OWNER,

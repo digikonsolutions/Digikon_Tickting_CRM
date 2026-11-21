@@ -11,7 +11,7 @@ export const CORNER_RADII = {
  * same variables to a container without touching the real document. Properties that are not branded
  * are simply absent, so the stylesheet defaults apply.
  */
-export const DEFAULT_PRIMARY = '#0D9488'
+export const DEFAULT_PRIMARY = '#0F766E'
 
 export function brandingVariables(branding, { dark = false, complete = false } = {}) {
   const vars = {}

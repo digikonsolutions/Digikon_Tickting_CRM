@@ -14,8 +14,9 @@
   text-rendering: optimizeLegibility;
 
   /* Brand (teal) */
-  --brand: #0d9488;
-  --brand-hover: #0f766e;
+  /* Teal-700 / 800: white text on --brand and --brand text on light tints both pass WCAG AA (4.5:1). */
+  --brand: #0f766e;
+  --brand-hover: #115e59;
   --brand-soft: #f0fdfa;
   --brand-ring: rgb(13 148 136 / 22%);
   --brand-shadow: 0 4px 12px rgb(13 148 136 / 20%);
@@ -76,8 +77,8 @@
   --color-accent-300: #5eead4;
   --color-accent-400: #2dd4bf;
   --color-accent-50: #f0fdfa;
-  --color-accent-600: #0d9488;
-  --color-accent-700: #0f766e;
+  --color-accent-600: #0f766e;
+  --color-accent-700: #115e59;
   --color-accent-ring: rgb(13 148 136 / 18%);
   --color-auth-bg-start: #f0fdfa;
   --color-auth-bg-end: #f8fafc;

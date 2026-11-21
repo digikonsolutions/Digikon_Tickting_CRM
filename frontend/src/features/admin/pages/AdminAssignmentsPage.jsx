@@ -3,8 +3,10 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Modal, PageHeader, Pagination, Table } from '../../../components/ui'
+import { formatShortDate, pluralize } from '../../../lib/format'
 
 const PER_PAGE = 25
+const STATUS_LABELS = { active: 'Active', ended: 'Ended' }
 
 export function AdminAssignmentsPage() {
   const [page, setPage] = useState(1)
@@ -35,9 +37,9 @@ export function AdminAssignmentsPage() {
     { key: 'employee', label: 'Employee', render: (employee) => employee?.name ?? 'Account removed' },
     { key: 'holder', label: 'Holder', render: (holder) => holder?.name ?? 'Account removed' },
     { key: 'agency_name', label: 'Agency' },
-    { key: 'status', label: 'Status' },
-    { key: 'started_at', label: 'Started', render: (date) => date ? new Date(date).toLocaleDateString() : '—' },
-    { key: 'ended_at', label: 'Ended', render: (date) => date ? new Date(date).toLocaleDateString() : '—' },
+    { key: 'status', label: 'Status', render: (status) => STATUS_LABELS[status] ?? status },
+    { key: 'started_at', label: 'Started', render: (date) => formatShortDate(date) },
+    { key: 'ended_at', label: 'Ended', render: (date) => formatShortDate(date) },
     {
       key: 'actions',
       label: 'Actions',
@@ -51,7 +53,7 @@ export function AdminAssignmentsPage() {
     <section className="page">
       <PageHeader eyebrow="Administration" title="Employee assignments" subtitle="Read-only assignment history with the option to end an active assignment." />
       <ApiErrorMessage error={actionError ?? error} />
-      <Card title="Assignment directory" description={`${pagination.total} assignments total.`}>
+      <Card title="Assignment directory" description={isLoading && !data ? 'Loading assignments…' : `${pagination.total} ${pluralize(pagination.total, 'assignment')} total.`}>
         {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
         <Table columns={columns} rows={assignments} loading={isLoading} emptyTitle="No assignments found" emptyText="Employee assignments will appear here." />
         <Pagination page={pagination.current_page} lastPage={pagination.last_page} total={pagination.total} noun="assignment" loading={isLoading} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
