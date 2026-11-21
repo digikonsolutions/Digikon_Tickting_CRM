@@ -297,10 +297,12 @@ class AdminDashboardOverviewTest extends TestCase
         $this->book($assignment, 'in_progress', [[$this->monday->addDay(), 1]]);
         $this->book($assignment, 'in_progress', [[$this->monday->addDays(2), 1]]);
         $this->book($assignment, 'completed', [[$this->monday->addDays(3), 1]]);
+        $this->book($assignment, 'cancelled', [[$this->monday->addDays(4), 1]]);
         \App\Models\Ticket::create(['work_item_id' => WorkItem::first()->id, 'title' => 'T', 'description' => 'd', 'estimated_hours' => 1, 'position' => 0]);
 
         $this->dashboard()
-            ->assertJsonPath('work_summary.projects.total', 4)
+            ->assertJsonPath('work_summary.projects.total', 5)
+            ->assertJsonPath('work_summary.projects.cancelled', 1)
             ->assertJsonPath('work_summary.projects.scheduled', 1)
             ->assertJsonPath('work_summary.projects.in_progress', 2)
             ->assertJsonPath('work_summary.projects.completed', 1)

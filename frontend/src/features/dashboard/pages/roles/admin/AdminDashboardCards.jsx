@@ -195,18 +195,61 @@ export function AttentionCard({ items }) {
   )
 }
 
+// Colour carries meaning here: blue is waiting, teal is active work, green is done, grey is cancelled.
+const PROJECT_SEGMENTS = [
+  { key: 'scheduled', label: 'Scheduled', tone: 'scheduled' },
+  { key: 'in_progress', label: 'In progress', tone: 'active' },
+  { key: 'completed', label: 'Completed', tone: 'done' },
+  { key: 'cancelled', label: 'Cancelled', tone: 'cancelled' },
+]
+
 export function WorkSummaryCard({ summary }) {
   const { projects, tickets } = summary
-  const stats = [
-    ['Projects', projects.total], ['Scheduled', projects.scheduled], ['In progress', projects.in_progress],
-    ['Completed', projects.completed], ['Tickets', tickets.total],
-  ]
+  const total = projects.total
+  const percent = (value) => (total > 0 ? Math.round((value / total) * 100) : 0)
+  const description = PROJECT_SEGMENTS.map((segment) => `${projects[segment.key] ?? 0} ${segment.label.toLowerCase()}`).join(', ')
+
   return (
     <Card>
-      <div className="adm-summary">
-        <div className="adm-card-head"><div><h2>Work summary</h2></div></div>
-        <dl>{stats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-        <Link className="adm-link" to="/admin/projects">All projects</Link>
+      <div className="adm-card-body">
+        <div className="adm-card-head">
+          <div>
+            <h2>Work summary</h2>
+            <p>{total} project{total === 1 ? '' : 's'} · {tickets.total} ticket{tickets.total === 1 ? '' : 's'}</p>
+          </div>
+          <Link className="adm-link" to="/admin/projects">All projects</Link>
+        </div>
+        {total === 0 ? (
+          <p className="adm-summary-empty">No projects yet. They appear here once an agency creates one.</p>
+        ) : (
+          <>
+            <div className="adm-stack" role="img" aria-label={`Projects by status: ${description}`}>
+              {PROJECT_SEGMENTS.map((segment) => (projects[segment.key] > 0 && (
+                <span key={segment.key} className={`adm-stack-seg is-${segment.tone}`} style={{ flexGrow: projects[segment.key] }} title={`${segment.label}: ${projects[segment.key]}`} />
+              )))}
+            </div>
+            <ul className="adm-legend" aria-label="Projects by status">
+              {PROJECT_SEGMENTS.map((segment) => (
+                <li key={segment.key}>
+                  <Link to={`/admin/projects?status=${segment.key}`} aria-label={`${segment.label}: ${projects[segment.key] ?? 0} projects. View them`}>
+                    <span className={`adm-dot is-${segment.tone}`} aria-hidden="true" />
+                    <span className="adm-legend-label">{segment.label}</span>
+                    <strong>{projects[segment.key] ?? 0}</strong>
+                    <small>{percent(projects[segment.key] ?? 0)}%</small>
+                  </Link>
+                </li>
+              ))}
+              <li className="adm-legend-tickets">
+                <Link to="/admin/tickets" aria-label={`Tickets: ${tickets.total}. View them`}>
+                  <span className="adm-dot is-ticket" aria-hidden="true" />
+                  <span className="adm-legend-label">Tickets</span>
+                  <strong>{tickets.total}</strong>
+                  <small>all projects</small>
+                </Link>
+              </li>
+            </ul>
+          </>
+        )}
       </div>
     </Card>
   )

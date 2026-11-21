@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
@@ -16,7 +17,12 @@ export function AdminProjectsPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
-  const [status, setStatus] = useState('')
+  // Links from the dashboard (?status=in_progress) open the list already filtered.
+  const [searchParams] = useSearchParams()
+  const [status, setStatus] = useState(() => {
+    const wanted = searchParams.get('status') ?? ''
+    return STATUS_FILTERS.some((filter) => filter.value === wanted) ? wanted : ''
+  })
   const load = useCallback(() => authService.listAdminProjects({ page, search, status: status || undefined }), [page, search, status])
   const { data, error, isLoading, reload } = useAsync(load)
   const projects = data?.projects ?? []

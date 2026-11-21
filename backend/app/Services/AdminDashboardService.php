@@ -72,6 +72,7 @@ class AdminDashboardService
                     'scheduled' => $projects['scheduled'],
                     'in_progress' => $projects['in_progress'],
                     'completed' => $projects['completed'],
+                    'cancelled' => $projects['cancelled'],
                 ],
                 'tickets' => ['total' => (int) DB::table('tickets')->count()],
             ],
@@ -253,6 +254,7 @@ class AdminDashboardService
             SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) AS scheduled,
             SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled,
             SUM(CASE WHEN status IN ({$open}) AND DATE(due_date) < ? THEN 1 ELSE 0 END) AS overdue,
             SUM(CASE WHEN status IN ({$open}) AND DATE(due_date) >= ? AND DATE(due_date) <= ? THEN 1 ELSE 0 END) AS due_soon",
             [$today->toDateString(), $today->toDateString(), $today->addDays(2)->toDateString()]
