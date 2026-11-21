@@ -8,13 +8,14 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\AvatarService;
 use App\Services\UserAccountService;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SessionController extends Controller
 {
@@ -137,7 +138,10 @@ class SessionController extends Controller
             'email' => ['required', 'string', 'email', 'max:254'],
         ]);
 
-        Password::sendResetLink($data);
+        // A deactivated account gets no email, but the answer is identical so nobody can tell it exists.
+        if (User::query()->where('email', $data['email'])->where('is_active', false)->doesntExist()) {
+            Password::sendResetLink($data);
+        }
 
         return response()->json([
             'message' => 'If an account exists for that email, password reset instructions will be sent.',
@@ -163,7 +167,7 @@ class SessionController extends Controller
                 ])->save();
 
                 DB::table('sessions')->where('user_id', $user->getKey())->delete();
-                event(new \Illuminate\Auth\Events\PasswordReset($user));
+                event(new PasswordReset($user));
             }
         );
 
