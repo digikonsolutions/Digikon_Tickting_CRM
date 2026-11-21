@@ -139,24 +139,19 @@ function AgencyWorkspaceDashboard() {
       {(isOwner || dashboard.contract) && <ContractStrip dashboard={dashboard} />}
       <AgencyKpiRow dashboard={dashboard} />
 
-      <div className={`adm-row${isOwner ? '' : ' is-single'}`}>
-        <div className="adm-stack-col">
+      <div className="adm-cols">
+        <div className="adm-col">
           <AttentionCard items={dashboard.attention} emptyText="Your projects and plan are on track." />
           <NeedsAttentionCard />
+          <EmployeesSection dashboard={dashboard} onProfile={setProfileId} holdDisabled={state.holdDisabled} holdReason={state.holdReason} />
+          <RecentProjectsCard dashboard={dashboard} />
         </div>
-        {isOwner && <ContractCard dashboard={dashboard} onRequest={setRequestType} />}
+        <div className="adm-col">
+          {isOwner && <ContractCard dashboard={dashboard} onRequest={setRequestType} />}
+          {isOwner && <HoursUsageCard dashboard={dashboard} onRequest={setRequestType} />}
+          <AgencyQuickActions dashboard={dashboard} />
+        </div>
       </div>
-
-      <div className={`adm-row${isOwner ? '' : ' is-single'}`}>
-        <EmployeesSection dashboard={dashboard} onProfile={setProfileId} holdDisabled={state.holdDisabled} holdReason={state.holdReason} />
-        {isOwner && <HoursUsageCard dashboard={dashboard} onRequest={setRequestType} />}
-      </div>
-
-      <div className="adm-row">
-        <RecentProjectsCard dashboard={dashboard} />
-        <AgencyQuickActions dashboard={dashboard} />
-      </div>
-
       <EmployeeProfileDrawer employeeId={profileId} onClose={() => setProfileId(null)} />
       <RequestModal key={requestType ?? 'none'} type={requestType} onClose={() => setRequestType(null)} />
     </section>

@@ -62,15 +62,15 @@ export const AdminDashboard = () => {
       {data && (
         <>
           <KpiRow data={data} />
-          <div className="adm-row">
-            <AttentionCard items={data.attention} />
-            <QuickActionsCard />
-          </div>
-          <div className="adm-row">
-            <AgenciesCard data={data} onToggle={setAgencyAction} />
-            <div className="adm-stack-col">
-              <ContractsCard contracts={data.contracts} />
+          <div className="adm-cols">
+            <div className="adm-col">
+              <AttentionCard items={data.attention} />
+              <AgenciesCard data={data} onToggle={setAgencyAction} />
               <RecentProjectsCard projects={data.recent_projects ?? []} />
+            </div>
+            <div className="adm-col">
+              <QuickActionsCard />
+              <ContractsCard contracts={data.contracts} />
             </div>
           </div>
           <EmployeeCapacityCard data={data} filter={filter} onFilter={setFilter} busy={refreshing} />

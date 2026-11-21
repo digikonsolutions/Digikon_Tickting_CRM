@@ -39,11 +39,14 @@
 .ui-kpi-warm .ui-kpi-icon { background: var(--color-warning-50); color: var(--color-warning-700); }
 
 /* Rows: a wide card on the left, a narrower one (or a stack) on the right. */
-.adm-row { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr); gap: var(--space-4); align-items: stretch; }
+.adm-row { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr); gap: var(--space-4); align-items: start; }
 .adm-row > * { min-width: 0; }
 .adm-stack-col { display: grid; gap: var(--space-4); align-content: start; }
-/* Cards in a row are as tall as their neighbour, so no card floats above a gap. */
-.adm-row > .ui-card { height: 100%; }
+/* Two independent columns of content-height cards: each card is only as tall as its content, so a short card never leaves a hole beside a tall one. */
+.adm-cols { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr); gap: var(--space-4); align-items: start; }
+.adm-col { display: grid; gap: var(--space-4); min-width: 0; align-content: start; }
+.adm-cols.is-single { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1000px) { .adm-cols { grid-template-columns: 1fr; } }
 .adm-nowrap { white-space: nowrap; }
 @media (max-width: 1000px) { .adm-row { grid-template-columns: 1fr; } }
 .adm-card-body { display: grid; gap: var(--space-3); }
