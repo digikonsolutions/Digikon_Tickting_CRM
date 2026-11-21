@@ -1,4 +1,4 @@
-import { AuthProvider } from './auth/AuthContext'
+import { AuthProvider } from './auth/AuthProvider'
 import { BrandingProvider } from './branding/BrandingProvider'
 import { ToastProvider } from './components/ui'
 import { AppRoutes } from './app/AppRoutes'

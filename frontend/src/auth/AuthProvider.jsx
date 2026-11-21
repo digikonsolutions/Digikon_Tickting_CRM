@@ -1,7 +1,6 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AuthContext } from './AuthContext.js'
 import { authService, isKnownRole } from './authService'
-
-const AuthContext = createContext(null)
 
 function sessionUser(user) {
   return {
@@ -109,4 +108,3 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export { AuthContext }
