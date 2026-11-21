@@ -1,0 +1,78 @@
+/* Agency onboarding wizard and plans page. Teal is the brand colour; white on teal uses --color-accent-700. Text never below 12px. */
+
+.onb-page { display: grid; gap: var(--space-4); }
+.onb-card { max-width: 76rem; }
+.onb-panel { display: grid; gap: var(--space-5); min-width: 0; }
+@media (min-width: 1000px) {
+  .onb-panel .ui-form-section { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+  .onb-panel .ui-form-section:first-child { border-top: 0; padding-top: 0; }
+  .onb-panel .ui-form-section-header { position: sticky; top: var(--space-4); align-self: start; }
+}
+.onb-card .ui-button-primary { border-color: var(--color-accent-700); background: var(--color-accent-700); color: var(--color-white); }
+.onb-card .ui-button-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--color-accent-700) 82%, black); }
+
+.onb-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.onb-footer-main { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+@media (max-width: 520px) { .onb-footer { position: sticky; bottom: 0; background: var(--color-card); padding-bottom: var(--space-3); } .onb-footer-main { flex: 1 1 100%; } .onb-footer-main > * { flex: 1; } }
+
+.onb-check { display: flex; align-items: flex-start; gap: var(--space-3); min-height: 2.75rem; font-size: .9rem; cursor: pointer; }
+.onb-check input { width: 1.1rem; height: 1.1rem; margin-top: .15rem; accent-color: var(--color-accent-700); }
+.onb-check small { display: block; color: var(--color-muted); font-size: .8rem; }
+.onb-check:has(input:focus-visible) { outline: 2px solid var(--color-accent-700); outline-offset: 2px; border-radius: var(--radius-sm); }
+.onb-toggle { padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-sunken); }
+.onb-summary { display: flex; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--color-success-200); border-radius: var(--radius-control); background: var(--color-success-50); color: var(--color-success-700); font-size: .9rem; }
+.onb-file { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+
+/* Employee picker */
+.onb-picker { display: grid; gap: var(--space-3); }
+.onb-picker-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-3); }
+.onb-picker-head .ui-field { flex: 1 1 14rem; }
+.onb-seats { margin: 0; padding: .35rem .75rem; border-radius: var(--radius-pill); background: var(--color-surface-sunken); color: var(--color-heading); font-size: .85rem; }
+.onb-seats.is-full { background: var(--color-warning-50); color: var(--color-warning-700); }
+.onb-employees { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--space-2); max-height: 22rem; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.onb-employee { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); cursor: pointer; }
+.onb-employee:hover { border-color: var(--color-accent-700); }
+.onb-employee.is-selected { border-color: var(--color-accent-700); background: var(--color-accent-50); }
+.onb-employee.is-blocked { cursor: not-allowed; opacity: .55; }
+.onb-employee:has(input:focus-visible) { outline: 2px solid var(--color-accent-700); outline-offset: 2px; }
+.onb-employee input { width: 1.1rem; height: 1.1rem; accent-color: var(--color-accent-700); }
+.onb-employee-main { display: grid; min-width: 0; }
+.onb-employee-main strong { overflow: hidden; color: var(--color-heading); font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+.onb-employee-main small { overflow: hidden; color: var(--color-muted); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.onb-employee-skills { grid-column: 3; display: flex; flex-wrap: wrap; gap: .3rem; }
+
+/* Branding */
+.onb-brand { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.onb-logo { display: grid; width: 6rem; height: 6rem; place-items: center; overflow: hidden; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-card); background: var(--color-surface-sunken); color: var(--color-muted); }
+.onb-logo img { width: 100%; height: 100%; object-fit: contain; }
+.onb-brand-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.onb-brand-actions .ui-field-help, .onb-brand-actions .ui-field-error { flex-basis: 100%; margin: 0; }
+.onb-color { display: grid; gap: .4rem; }
+.onb-color-row { display: flex; gap: var(--space-2); }
+.onb-color-row input[type='color'] { width: 3rem; height: var(--control-height); padding: .15rem; border: 1px solid var(--color-input-border); border-radius: var(--radius-control); background: var(--color-card); cursor: pointer; }
+.onb-color-row .ui-input { max-width: 9rem; text-transform: uppercase; }
+
+/* Review */
+.onb-review { display: grid; gap: var(--space-4); }
+.onb-review-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-4); align-items: start; }
+.onb-review-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.onb-review-head h3 { margin: 0; color: var(--color-heading); font-size: 1rem; }
+.onb-review-card { display: grid; gap: var(--space-3); }
+.onb-review-facts { display: grid; gap: var(--space-2); margin: 0; }
+.onb-review-facts > div { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--space-3); }
+.onb-review-facts dt { color: var(--color-muted); font-size: .8rem; }
+.onb-review-facts dd { margin: 0; color: var(--color-heading); font-size: .9rem; overflow-wrap: anywhere; }
+.onb-warnings { margin: 0; padding-left: 1.1rem; }
+.onb-swatch { display: inline-flex; align-items: center; gap: var(--space-2); }
+.onb-swatch > span { width: 1rem; height: 1rem; border: 1px solid var(--color-border-strong); border-radius: 50%; }
+@media (max-width: 420px) { .onb-review-facts > div { grid-template-columns: 1fr; gap: 0; } .onb-review-grid { grid-template-columns: 1fr; } }
+
+/* After creating */
+.onb-done { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-4) 0; text-align: center; }
+.onb-done h2 { margin: 0; color: var(--color-heading); font-size: 1.3rem; }
+.onb-done p { margin: 0; color: var(--color-muted); font-size: .9rem; }
+.onb-done-icon { display: grid; width: 3.5rem; height: 3.5rem; place-items: center; border-radius: 50%; background: var(--color-success-50); color: var(--color-success-700); }
+.onb-uploads { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.onb-uploads li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); font-size: .9rem; }
+.onb-uploads progress { width: 10rem; height: .5rem; accent-color: var(--color-accent-700); }
+.onb-upload-failed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

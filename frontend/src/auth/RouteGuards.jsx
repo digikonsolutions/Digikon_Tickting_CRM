@@ -48,6 +48,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
     { to: '/admin/reports', label: 'Reports', icon: 'chart', section: 'Work' },
     { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
+    { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'Work' },
     { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'People' },
     { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },

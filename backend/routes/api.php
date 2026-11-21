@@ -151,6 +151,8 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
     // Agency onboarding wizard, drafts, contract files and plans (admin only).
     Route::post('/admin/agency-owners', [AdminAgencyOwnerController::class, 'store'])->middleware('throttle:auth-admin-signup');
+    Route::get('/admin/employees/available', [AdminAgencyOwnerController::class, 'availableEmployees']);
+    Route::get('/admin/account-managers', [AdminAgencyOwnerController::class, 'accountManagers']);
     Route::get('/admin/plans', [AdminPlanController::class, 'index']);
     Route::post('/admin/plans', [AdminPlanController::class, 'store']);
     Route::patch('/admin/plans/{plan}', [AdminPlanController::class, 'update'])->whereNumber('plan');

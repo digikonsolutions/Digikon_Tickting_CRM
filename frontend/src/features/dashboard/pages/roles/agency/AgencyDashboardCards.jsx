@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, EmptyState, Icon, KpiCard, Skeleton, StatusBadge,
 } from '../../../../../components/ui'
+import { authService } from '../../../../../auth/authService'
 import { formatDate, formatDateRange } from '../../../../../lib/format'
 import { UsageChart } from '../../../../admin/agencies/UsageChart'
 import { AVAILABILITY, AVAILABILITY_VARIANT, labelOf } from '../../../../admin/employee/employeeForm'
@@ -114,9 +115,9 @@ export function ContractCard({ dashboard, onRequest }) {
           <EmptyState icon={<Icon name="file" size={22} />} title="No contract">Plans, included hours and renewal dates appear here once your administrator sets up a contract.</EmptyState>
         )}
         <div className="agd-contract-actions">
-          <Button type="button" variant="secondary" disabled title={contract?.document_available ? undefined : 'No contract document is available yet'}>
-            <Icon name="download" size={16} /> Download contract
-          </Button>
+          {contract?.document_available
+            ? <a className="ui-button ui-button-secondary ui-button-md" href={authService.agencyContractDocumentUrl()}><Icon name="download" size={16} /> Download contract</a>
+            : <Button type="button" variant="secondary" disabled title="No contract document is available yet"><Icon name="download" size={16} /> Download contract</Button>}
           <Button type="button" onClick={() => onRequest('renewal')}>Request renewal</Button>
         </div>
         {!contract?.document_available && <p className="adm-muted">The contract document is not available to download yet.</p>}

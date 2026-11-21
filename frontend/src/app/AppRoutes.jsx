@@ -8,7 +8,8 @@ import {
   AdminAgencyDetailPage,
   AdminAssignmentsPage,
   AdminCreateEmployeePage,
-  AdminCreateUserPage,
+  AdminCreateAgencyOwnerPage,
+  AdminPlansPage,
   AdminEmployeeProfilePage,
   AdminProjectDetailPage,
   AdminProjectsPage,
@@ -84,7 +85,8 @@ export function AppRoutes() {
             <Route path="/admin/agencies" element={<AdminAgenciesPage />} />
             <Route path="/admin/agencies/:id" element={<AdminAgencyDetailPage />} />
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
-            <Route path="/admin/agency-owners/new" element={<AdminCreateUserPage role={ROLES.AGENCY_OWNER} />} />
+            <Route path="/admin/agency-owners/new" element={<AdminCreateAgencyOwnerPage />} />
+            <Route path="/admin/plans" element={<AdminPlansPage />} />
             <Route path="/admin/agency-clients" element={<AdminUsersPage key={ROLES.AGENCY_CLIENT} role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />
             <Route path="/admin/users" element={<Navigate to="/admin/employees" replace />} />
             <Route path="/admin/users/new" element={<Navigate to="/admin/employees/new" replace />} />

@@ -53,6 +53,8 @@ export function AdminAgencyDetailPage() {
   }
 
   const suspending = agency.status === 'active'
+  const draft = agency.status === 'draft'
+  const statusLabel = draft ? 'Draft' : suspending ? 'Active' : 'Suspended'
   const projectColumns = [
     { key: 'title', label: 'Project', render: (_v, row) => <Link to={`/admin/projects/${row.id}`}>{row.title}</Link> },
     { key: 'status', label: 'Status', render: (value) => <StatusBadge status={value} /> },
@@ -72,9 +74,9 @@ export function AdminAgencyDetailPage() {
         subtitle={agency.owner ? `Owner: ${agency.owner.name} · ${agency.owner.email}` : 'No owner yet'}
         action={(
           <div className="adm-header-actions">
-            <Badge variant={suspending ? 'success' : 'warning'}>{suspending ? 'Active' : 'Suspended'}</Badge>
+            <Badge variant={suspending ? 'success' : draft ? 'slate' : 'warning'}>{statusLabel}</Badge>
             <Button type="button" variant={suspending ? 'danger' : 'primary'} onClick={() => setStatusTarget({ id: agency.id, name: agency.name, status: agency.status })}>
-              {suspending ? 'Suspend agency' : 'Activate agency'}
+              {draft ? 'Activate & send invite' : suspending ? 'Suspend agency' : 'Activate agency'}
             </Button>
           </div>
         )}
@@ -91,11 +93,26 @@ export function AdminAgencyDetailPage() {
           </div>
           <Card title="Details">
             <dl className="agency-facts">
-              <Fact label="Status">{suspending ? 'Active' : 'Suspended'}</Fact>
+              <Fact label="Status">{statusLabel}</Fact>
               <Fact label="Owner">{agency.owner ? <><Link to={`/admin/agency-owners?search=${encodeURIComponent(agency.owner.email)}`}>{agency.owner.name}</Link> · {agency.owner.email}{agency.owner.is_active ? '' : ' (deactivated)'}</> : null}</Fact>
               <Fact label="Ticket prefix">{agency.ticket_prefix}</Fact>
               <Fact label="Created">{agency.created_at ? formatDate(agency.created_at) : null}</Fact>
               <Fact label="Plan">{agency.contract?.plan_name ?? 'No contract'}</Fact>
+            </dl>
+          </Card>
+          <Card title="Company" description="Visible to administrators only">
+            <dl className="agency-facts">
+              <Fact label="Legal name">{agency.profile.legal_name}</Fact>
+              <Fact label="Brand name">{agency.profile.brand_name}</Fact>
+              <Fact label="Website">{agency.profile.website ? <a href={/^https?:\/\//i.test(agency.profile.website) ? agency.profile.website : undefined} target="_blank" rel="noopener noreferrer">{agency.profile.website}</a> : null}</Fact>
+              <Fact label="Industry">{agency.profile.industry}</Fact>
+              <Fact label="Size">{agency.profile.company_size ? `${agency.profile.company_size} people` : null}</Fact>
+              <Fact label="Location">{[agency.profile.city, agency.profile.country].filter(Boolean).join(', ') || null}</Fact>
+              <Fact label="Address">{agency.profile.address}</Fact>
+              <Fact label="Billing contact">{[agency.profile.billing_contact_name, agency.profile.billing_email].filter(Boolean).join(' · ') || null}</Fact>
+              <Fact label="Tax number">{agency.profile.tax_number_masked}</Fact>
+              <Fact label="Account manager">{agency.profile.account_manager?.name}</Fact>
+              <Fact label="Internal notes">{agency.profile.internal_notes}</Fact>
             </dl>
           </Card>
         </div>
@@ -115,6 +132,16 @@ export function AdminAgencyDetailPage() {
                 <Fact label="Seats">{agency.limits.seats}</Fact>
                 <Fact label="Included hours">{agency.limits.hours}</Fact>
               </dl>
+              <h3 className="agency-docs-title">Contract files</h3>
+              {agency.documents.length === 0
+                ? <p className="adm-muted">No contract file uploaded yet.</p>
+                : (
+                  <ul className="agency-docs" aria-label="Contract files">
+                    {agency.documents.map((doc) => (
+                      <li key={doc.id}><Icon name="file" size={16} /> <a href={authService.contractDocumentUrl(agency.id, doc.id)}>{doc.name}</a> <span className="adm-muted">{formatDate(doc.created_at)}</span></li>
+                    ))}
+                  </ul>
+                )}
             </Card>
           ) : (
             <Card>

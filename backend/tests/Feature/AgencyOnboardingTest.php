@@ -572,6 +572,33 @@ class AgencyOnboardingTest extends TestCase
         $this->postJson('/api/admin/agency-owners', [])->assertStatus(429);
     }
 
+    public function test_the_wizard_lookups_list_only_free_employees_and_eligible_managers(): void
+    {
+        $agency = $this->makeAgency('Northwind');
+        $free = $this->makeEmployee('Free Fiona');
+        $held = $this->makeEmployee('Held Hal');
+        $this->hold($held, $agency, $this->makeClient($agency));
+        $this->makeEmployee('Inactive Ian', ['is_active' => false]);
+        $freed = $this->makeEmployee('Freed Fay');
+        $this->hold($freed, $agency, $this->makeClient($agency, 'Another'))->update(['status' => 'ended', 'active_employee_id' => null]);
+        $lead = User::factory()->create(['role' => Role::TeamLead, 'name' => 'Lena Lead']);
+        User::factory()->create(['role' => Role::TeamLead, 'name' => 'Gone Lead', 'is_active' => false]);
+        $this->actingAs($this->admin);
+
+        $names = collect($this->getJson('/api/admin/employees/available')->assertOk()->json('employees'))->pluck('name')->all();
+        $this->assertSame(['Free Fiona', 'Freed Fay'], $names);
+        $row = $this->getJson('/api/admin/employees/available?search=fiona')->assertOk()->assertJsonCount(1, 'employees')->json('employees.0');
+        $this->assertSame($free->id, $row['id']);
+        $this->assertArrayHasKey('top_skills', $row);
+        $this->assertArrayNotHasKey('email', $row);
+
+        $managers = collect($this->getJson('/api/admin/account-managers')->assertOk()->json('managers'));
+        $this->assertEqualsCanonicalizing([$this->admin->id, $lead->id], $managers->pluck('id')->all());
+
+        foreach (['/api/admin/employees/available', '/api/admin/account-managers'] as $url) {
+            $this->actingAs($this->makeOwner($agency))->getJson($url)->assertForbidden();
+        }
+    }
     public function test_a_finished_contract_shows_its_dates_but_sets_no_limits(): void
     {
         $agency = $this->makeAgency('Northwind');

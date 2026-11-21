@@ -1,0 +1,82 @@
+import { useEffect, useMemo, useRef } from 'react'
+import { Alert, Button, FieldRow, FormSection, Textarea } from '../../../components/ui'
+import { Icon } from '../../../components/ui/Icon'
+import { EmployeePicker } from './EmployeePicker'
+import { LOGO_RULES, contrastOnWhite, firstError, formatBytes } from './onboardingForm'
+
+// Setup and access: pre-assigned employees, logo and brand colour, the invitation message and internal notes.
+// Reusable: `setup` and `agency` are the two sections it edits (notes live on the agency object), each with its own
+// onChange that receives the whole next object.
+export function SetupFields({ setup, onSetup, agency, onAgency, errors, seats, logo, onLogo, logoNotice, onKnownEmployees }) {
+  const fileRef = useRef(null)
+  const preview = useMemo(() => (logo ? URL.createObjectURL(logo) : null), [logo])
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+  const ratio = contrastOnWhite(setup.brand_color)
+  const colorProblem = firstError(errors, 'setup.brand_color')
+
+  return (
+    <>
+      <FormSection title="Employees" description="Optional. Pre-assign free employees to this agency. They are held for the owner straight away.">
+        <EmployeePicker
+          selected={setup.employee_ids}
+          onChange={(ids) => onSetup({ ...setup, employee_ids: ids })}
+          onKnown={onKnownEmployees}
+          seats={seats}
+          error={firstError(errors, 'setup.employee_ids') ?? firstError(errors, 'setup.employee_ids.0')}
+        />
+      </FormSection>
+
+      <FormSection title="Branding" description="Optional. The logo and colour theme the agency's workspace.">
+        <div className="onb-brand">
+          <div className="onb-logo">
+            {preview ? <img src={preview} alt="Logo preview" /> : <span className="onb-logo-empty" aria-hidden="true"><Icon name="image" size={24} /></span>}
+          </div>
+          <div className="onb-brand-actions">
+            <input
+              ref={fileRef}
+              type="file"
+              hidden
+              accept={LOGO_RULES.accept}
+              onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onLogo(file) }}
+            />
+            <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>{logo ? 'Change logo' : 'Choose logo'}</Button>
+            {logo && <Button type="button" variant="ghost" size="sm" onClick={() => onLogo(null)}>Remove</Button>}
+            <p className="ui-field-help">{logo ? `${logo.name} · ${formatBytes(logo.size)}` : 'PNG, JPG or WEBP up to 2 MB.'}</p>
+            {logoNotice && <p className="ui-field-error" role="alert">{logoNotice}</p>}
+          </div>
+        </div>
+        <FieldRow>
+          <div className="onb-color">
+            <label className="ui-field-label" htmlFor="brand-color-text">Brand colour</label>
+            <div className="onb-color-row">
+              <input aria-label="Pick a brand colour" type="color" value={/^#[0-9a-fA-F]{6}$/.test(setup.brand_color) ? setup.brand_color : '#0f766e'} onChange={(event) => onSetup({ ...setup, brand_color: event.target.value.toUpperCase() })} />
+              <input id="brand-color-text" className="ui-input" maxLength="7" placeholder="#0F766E" value={setup.brand_color} aria-invalid={Boolean(colorProblem)} onChange={(event) => onSetup({ ...setup, brand_color: event.target.value.toUpperCase() })} />
+            </div>
+            {colorProblem
+              ? <p className="ui-field-error" role="alert">{colorProblem}</p>
+              : ratio !== null && <p className="ui-field-help">Contrast on white: {ratio.toFixed(1)}:1 {ratio >= 4.5 ? '(good)' : '(too light)'}</p>}
+          </div>
+        </FieldRow>
+      </FormSection>
+
+      <FormSection title="Invitation" description="The owner gets an email with a link to set their password.">
+        <label className="onb-check">
+          <input type="checkbox" checked={setup.send_invite} onChange={(event) => onSetup({ ...setup, send_invite: event.target.checked })} />
+          <span>Send the invitation email when I create the agency</span>
+        </label>
+        {!setup.send_invite && <Alert variant="info">No email will be sent. The owner can set a password with “Forgot password” on the sign-in page.</Alert>}
+        <label className="onb-check">
+          <input type="checkbox" checked={setup.welcome_enabled} onChange={(event) => onSetup({ ...setup, welcome_enabled: event.target.checked })} />
+          <span>Add a personal welcome line to the email</span>
+        </label>
+        {setup.welcome_enabled && (
+          <Textarea id="welcome-message" label="Welcome line" rows="3" maxLength="500" value={setup.welcome_message} helperText={`${setup.welcome_message.length} of 500 characters`} onChange={(event) => onSetup({ ...setup, welcome_message: event.target.value })} error={firstError(errors, 'setup.welcome_message')} />
+        )}
+      </FormSection>
+
+      <FormSection title="Internal notes" description="Only your team sees these.">
+        <Textarea id="agency-notes" label="Notes" rows="3" maxLength="5000" value={agency.internal_notes} onChange={(event) => onAgency({ ...agency, internal_notes: event.target.value })} error={firstError(errors, 'agency.internal_notes')} />
+      </FormSection>
+    </>
+  )
+}

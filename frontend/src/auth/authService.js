@@ -416,7 +416,54 @@ export const authService = {
     return request(`/agency/capacity?${query.toString()}`)
   },
   // One-call admin dashboard summary: { today, projects (counts), tickets, scheduled_hours, recent_projects }.
-  // Admin: the Agencies list and one agency's detail (contract fields are null until contracts exist).
+  // Agency onboarding wizard (admin). The contract document and logo upload after the agency exists, one request each.
+  async createAgencyOwner(payload) {
+    if (AUTH_MODE === 'mock') return { agency: { id: 'demo-agency', name: payload.agency?.name, status: 'active' }, owner: payload.owner, contract: null, warnings: [] }
+    return request('/admin/agency-owners', { method: 'POST', body: JSON.stringify(payload) })
+  },
+  async activateAgency(id) {
+    if (AUTH_MODE === 'mock') return { agency: { id, status: 'active' }, owner: null }
+    return request(`/admin/agencies/${encodeURIComponent(id)}/activate`, { method: 'POST' })
+  },
+  async uploadContractDocument(agencyId, { file, onProgress, signal }) {
+    if (AUTH_MODE === 'mock') return { document: null }
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return uploadForm(`/admin/agencies/${encodeURIComponent(agencyId)}/contract-documents`, form, { onProgress, signal })
+  },
+  contractDocumentUrl(agencyId, documentId) {
+    return `${API_URL}/admin/agencies/${encodeURIComponent(agencyId)}/contract-documents/${encodeURIComponent(documentId)}`
+  },
+  agencyContractDocumentUrl() {
+    return `${API_URL}/agency/contract/document`
+  },
+  async uploadAgencyLogo(agencyId, file, { onProgress, signal } = {}) {
+    if (AUTH_MODE === 'mock') return { logo_url: null }
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return uploadForm(`/admin/agencies/${encodeURIComponent(agencyId)}/logo`, form, { onProgress, signal })
+  },
+  async listPlans({ activeOnly = false } = {}) {
+    if (AUTH_MODE === 'mock') return { plans: [] }
+    return request(`/admin/plans${activeOnly ? '?active=1' : ''}`)
+  },
+  async createPlan(data) {
+    if (AUTH_MODE === 'mock') return { plan: data }
+    return request('/admin/plans', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updatePlan(id, data) {
+    if (AUTH_MODE === 'mock') return { plan: data }
+    return request(`/admin/plans/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  // Employees nobody holds, and admins or team leads who can manage an agency.
+  async listAssignableEmployees({ search = '' } = {}) {
+    if (AUTH_MODE === 'mock') return { employees: [] }
+    return request(`/admin/employees/available${search ? `?search=${encodeURIComponent(search)}` : ''}`)
+  },
+  async listAccountManagers() {
+    if (AUTH_MODE === 'mock') return { managers: [] }
+    return request('/admin/account-managers')
+  },  // Admin: the Agencies list and one agency's detail (contract fields are null until contracts exist).
   async listAdminAgencies({ page = 1, search = '', perPage = 25 } = {}) {
     if (AUTH_MODE === 'mock') return { agencies: [], pagination: { current_page: 1, last_page: 1, total: 0 } }
     return request(`/admin/agencies?${historyQuery({ page, search, per_page: perPage })}`)

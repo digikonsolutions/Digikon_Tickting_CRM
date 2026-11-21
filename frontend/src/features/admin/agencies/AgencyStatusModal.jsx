@@ -10,14 +10,16 @@ export function AgencyStatusModal({ agency, onClose, onDone }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const suspending = agency?.status === 'active'
+  const draft = agency?.status === 'draft'
 
   async function confirm() {
     if (!agency || saving) return
     setSaving(true)
     setError(null)
     try {
-      await authService.updateAdminAgency(agency.id, suspending ? 'suspended' : 'active')
-      showToast(`${agency.name} was ${suspending ? 'suspended' : 'activated'}.`)
+      if (draft) await authService.activateAgency(agency.id)
+      else await authService.updateAdminAgency(agency.id, suspending ? 'suspended' : 'active')
+      showToast(draft ? `${agency.name} is active and its owner was invited.` : `${agency.name} was ${suspending ? 'suspended' : 'activated'}.`)
       onDone?.()
       onClose()
     } catch (reason) {
@@ -31,17 +33,19 @@ export function AgencyStatusModal({ agency, onClose, onDone }) {
     <Modal
       open={Boolean(agency)}
       onClose={() => !saving && onClose()}
-      title={suspending ? 'Suspend agency?' : 'Activate agency?'}
+      title={draft ? 'Activate this draft?' : suspending ? 'Suspend agency?' : 'Activate agency?'}
       footer={(
         <>
           <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
           <Button type="button" variant={suspending ? 'danger' : 'primary'} loading={saving} loadingText="Saving…" onClick={confirm}>
-            {suspending ? 'Suspend agency' : 'Activate agency'}
+            {draft ? 'Activate & send invite' : suspending ? 'Suspend agency' : 'Activate agency'}
           </Button>
         </>
       )}
     >
-      {agency && (suspending
+      {agency && (draft
+        ? <p><strong>{agency.name}</strong> is a draft. Activating it switches the agency and its owner on and <strong>sends the owner their invitation email</strong> now.</p>
+        : suspending
         ? <p><strong>{agency.name}</strong> will be suspended. All of its users (the owner and every client) are <strong>signed out immediately</strong> and cannot sign in until you activate the agency again. Their projects and held employees are kept.</p>
         : <p>Users of <strong>{agency.name}</strong> will be able to sign in again.</p>)}
       <ApiErrorMessage error={error} />

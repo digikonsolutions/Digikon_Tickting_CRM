@@ -23,6 +23,7 @@ function hoursCell(row) {
 export function agencyMenuItems(row, onToggle) {
   const base = `/admin/agencies/${row.id}`
   const suspending = row.status === 'active'
+  const draft = row.status === 'draft'
   return [
     { label: 'View details', to: base },
     { label: 'Contract & plan', to: `${base}?tab=contract` },
@@ -32,7 +33,7 @@ export function agencyMenuItems(row, onToggle) {
     row.owner_id
       ? { label: 'Agency owner profile', to: `/admin/agency-owners?search=${encodeURIComponent(row.owner_email ?? row.owner_name ?? '')}` }
       : { label: 'Agency owner profile', disabled: true, title: 'This agency has no owner yet', onClick: () => {} },
-    { label: suspending ? 'Suspend agency' : 'Activate agency', danger: suspending, separator: true, onClick: () => onToggle(row) },
+    { label: draft ? 'Activate & send invite' : suspending ? 'Suspend agency' : 'Activate agency', danger: suspending, separator: true, onClick: () => onToggle(row) },
   ]
 }
 
@@ -49,7 +50,7 @@ export function agencyColumns({ onToggle }) {
         </span>
       ),
     },
-    { key: 'status', label: 'Status', render: (value) => <Badge variant={value === 'active' ? 'success' : 'warning'}>{value === 'active' ? 'Active' : 'Suspended'}</Badge> },
+    { key: 'status', label: 'Status', render: (value) => <Badge variant={value === 'active' ? 'success' : value === 'draft' ? 'slate' : 'warning'}>{value === 'active' ? 'Active' : value === 'draft' ? 'Draft' : 'Suspended'}</Badge> },
     { key: 'plan', label: 'Plan', render: (_value, row) => (row.plan ? <Badge variant="info">{row.plan}</Badge> : <span className="adm-muted adm-nowrap">No contract</span>) },
     {
       key: 'seats',
