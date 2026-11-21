@@ -15,11 +15,16 @@ class AssignmentService
 
     public function end(EmployeeAssignment $assignment, ?\App\Models\User $actor = null): void
     {
-        DB::transaction(function () use ($assignment): void {
+        $released = collect();
+        DB::transaction(function () use ($assignment, &$released): void {
             $locked = EmployeeAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
             if ($locked->status === 'ended') {
                 return;
             }
+
+            // Projects still waiting for a timeline review are released with the assignment; admins and owners are told.
+            $released = $locked->workItems()->with('agency')->whereIn('status', ['scheduled', 'in_progress'])
+                ->whereIn('timeline_status', TimelineReview::PENDING)->get();
 
             $workItems = $locked->workItems()->whereIn('status', ['scheduled', 'in_progress']);
             $workItemIds = $workItems->pluck('id');
@@ -53,6 +58,10 @@ class AssignmentService
                 'ended_at' => now(config('app.timezone')),
             ]);
         });
+
+        foreach ($released as $project) {
+            app(TimelineNotifier::class)->released($project);
+        }
 
         app(\App\Services\WorkflowNotificationService::class)->assignmentEnded(
             $assignment->fresh()->load(['employee', 'holder', 'agency']),

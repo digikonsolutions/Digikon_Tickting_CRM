@@ -17,6 +17,7 @@ use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use App\Services\TimeTracker;
 use App\Services\WorkflowNotificationService;
+use App\Services\TimelineReview;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -225,7 +226,12 @@ class WorkItemController extends Controller
             return $item;
         });
 
-        app(WorkflowNotificationService::class)->projectCreated($item->fresh()->load(['employee', 'agency']), $creator);
+        // With timeline review on, the proposal notifies admins, the employee and the creator itself.
+        if (TimelineReview::required()) {
+            app(TimelineReview::class)->propose($item->fresh(), $creator);
+        } else {
+            app(WorkflowNotificationService::class)->projectCreated($item->fresh()->load(['employee', 'agency']), $creator);
+        }
 
         return response()->json([
             'project' => $this->payload($item->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
@@ -344,6 +350,8 @@ class WorkItemController extends Controller
         ]);
 
         $planner->plan($lockedItem->fresh());
+        // New hours, dates or employee on a confirmed project: the new schedule needs a review again.
+        app(TimelineReview::class)->reopen($lockedItem->fresh(), $user, 'Hours, dates or the employee were changed by the agency.');
     }
 
     public function cancel(Request $request, WorkItem $workItem, TicketEventRecorder $recorder): JsonResponse

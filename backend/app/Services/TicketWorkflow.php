@@ -139,6 +139,9 @@ class TicketWorkflow
 
             $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
 
+            // Work cannot start (or move on) until an admin or the employee has confirmed the timeline.
+            abort_unless(TimelineReview::allowsWork($lockedWorkItem, $lockedTicket), 422, "This timeline hasn't been confirmed yet.");
+
             // Approval rule check
             $requireApproval = (bool) config('scheduling.require_client_approval', true);
             if ($action === 'approve' && $actor->role === Role::Employee) {

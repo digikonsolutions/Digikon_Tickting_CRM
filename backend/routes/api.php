@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminPlanController;
 use App\Http\Controllers\ContractDocumentController;
 use App\Http\Controllers\AdminEmployeeController;
 use App\Http\Controllers\AgencyClientController;
+use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\AgencyRequestController;
 use App\Http\Controllers\AgencyDashboardController;
 use App\Http\Controllers\AdminUserController;
@@ -161,6 +162,27 @@ Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin/browser-history'
 });
 
 // Reports: computed in SQL, scoped by the signed-in user. ?format=csv streams an export.
+// Timeline review: the admin queue and actions, the employee's own work, and the agency's read-only view and reply.
+Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->whereNumber('workItem')->group(function () {
+    Route::get('/timeline-reviews', [TimelineController::class, 'queue']);
+    Route::get('/timeline-reviews/count', [TimelineController::class, 'count']);
+    Route::get('/projects/{workItem}/timeline', [TimelineController::class, 'adminShow']);
+    Route::patch('/projects/{workItem}/timeline', [TimelineController::class, 'update']);
+    Route::post('/projects/{workItem}/timeline/start-review', [TimelineController::class, 'adminStartReview']);
+    Route::post('/projects/{workItem}/timeline/confirm', [TimelineController::class, 'confirm']);
+    Route::post('/projects/{workItem}/timeline/request-changes', [TimelineController::class, 'adminRequestChanges']);
+});
+Route::middleware(['web', 'auth', 'role:employee'])->prefix('work-items')->whereNumber('workItem')->group(function () {
+    Route::get('/awaiting-timeline', [TimelineController::class, 'employeeAwaiting']);
+    Route::get('/{workItem}/timeline', [TimelineController::class, 'employeeShow']);
+    Route::patch('/{workItem}/timeline', [TimelineController::class, 'employeeUpdate']);
+    Route::post('/{workItem}/timeline/confirm', [TimelineController::class, 'employeeConfirm']);
+});
+Route::middleware(['web', 'auth', 'role:agency_owner,agency_client', 'agency.active'])->prefix('agency/projects')->whereNumber('workItem')->group(function () {
+    Route::get('/{workItem}/timeline', [TimelineController::class, 'agencyShow']);
+    Route::post('/{workItem}/timeline/respond', [TimelineController::class, 'respond'])->middleware('throttle:60,1');
+});
+
 Route::middleware(['web', 'auth', 'role:admin'])->get('/admin/reports/{type}', [ReportController::class, 'admin'])
     ->whereIn('type', ['overview', 'employees', 'agencies', 'projects', 'tickets', 'assignments']);
 Route::middleware(['web', 'auth', 'role:agency_owner,agency_client', 'agency.active'])->get('/agency/reports/{type}', [ReportController::class, 'agency'])

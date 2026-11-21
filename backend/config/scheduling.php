@@ -11,4 +11,11 @@ return [
     'max_project_hours' => 180,
     'max_open_projects_per_client' => 3,
     'require_client_approval' => true,
+
+    // Timeline review: new projects and tickets are scheduled provisionally and an admin (or the assigned employee)
+    // confirms the dates before work can start. Turn off for local setups and tests.
+    'require_timeline_review' => env('SCHEDULING_REQUIRE_TIMELINE_REVIEW', true),
+    // Hours before an unconfirmed timeline is reminded about (each reminder is sent once), and before it counts as overdue.
+    'review_reminder_hours' => [24, 48],
+    'review_overdue_hours' => 24,
 ];

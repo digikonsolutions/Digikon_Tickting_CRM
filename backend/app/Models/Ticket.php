@@ -46,6 +46,8 @@ class Ticket extends Model
             'position' => 'integer',
             'start_date' => 'date',
             'due_date' => 'date',
+            'timeline_proposed_at' => 'datetime',
+            'timeline_confirmed_at' => 'datetime',
             'related_ticket_ids' => 'array',
         ];
     }

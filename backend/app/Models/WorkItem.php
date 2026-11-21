@@ -52,6 +52,9 @@ class WorkItem extends Model
             'estimated_hours' => 'decimal:2',
             'start_date' => 'date',
             'due_date' => 'date',
+            'timeline_proposed_at' => 'datetime',
+            'timeline_confirmed_at' => 'datetime',
+            'timeline_review_due_at' => 'datetime',
             'deliverables' => 'array',
             'reference_links' => 'array',
             // Access details are encrypted at rest with the application key.

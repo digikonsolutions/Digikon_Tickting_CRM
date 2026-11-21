@@ -103,6 +103,9 @@ class TicketController extends Controller
             return $ticket;
         });
 
+        // A new ticket is proposed on its own; a confirmed project and its confirmed tickets stay as they are.
+        app(\App\Services\TimelineReview::class)->proposeTicket($ticket->fresh(), $workItem->fresh(), $user);
+
         return response()->json([
             'ticket' => $this->ticketPayload($ticket->fresh()->load(['agency', 'allocations', 'creator']), $user),
         ], 201);

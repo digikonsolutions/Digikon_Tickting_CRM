@@ -56,6 +56,12 @@ class NotificationPreferences
             'email_default' => true,
             'locked' => false,
         ],
+        'timeline' => [
+            'label' => 'Timeline reviews',
+            'description' => 'A project or ticket timeline needs review, was confirmed, or needs changes.',
+            'email_default' => true,
+            'locked' => true,
+        ],
         'assignment' => [
             'label' => 'Team assignments',
             'description' => 'Employee holds and assignment updates.',
