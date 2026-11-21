@@ -20,9 +20,9 @@ use App\Services\ActivityLogger;
 use App\Services\Attachments\AttachmentPresenter;
 use App\Services\TicketAccess;
 use App\Services\TicketEventRecorder;
-use App\Services\TimeTracker;
 use App\Services\TicketPlanner;
 use App\Services\TicketWorkflow;
+use App\Services\TimeTracker;
 use App\Services\WorkflowNotificationService;
 use App\Services\WorkItemScheduler;
 use Carbon\CarbonImmutable;
@@ -117,6 +117,7 @@ class TicketController extends Controller
         $user = $request->user();
         $workItem = $ticket->workItem;
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
+        abort_unless(! in_array($ticket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
         $data = $request->validated();
 
         $rescheduled = [];
@@ -125,6 +126,8 @@ class TicketController extends Controller
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
             $lockedTicket = $lockedWorkItem->tickets()->lockForUpdate()->findOrFail($ticket->id);
+            // Checked again under the lock: it may have been closed since the first check.
+            abort_unless(! in_array($lockedTicket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
 
             $changes = [];
             foreach (['title', 'description', 'estimated_hours', 'priority'] as $field) {
@@ -849,6 +852,7 @@ class TicketController extends Controller
                 $statusReason = TicketComment::find($commentId)?->body;
             }
         }
+
         return [
             'id' => $ticket->id,
             'key' => $ticket->key,
