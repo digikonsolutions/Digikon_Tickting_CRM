@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
@@ -34,7 +34,9 @@ export function AgencyEmployeesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [actionError, setActionError] = useState(null)
   const { showToast } = useToast()
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  // The dashboard's "Hold employee" opens this page with the list already showing (?hold=1).
+  const [searchParams] = useSearchParams()
+  const [drawerOpen, setDrawerOpen] = useState(() => searchParams.get('hold') === '1')
   const [drawerSearch, setDrawerSearch] = useState('')
   const [impactData, setImpactData] = useState(null)
   const [profileId, setProfileId] = useState(null)

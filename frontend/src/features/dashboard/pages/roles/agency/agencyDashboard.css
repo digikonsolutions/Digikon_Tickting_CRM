@@ -1,0 +1,60 @@
+/* Agency owner and client dashboard. Shares the adm-* card, row, quick-action and attention styles with the
+   admin dashboard. Teal is brand only; amber warns, red blocks. Text never below 12px. */
+
+.agency-dashboard { display: grid; gap: var(--space-4); }
+.agency-dashboard .ui-button-primary { border-color: var(--color-accent-700); background: var(--color-accent-700); color: var(--color-white); }
+.agency-dashboard .ui-button-primary:hover:not(:disabled) { border-color: var(--color-accent-700); background: color-mix(in srgb, var(--color-accent-700) 82%, black); }
+.agd-reason { margin: calc(var(--space-2) * -1) 0 0; color: var(--color-danger-700); font-size: .85rem; }
+.agd-warnings { display: grid; gap: var(--space-3); }
+
+/* Contract strip */
+.agd-strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-8); padding: var(--space-3) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); }
+.agd-strip.is-empty { gap: var(--space-3); color: var(--color-muted); font-size: .9rem; }
+.agd-strip.is-empty strong { color: var(--color-heading); }
+.agd-strip.is-closing { border-color: var(--color-warning-200); background: var(--color-warning-50); }
+.agd-strip-item { display: grid; gap: .15rem; }
+.agd-strip-item small { color: var(--color-muted); font-size: .8rem; }
+.agd-strip-item strong { color: var(--color-heading); font-size: 1rem; }
+.agd-strip-item .is-warning { color: var(--color-warning-700); }
+
+/* KPI row: five cards for owners, three for clients, all aligned the same way */
+.agd-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.agd-kpis > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (min-width: 720px) { .agd-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); } .agd-kpis > :last-child:nth-child(odd) { grid-column: auto; } }
+@media (min-width: 1100px) { .agd-kpis.is-owner { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.agd-kpis .ui-kpi-card { height: 100%; min-height: 8.4rem; justify-content: flex-start; }
+.agd-kpis .ui-kpi-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agd-kpis .ui-kpi-card .ui-kpi-value { font-size: 1.7rem; line-height: 1.15; overflow-wrap: anywhere; }
+.agd-kpis .ui-kpi-card .ui-kpi-subtext { min-height: 2.4em; font-size: .8rem; line-height: 1.2; }
+
+/* Single-column variants (a client has no contract card or hours card) */
+.adm-row.is-single { grid-template-columns: minmax(0, 1fr); }
+
+/* Contract and facts */
+.agd-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-3) var(--space-5); margin: 0; }
+.agd-facts.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.agd-facts dt { color: var(--color-muted); font-size: .8rem; }
+.agd-facts dd { margin: .15rem 0 0; color: var(--color-heading); font-size: .9rem; overflow-wrap: anywhere; }
+.agd-contract-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+@media (max-width: 420px) { .agd-facts.is-two { grid-template-columns: 1fr; } }
+
+/* Employees */
+.agd-employees { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.agd-employee { display: grid; gap: var(--space-3); align-content: start; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+.agd-employee-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.agd-employee-head > div { min-width: 0; }
+.agd-employee-head strong { display: block; overflow: hidden; color: var(--color-heading); font-size: .95rem; text-overflow: ellipsis; white-space: nowrap; }
+.agd-employee-head small { display: block; overflow: hidden; color: var(--color-muted); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.agd-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.agd-employee .ui-button { justify-self: start; }
+
+/* Hours usage */
+.agd-month-meta { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: .4rem; color: var(--color-heading); font-size: .9rem; }
+.agd-monthbar { height: .7rem; }
+.agd-nolimit { margin: 0; color: var(--color-heading); font-size: .9rem; }
+
+/* A quick action that is blocked by a limit: still visible, with the reason where the hint would be */
+.agd-quick-disabled { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-control); color: var(--color-muted); cursor: not-allowed; }
+.agd-quick-disabled strong { display: block; color: var(--color-muted); font-size: .9rem; }
+.agd-quick-disabled small { color: var(--color-danger-700); font-size: .8rem; }
+.agd-quick-disabled .adm-quick-icon { background: var(--color-surface-sunken); color: var(--color-muted); }

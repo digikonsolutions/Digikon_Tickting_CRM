@@ -1,0 +1,29 @@
+/* Agency detail page (admin) and the shared usage chart. Teal for brand only; text never below 12px. */
+
+.agency-detail-page { display: grid; gap: var(--space-4); }
+.agency-tab { display: grid; gap: var(--space-4); }
+.agency-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-3); }
+.agency-stat { display: grid; gap: .2rem; }
+.agency-stat span { color: var(--color-muted); font-size: .8rem; }
+.agency-stat strong { color: var(--color-heading); font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.agency-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-3) var(--space-6); margin: 0; }
+.agency-facts dt { color: var(--color-muted); font-size: .8rem; }
+.agency-facts dd { margin: .15rem 0 0; color: var(--color-heading); font-size: .9rem; overflow-wrap: anywhere; }
+
+.agency-employees { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.agency-employee { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(10rem, 16rem); align-items: center; gap: var(--space-4); }
+.agency-employee-main { display: grid; gap: .2rem; min-width: 0; }
+.agency-employee-main a { color: var(--color-heading); text-decoration: none; }
+.agency-employee-main a:hover { color: var(--color-accent-700); text-decoration: underline; }
+.agency-employee-main small, .agency-employee-load small { color: var(--color-muted); font-size: .8rem; }
+.agency-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.agency-employee-load { display: grid; gap: .3rem; }
+@media (max-width: 700px) { .agency-employee { grid-template-columns: auto minmax(0, 1fr); } .agency-employee-load { grid-column: 1 / -1; } }
+
+/* Usage chart */
+.usage-chart { margin: 0; }
+.usage-chart svg { display: block; width: 100%; height: 9rem; }
+.usage-axis { stroke: var(--color-border-strong); stroke-width: 1; }
+.usage-bar { fill: var(--color-accent-600); }
+.usage-peak { fill: var(--color-heading); font-size: 11px; font-weight: 700; }
+.usage-tick { fill: var(--color-muted); font-size: 11px; }

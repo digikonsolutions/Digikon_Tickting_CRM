@@ -416,6 +416,25 @@ export const authService = {
     return request(`/agency/capacity?${query.toString()}`)
   },
   // One-call admin dashboard summary: { today, projects (counts), tickets, scheduled_hours, recent_projects }.
+  // Admin: the Agencies list and one agency's detail (contract fields are null until contracts exist).
+  async listAdminAgencies({ page = 1, search = '', perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { agencies: [], pagination: { current_page: 1, last_page: 1, total: 0 } }
+    return request(`/admin/agencies?${historyQuery({ page, search, per_page: perPage })}`)
+  },
+  async getAdminAgency(id) {
+    if (AUTH_MODE === 'mock') return { agency: null }
+    return request(`/admin/agencies/${encodeURIComponent(id)}`)
+  },
+  // Agency owner and client dashboard (owners get the full view, clients a reduced one).
+  async getAgencyDashboard() {
+    if (AUTH_MODE === 'mock') return { dashboard: null }
+    return request('/agency/dashboard')
+  },
+  // "Request more hours", "Request upgrade" and "Request renewal": type is 'more_hours', 'upgrade' or 'renewal'.
+  async sendAgencyRequest({ type, message }) {
+    if (AUTH_MODE === 'mock') return { message: 'Your request was sent.', notified: 0 }
+    return request('/agency/requests', { method: 'POST', body: JSON.stringify({ type, ...(message ? { message } : {}) }) })
+  },
   // Admin agency status (active or suspended). Suspending ends every session of that agency's users.
   async updateAdminAgency(id, status) {
     if (AUTH_MODE === 'mock') return { agency: { id, status } }

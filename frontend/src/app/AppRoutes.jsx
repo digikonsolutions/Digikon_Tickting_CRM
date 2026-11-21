@@ -4,6 +4,8 @@ import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } f
 import { ROLES } from '../auth/roles'
 import { Loader } from '../components/ui'
 import {
+  AdminAgenciesPage,
+  AdminAgencyDetailPage,
   AdminAssignmentsPage,
   AdminCreateEmployeePage,
   AdminCreateUserPage,
@@ -79,6 +81,8 @@ export function AppRoutes() {
             <Route path="/admin/employees/:id" element={<AdminEmployeeProfilePage />} />
             <Route path="/admin/employees/:id/activity" element={<AdminEmployeePage />} />
             <Route path="/admin/history" element={<AdminHistoryPage />} />
+            <Route path="/admin/agencies" element={<AdminAgenciesPage />} />
+            <Route path="/admin/agencies/:id" element={<AdminAgencyDetailPage />} />
             <Route path="/admin/agency-owners" element={<AdminUsersPage key={ROLES.AGENCY_OWNER} role={ROLES.AGENCY_OWNER} title="Agency owners" createTo="/admin/agency-owners/new" createLabel="Create agency owner" />} />
             <Route path="/admin/agency-owners/new" element={<AdminCreateUserPage role={ROLES.AGENCY_OWNER} />} />
             <Route path="/admin/agency-clients" element={<AdminUsersPage key={ROLES.AGENCY_CLIENT} role={ROLES.AGENCY_CLIENT} title="Agency clients" />} />

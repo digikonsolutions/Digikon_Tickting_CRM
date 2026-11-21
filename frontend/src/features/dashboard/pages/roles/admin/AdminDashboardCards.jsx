@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import {
-  Avatar, Badge, Button, CapacityBar, Card, EmptyState, FilterChips, Icon, KpiCard, Skeleton, Table,
+  Avatar, Badge, Button, CapacityBar, Card, DueText, EmptyState, FilterChips, Icon, KpiCard, Skeleton, StatusBadge, Table,
 } from '../../../../../components/ui'
-import { formatDateRange } from '../../../../../lib/format'
+import { formatDate, formatDateRange } from '../../../../../lib/format'
+import { agencyColumns } from '../../../../admin/agencies/agencyColumns'
 import { DEPARTMENTS, labelOf } from '../../../../admin/employee/employeeForm'
 import './adminDashboard.css'
 
@@ -15,7 +16,7 @@ function loadTone(percent) {
 }
 const KPI_TONE = { hot: 'danger', warm: 'warm', ok: 'teal', neutral: 'neutral' }
 
-/** 7-point polyline for the KPI sparkline. Returns null when every value is zero (nothing to show). */
+/** Polyline for the KPI sparkline. Returns null when every value is zero (nothing to show). */
 function sparklinePath(values, width = 168, height = 24) {
   if (values.length < 2 || values.every((value) => !value)) return null
   const max = Math.max(...values, 1)
@@ -27,11 +28,13 @@ function KpiLink({ to, children }) {
   return <Link className="adm-kpi-link" to={to}>{children}</Link>
 }
 
+/** One row of seven KPIs. Work (projects, tickets) is folded in here instead of a separate summary card. */
 export function KpiRow({ data }) {
-  const { employees, agencies } = data
+  const { employees, agencies, work_summary: work } = data
   const bookedHours = (data.scheduled_hours ?? []).map((day) => Number(day.hours) || 0)
   const spark = sparklinePath(bookedHours)
   const utilTone = loadTone(employees.avg_utilization_percent)
+  const activeProjects = work.projects.scheduled + work.projects.in_progress
 
   return (
     <div className="adm-kpis">
@@ -44,7 +47,7 @@ export function KpiRow({ data }) {
       <KpiLink to="/admin/assignments">
         <KpiCard title="Held" value={employees.held} subtext="Working for an agency" icon="briefcase" tone="info" />
       </KpiLink>
-      <KpiLink to="/admin/agency-owners">
+      <KpiLink to="/admin/agencies">
         <KpiCard title="Agencies" value={agencies.total} subtext={`${agencies.active} active · ${agencies.suspended} suspended`} icon="building" tone={agencies.suspended > 0 ? 'warm' : 'info'} />
       </KpiLink>
       <KpiLink to="/admin/assignments">
@@ -56,7 +59,161 @@ export function KpiRow({ data }) {
           )}
         </KpiCard>
       </KpiLink>
+      <KpiLink to="/admin/projects">
+        <KpiCard title="Projects" value={work.projects.total} subtext={`${activeProjects} active · ${work.projects.completed} completed`} icon="queue" tone="info" />
+      </KpiLink>
+      <KpiLink to="/admin/tickets">
+        <KpiCard title="Tickets" value={work.tickets.total} subtext="Across all projects" icon="ticket" tone="info" />
+      </KpiLink>
     </div>
+  )
+}
+
+const SEVERITY_ICON = { danger: 'alert', warning: 'alert', info: 'info' }
+const SEVERITY_TEXT = { danger: 'Urgent', warning: 'Warning', info: 'For your information' }
+
+// Also used by the agency dashboard, which passes its own words for the empty state.
+export function AttentionCard({ items, emptyText = 'Employees, agencies and projects are all on track.' }) {
+  return (
+    <Card>
+      <div className="adm-card-body">
+        <div className="adm-card-head">
+          <div>
+            <h2>Needs attention</h2>
+            <p>{items.length ? `${items.length} thing${items.length === 1 ? '' : 's'} to look at, most urgent first` : 'All clear'}</p>
+          </div>
+        </div>
+        {items.length === 0 ? (
+          <EmptyState icon={<Icon name="check" size={22} />} title="Nothing needs attention">{emptyText}</EmptyState>
+        ) : (
+          <ul className="adm-attention" aria-label="Items that need attention">
+            {items.map((item) => (
+              <li key={item.type}>
+                <Link className={`is-${item.severity}`} to={item.link}>
+                  <span className="adm-attention-icon"><Icon name={SEVERITY_ICON[item.severity] ?? 'info'} size={16} /></span>
+                  <span><span className="sr-only">{SEVERITY_TEXT[item.severity]}: </span>{item.label}</span>
+                  <span className="adm-attention-arrow" aria-hidden="true"><Icon name="arrow" size={16} /></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+const QUICK_ACTIONS = [
+  { to: '/admin/employees/new', icon: 'userPlus', label: 'New employee', hint: 'Add someone to the shared pool' },
+  { to: '/admin/agency-owners/new', icon: 'building', label: 'New agency owner', hint: 'Create an agency and send an invitation' },
+  { to: '/admin/assignments', icon: 'calendar', label: 'Review assignments', hint: 'Who holds whom, and for how long' },
+  { to: '/admin/reports', icon: 'chart', label: 'Open reports', hint: 'Utilization, agencies, projects and tickets' },
+]
+
+export function QuickActionsCard() {
+  return (
+    <Card>
+      <div className="adm-card-body">
+        <div className="adm-card-head"><div><h2>Quick actions</h2><p>Common administration tasks</p></div></div>
+        <ul className="adm-quick" aria-label="Quick actions">
+          {QUICK_ACTIONS.map((action) => (
+            <li key={action.to}>
+              <Link to={action.to}>
+                <span className="adm-quick-icon"><Icon name={action.icon} size={18} /></span>
+                <span><strong>{action.label}</strong><small>{action.hint}</small></span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Card>
+  )
+}
+
+export function AgenciesCard({ data, onToggle }) {
+  const { agencies, agency_rows: rows } = data
+
+  return (
+    <Card>
+      <div className="adm-card-body">
+        <div className="adm-card-head">
+          <div>
+            <h2>Agencies</h2>
+            <p>{agencies.active} active · {agencies.suspended} suspended{agencies.total > rows.length ? ` · top ${rows.length} by hours this week` : ''}</p>
+          </div>
+          <Link className="adm-link" to="/admin/agencies">View all agencies</Link>
+        </div>
+        <Table columns={agencyColumns({ onToggle })} rows={rows} emptyTitle="No agencies yet" emptyText="Invite an agency owner to create the first agency." />
+      </div>
+    </Card>
+  )
+}
+
+/** Plans and renewals. Without contracts it says so plainly; with them it lists what ends soonest. */
+export function ContractsCard({ contracts }) {
+  return (
+    <Card>
+      <div className="adm-card-body">
+        <div className="adm-card-head">
+          <div>
+            <h2>Contracts expiring</h2>
+            <p>{contracts.available ? `${contracts.with_contract} with a contract · ${contracts.without_contract} without` : 'Plan usage and renewals'}</p>
+          </div>
+        </div>
+        {contracts.expiring.length > 0 ? (
+          <ul className="adm-expiring" aria-label="Contracts ending soon">
+            {contracts.expiring.map((item) => (
+              <li key={item.agency_id}>
+                <Link to={`/admin/agencies/${item.agency_id}?tab=contract`}>
+                  <strong>{item.name}</strong>
+                  <span>{item.ends_on ? `Ends ${formatDate(item.ends_on)}` : 'No end date'}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={<Icon name="file" size={22} />} title={contracts.available ? 'No contracts ending soon' : 'No contracts yet'}>
+            {contracts.available
+              ? 'Nothing renews in the next 30 days.'
+              : `${contracts.without_contract} agenc${contracts.without_contract === 1 ? 'y has' : 'ies have'} no contract. Plans, seats and renewal dates will show here once contracts are set up.`}
+          </EmptyState>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+export function RecentProjectsCard({ projects }) {
+  const rows = projects.slice(0, 4)
+  return (
+    <Card>
+      <div className="adm-card-body">
+        <div className="adm-card-head">
+          <div><h2>Recent projects</h2><p>Latest work across all agencies</p></div>
+          <Link className="adm-link" to="/admin/projects">All projects</Link>
+        </div>
+        {rows.length === 0 ? (
+          <EmptyState title="No projects yet">Projects appear here once an agency creates one.</EmptyState>
+        ) : (
+          <ul className="adm-recent" aria-label="Recent projects">
+            {rows.map((project) => (
+              <li key={project.id}>
+                <Link to={`/admin/projects/${project.id}`}>
+                  <span className="adm-recent-main">
+                    <strong>{project.title}</strong>
+                    <small>{[project.agency_name, project.employee?.name].filter(Boolean).join(' · ') || 'Agency project'}</small>
+                  </span>
+                  <span className="adm-recent-meta">
+                    <StatusBadge status={project.status} />
+                    <small><DueText dueDate={project.due_date} status={project.status} /></small>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   )
 }
 
@@ -66,6 +223,8 @@ const EMPLOYEE_FILTERS = (employees) => [
   { value: 'held', label: `Held ${employees.held}` },
   { value: 'overloaded', label: `Overloaded ${employees.overloaded}` },
 ]
+// With only a handful of employees a filter is clutter: the whole list already fits.
+const FILTER_MIN_EMPLOYEES = 5
 
 export function EmployeeCapacityCard({ data, filter, onFilter, busy }) {
   const { employees, employee_capacity: rows } = data
@@ -81,7 +240,9 @@ export function EmployeeCapacityCard({ data, filter, onFilter, busy }) {
           </div>
           <Link className="adm-link" to="/admin/employees">View all employees</Link>
         </div>
-        <FilterChips label="Filter employees" options={EMPLOYEE_FILTERS(employees)} value={filter} onChange={onFilter} disabled={busy} />
+        {employees.active >= FILTER_MIN_EMPLOYEES && (
+          <FilterChips label="Filter employees" options={EMPLOYEE_FILTERS(employees)} value={filter} onChange={onFilter} disabled={busy} />
+        )}
         {rows.length === 0 ? (
           <EmptyState
             title={employees.active === 0 ? 'No employees yet' : 'No employees match this filter'}
@@ -102,9 +263,12 @@ export function EmployeeCapacityCard({ data, filter, onFilter, busy }) {
                     </span>
                   </span>
                   <span className="adm-status">
-                    {row.holder
-                      ? <Badge variant="info" title={`${row.holder.name} · ${row.holder.agency_name}`}>Held by {row.holder.name} · {row.holder.agency_name}</Badge>
-                      : <Badge variant="success">Available</Badge>}
+                    {row.holder ? (
+                      <>
+                        <span className="adm-held-label">Held by</span>
+                        <Badge variant="info" title={`Held by ${row.holder.name} · ${row.holder.agency_name}`}>{row.holder.agency_name}</Badge>
+                      </>
+                    ) : <Badge variant="success">Available</Badge>}
                   </span>
                   <span className="adm-load">
                     <CapacityBar used={row.used_hours} budget={row.budget_hours} showRemaining={false} tone={loadTone(row.utilization_percent)} ariaLabel={`${row.name}: ${row.utilization_percent}% of weekly capacity`} />
@@ -123,147 +287,14 @@ export function EmployeeCapacityCard({ data, filter, onFilter, busy }) {
   )
 }
 
-export function AgenciesCard({ data, onToggle }) {
-  const { agencies, agency_rows: rows } = data
-  const columns = [
-    {
-      key: 'name',
-      label: 'Agency',
-      render: (_value, row) => <span className="adm-agency-name"><strong>{row.name}</strong><small>{row.owner_name ? `Owner: ${row.owner_name}` : 'No owner'}</small></span>,
-    },
-    { key: 'status', label: 'Status', render: (value) => <Badge variant={value === 'active' ? 'success' : 'warning'}>{value === 'active' ? 'Active' : 'Suspended'}</Badge> },
-    { key: 'employees_held', label: 'Employees held', render: (value) => <span className="adm-num">{value}</span> },
-    { key: 'open_projects', label: 'Open projects', render: (value) => <span className="adm-num">{value}</span> },
-    { key: 'hours_booked_this_week', label: 'Hours this week', render: (value) => <span className="adm-num">{Number(value).toFixed(1)} h</span> },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_value, row) => (
-        <Button type="button" size="sm" variant="secondary" aria-label={`${row.status === 'active' ? 'Suspend' : 'Activate'} ${row.name}`} onClick={() => onToggle(row)}>
-          {row.status === 'active' ? 'Suspend' : 'Activate'}
-        </Button>
-      ),
-    },
-  ]
-
-  return (
-    <Card>
-      <div className="adm-card-body">
-        <div className="adm-card-head">
-          <div>
-            <h2>Agencies</h2>
-            <p>{agencies.active} active · {agencies.suspended} suspended{agencies.total > rows.length ? ` · top ${rows.length} by hours this week` : ''}</p>
-          </div>
-          <Link className="adm-link" to="/admin/agency-owners">Manage agency owners</Link>
-        </div>
-        <Table columns={columns} rows={rows} emptyTitle="No agencies yet" emptyText="Invite an agency owner to create the first agency." />
-      </div>
-    </Card>
-  )
-}
-
-const SEVERITY_ICON = { danger: 'alert', warning: 'alert', info: 'info' }
-const SEVERITY_TEXT = { danger: 'Urgent', warning: 'Warning', info: 'For your information' }
-
-export function AttentionCard({ items }) {
-  return (
-    <Card>
-      <div className="adm-card-body">
-        <div className="adm-card-head">
-          <div>
-            <h2>Needs attention</h2>
-            <p>{items.length ? `${items.length} thing${items.length === 1 ? '' : 's'} to look at, most urgent first` : 'All clear'}</p>
-          </div>
-        </div>
-        {items.length === 0 ? (
-          <EmptyState icon={<Icon name="check" size={22} />} title="Nothing needs attention">Employees, agencies and projects are all on track.</EmptyState>
-        ) : (
-          <ul className="adm-attention" aria-label="Items that need attention">
-            {items.map((item) => (
-              <li key={item.type}>
-                <Link className={`is-${item.severity}`} to={item.link}>
-                  <span className="adm-attention-icon"><Icon name={SEVERITY_ICON[item.severity] ?? 'info'} size={16} /></span>
-                  <span><span className="sr-only">{SEVERITY_TEXT[item.severity]}: </span>{item.label}</span>
-                  <span className="adm-attention-arrow" aria-hidden="true"><Icon name="arrow" size={16} /></span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Card>
-  )
-}
-
-// Colour carries meaning here: blue is waiting, teal is active work, green is done, grey is cancelled.
-const PROJECT_SEGMENTS = [
-  { key: 'scheduled', label: 'Scheduled', tone: 'scheduled' },
-  { key: 'in_progress', label: 'In progress', tone: 'active' },
-  { key: 'completed', label: 'Completed', tone: 'done' },
-  { key: 'cancelled', label: 'Cancelled', tone: 'cancelled' },
-]
-
-export function WorkSummaryCard({ summary }) {
-  const { projects, tickets } = summary
-  const total = projects.total
-  const percent = (value) => (total > 0 ? Math.round((value / total) * 100) : 0)
-  const description = PROJECT_SEGMENTS.map((segment) => `${projects[segment.key] ?? 0} ${segment.label.toLowerCase()}`).join(', ')
-
-  return (
-    <Card>
-      <div className="adm-card-body">
-        <div className="adm-card-head">
-          <div>
-            <h2>Work summary</h2>
-            <p>{total} project{total === 1 ? '' : 's'} · {tickets.total} ticket{tickets.total === 1 ? '' : 's'}</p>
-          </div>
-          <Link className="adm-link" to="/admin/projects">All projects</Link>
-        </div>
-        {total === 0 ? (
-          <p className="adm-summary-empty">No projects yet. They appear here once an agency creates one.</p>
-        ) : (
-          <>
-            <div className="adm-stack" role="img" aria-label={`Projects by status: ${description}`}>
-              {PROJECT_SEGMENTS.map((segment) => (projects[segment.key] > 0 && (
-                <span key={segment.key} className={`adm-stack-seg is-${segment.tone}`} style={{ flexGrow: projects[segment.key] }} title={`${segment.label}: ${projects[segment.key]}`} />
-              )))}
-            </div>
-            <ul className="adm-legend" aria-label="Projects by status">
-              {PROJECT_SEGMENTS.map((segment) => (
-                <li key={segment.key}>
-                  <Link to={`/admin/projects?status=${segment.key}`} aria-label={`${segment.label}: ${projects[segment.key] ?? 0} projects. View them`}>
-                    <span className={`adm-dot is-${segment.tone}`} aria-hidden="true" />
-                    <span className="adm-legend-label">{segment.label}</span>
-                    <strong>{projects[segment.key] ?? 0}</strong>
-                    <small>{percent(projects[segment.key] ?? 0)}%</small>
-                  </Link>
-                </li>
-              ))}
-              <li className="adm-legend-tickets">
-                <Link to="/admin/tickets" aria-label={`Tickets: ${tickets.total}. View them`}>
-                  <span className="adm-dot is-ticket" aria-hidden="true" />
-                  <span className="adm-legend-label">Tickets</span>
-                  <strong>{tickets.total}</strong>
-                  <small>all projects</small>
-                </Link>
-              </li>
-            </ul>
-          </>
-        )}
-      </div>
-    </Card>
-  )
-}
-
 /** Same grid as the loaded page, so nothing jumps when the data arrives. */
 export function DashboardSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading dashboard" role="status">
-      <div className="adm-kpis">{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} variant="card" className="adm-skeleton-kpi" />)}</div>
-      <div className="adm-grid" style={{ marginTop: 'var(--space-4)' }}>
-        <div className="adm-skeleton-rows">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} variant="row" />)}</div>
-        <Skeleton variant="card" className="adm-skeleton-card" />
-      </div>
+    <div aria-busy="true" aria-label="Loading dashboard" role="status" className="adm-skeleton">
+      <div className="adm-kpis">{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} variant="card" className="adm-skeleton-kpi" />)}</div>
+      <div className="adm-row"><Skeleton variant="card" className="adm-skeleton-card" /><Skeleton variant="card" className="adm-skeleton-card" /></div>
+      <div className="adm-row"><Skeleton variant="card" className="adm-skeleton-card" /><Skeleton variant="card" className="adm-skeleton-card" /></div>
+      <div className="adm-skeleton-rows">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="row" />)}</div>
     </div>
   )
 }

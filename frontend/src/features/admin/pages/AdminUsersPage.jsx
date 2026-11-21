@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { ActionMenu, Avatar, Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
+import { DropdownMenu, Avatar, Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
 import { AVAILABILITY, AVAILABILITY_VARIANT, DEPARTMENTS, EMPLOYMENT_STATUSES, STATUS_VARIANT, labelOf } from '../employee/employeeForm'
 import '../employee/employee.css'
 
 export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [users, setUsers] = useState([])
   const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 })
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
+  // Links such as the agencies menu's Agency owner profile open the list already searched (?search=).
+  const [searchParams] = useSearchParams()
+  const [initialSearch] = useState(() => (searchParams.get('search') ?? '').slice(0, 120))
+  const [search, setSearch] = useState(initialSearch)
+  const [searchInput, setSearchInput] = useState(initialSearch)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [editingUser, setEditingUser] = useState(null)
@@ -38,7 +41,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
   // Initial state is already loading/no error, and the routes remount this page per role (key={role}).
   useEffect(() => {
     let active = true
-    authService.listAdminUsers({ page: 1, search: '', role })
+    authService.listAdminUsers({ page: 1, search: initialSearch, role })
       .then((response) => {
         if (!active) return
         setUsers(response.users)
@@ -54,7 +57,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
     return () => {
       active = false
     }
-  }, [loadUsers, role])
+  }, [loadUsers, role, initialSearch])
 
   function submitSearch(event) {
     event.preventDefault()
@@ -167,7 +170,7 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
       key: 'actions',
       label: 'Actions',
       render: (_value, user) => user.can_manage ? (
-        <ActionMenu
+        <DropdownMenu
           label={`Actions for ${user.name}`}
           items={[
             ...(user.role === 'employee' ? [

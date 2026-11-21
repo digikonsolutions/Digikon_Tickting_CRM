@@ -1,4 +1,4 @@
-export { ActionMenu } from './ActionMenu'
+export { DropdownMenu } from './DropdownMenu'
 export { Alert } from './Alert'
 export { Avatar } from './Avatar'
 export { Badge } from './Badge'

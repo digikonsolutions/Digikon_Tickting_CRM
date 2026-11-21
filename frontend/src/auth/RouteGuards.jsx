@@ -51,7 +51,8 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'People' },
     { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
-    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'building', section: 'People' },
+    { to: '/admin/agencies', label: 'Agencies', icon: 'building', section: 'People' },
+    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'user', section: 'People' },
     { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users', section: 'People' },
   ],
   [ROLES.TEAM_LEAD]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
@@ -111,6 +112,8 @@ export function AppLayout() {
       ? 'Ticket'
       : /^\/admin\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
+      : /^\/admin\/agencies\/\d+$/.test(location.pathname)
+      ? 'Agency'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/')
       ? 'Project details'
       : ({

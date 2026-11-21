@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
 import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
-import { ApiErrorMessage } from '../../../../auth/components/ApiErrorMessage'
-import { ActionMenu, Alert, Button, Icon, Modal, PageHeader, useToast } from '../../../../../components/ui'
+import { Alert, Button, DropdownMenu, Icon, PageHeader } from '../../../../../components/ui'
+import { AgencyStatusModal } from '../../../../admin/agencies/AgencyStatusModal'
 import {
-  AgenciesCard, AttentionCard, DashboardSkeleton, EmployeeCapacityCard, KpiRow, WorkSummaryCard,
+  AgenciesCard, AttentionCard, ContractsCard, DashboardSkeleton, EmployeeCapacityCard, KpiRow, QuickActionsCard, RecentProjectsCard,
 } from './AdminDashboardCards'
 import './adminDashboard.css'
 
@@ -15,37 +15,16 @@ const NEW_ITEMS = [
 
 const timeLabel = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
 
-// One request feeds the whole page: employees, agencies, capacity, attention and the work summary.
+// One request feeds the whole page. Order: KPIs, attention and quick actions, agencies with contracts and
+// recent projects, then employee capacity.
 export const AdminDashboard = () => {
-  const { showToast } = useToast()
   const [filter, setFilter] = useState('all')
   const [agencyAction, setAgencyAction] = useState(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [actionError, setActionError] = useState(null)
   // The chips narrow only the capacity list, so they re-request with a filter. The previous data stays on
   // screen while that is in flight (useAsync keeps it), so the page never flashes back to a skeleton.
   const load = useCallback(() => authService.getAdminDashboard({ employeeFilter: filter }), [filter])
   const { data, error, isLoading, reload } = useAsync(load)
   const refreshing = isLoading && Boolean(data)
-
-  async function confirmAgencyAction() {
-    if (!agencyAction || isSaving) return
-    const suspending = agencyAction.status === 'active'
-    setIsSaving(true)
-    setActionError(null)
-    try {
-      await authService.updateAdminAgency(agencyAction.id, suspending ? 'suspended' : 'active')
-      showToast(`${agencyAction.name} was ${suspending ? 'suspended' : 'activated'}.`)
-      setAgencyAction(null)
-      await reload()
-    } catch (reason) {
-      setActionError(reason)
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const suspending = agencyAction?.status === 'active'
 
   return (
     <section className="page dashboard admin-dashboard">
@@ -60,7 +39,7 @@ export const AdminDashboard = () => {
           <div className="adm-header-actions">
             {data && <span className="adm-updated" aria-live="polite">Last updated {timeLabel(data.generated_at)}</span>}
             <Button type="button" variant="secondary" loading={refreshing} loadingText="Refreshing…" onClick={reload}>Refresh</Button>
-            <ActionMenu label="Create new" triggerLabel="New" triggerIcon={<Icon name="plus" size={17} />} items={NEW_ITEMS} />
+            <DropdownMenu label="Create new" triggerLabel="New" triggerIcon={<Icon name="plus" size={17} />} items={NEW_ITEMS} />
           </div>
         )}
       />
@@ -83,33 +62,22 @@ export const AdminDashboard = () => {
       {data && (
         <>
           <KpiRow data={data} />
-          <div className="adm-grid">
-            <EmployeeCapacityCard data={data} filter={filter} onFilter={setFilter} busy={refreshing} />
+          <div className="adm-row">
             <AttentionCard items={data.attention} />
+            <QuickActionsCard />
           </div>
-          <AgenciesCard data={data} onToggle={(agency) => { setActionError(null); setAgencyAction(agency) }} />
-          <WorkSummaryCard summary={data.work_summary} />
+          <div className="adm-row">
+            <AgenciesCard data={data} onToggle={setAgencyAction} />
+            <div className="adm-stack-col">
+              <ContractsCard contracts={data.contracts} />
+              <RecentProjectsCard projects={data.recent_projects ?? []} />
+            </div>
+          </div>
+          <EmployeeCapacityCard data={data} filter={filter} onFilter={setFilter} busy={refreshing} />
         </>
       )}
 
-      <Modal
-        open={Boolean(agencyAction)}
-        onClose={() => !isSaving && setAgencyAction(null)}
-        title={suspending ? 'Suspend agency?' : 'Activate agency?'}
-        footer={(
-          <>
-            <Button type="button" variant="secondary" disabled={isSaving} onClick={() => setAgencyAction(null)}>Cancel</Button>
-            <Button type="button" variant={suspending ? 'danger' : 'primary'} loading={isSaving} loadingText="Saving…" onClick={confirmAgencyAction}>
-              {suspending ? 'Suspend agency' : 'Activate agency'}
-            </Button>
-          </>
-        )}
-      >
-        {agencyAction && (suspending
-          ? <p><strong>{agencyAction.name}</strong> and all of its users will be signed out now and cannot sign in until the agency is activated again. Their projects and held employees are kept.</p>
-          : <p>Users of <strong>{agencyAction.name}</strong> will be able to sign in again.</p>)}
-        <ApiErrorMessage error={actionError} />
-      </Modal>
+      <AgencyStatusModal key={agencyAction?.id ?? 'none'} agency={agencyAction} onClose={() => setAgencyAction(null)} onDone={reload} />
     </section>
   )
 }
