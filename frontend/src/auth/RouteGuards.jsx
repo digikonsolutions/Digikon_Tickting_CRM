@@ -169,7 +169,6 @@ export function AppLayout() {
   }
 
   const userInitial = user.name?.trim().charAt(0).toUpperCase() || 'U'
-  const showDashboardAction = user.role === ROLES.ADMIN && location.pathname === '/admin/dashboard'
 
   return (
     <div className={`app-shell${isNavOpen ? ' app-nav-open' : ''}${isSidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
@@ -247,12 +246,6 @@ export function AppLayout() {
             <h1>{pageTitle}</h1>
           </div>
           <div className="dashboard-header-tools">
-            {showDashboardAction && (
-              <Link className="ui-button ui-button-primary header-primary-action" to="/admin/employees/new">
-                <Icon name="plus" size={17} />
-                Create employee
-              </Link>
-            )}
             {user.role === ROLES.EMPLOYEE && <TimerPill />}
             <NotificationBell />
             <details className="header-user-menu">

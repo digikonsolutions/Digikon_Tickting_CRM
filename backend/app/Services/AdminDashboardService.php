@@ -157,7 +157,7 @@ class AdminDashboardService
             ->orderBy('u.id')
             ->limit(self::LIST_LIMIT)
             ->get([
-                'u.id', 'u.name', 'p.department', 'ea.id as assignment_id',
+                'u.id', 'u.name', 'u.avatar_url as photo_url', 'p.department', 'ea.id as assignment_id',
                 'h.name as holder_name', 'ag.id as agency_id', 'ag.name as agency_name',
                 DB::raw('COALESCE(used.used_hours, 0) AS used_hours'),
             ]);
@@ -168,6 +168,7 @@ class AdminDashboardService
             return [
                 'id' => (int) $row->id,
                 'name' => $row->name,
+                'photo_url' => $row->photo_url,
                 'department' => $row->department,
                 'status' => $row->assignment_id === null ? 'available' : 'held',
                 'holder' => $row->assignment_id === null ? null : [

@@ -1,0 +1,107 @@
+/* Admin dashboard: employees and agencies first. Teal is the brand colour only; load uses neutral, teal,
+   amber and red; success is green. White text on a teal surface always sits on --color-accent-700.
+   No text is smaller than 12px. */
+
+.admin-dashboard .ui-eyebrow { color: var(--color-accent-700); }
+.admin-dashboard .ui-button-primary,
+.admin-dashboard .ui-chip[aria-pressed="true"] { border-color: var(--color-accent-700); background: var(--color-accent-700); color: var(--color-white); }
+.admin-dashboard .ui-button-primary:hover:not(:disabled) { border-color: var(--color-accent-700); background: color-mix(in srgb, var(--color-accent-700) 82%, black); }
+.admin-dashboard .ui-chip:hover:not([aria-pressed="true"]) { border-color: var(--color-accent-700); color: var(--color-accent-700); }
+.admin-dashboard .ui-chips { margin-bottom: var(--space-3); }
+.ui-kpi-hero { border-color: var(--color-accent-700) !important; background: var(--color-accent-700) !important; }
+
+/* Header */
+.adm-breadcrumb ol { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; color: var(--color-muted); font-size: .8rem; }
+.adm-breadcrumb li + li::before { content: '/'; margin-right: .4rem; color: var(--color-border-strong); }
+.adm-breadcrumb [aria-current="page"] { color: var(--color-heading); font-weight: 650; }
+.adm-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.adm-updated { color: var(--color-muted); font-size: .8rem; white-space: nowrap; }
+.ui-action-menu-trigger { gap: var(--space-2); }
+
+/* KPI row: every card lays out the same way so titles, values and hints line up across the row. */
+.adm-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.adm-kpis > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (min-width: 720px) { .adm-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); } .adm-kpis > :last-child:nth-child(odd) { grid-column: auto; } }
+@media (min-width: 1180px) { .adm-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.adm-kpi-link { display: block; min-width: 0; border-radius: var(--radius-card); color: inherit; text-decoration: none; }
+.adm-kpi-link:focus-visible { outline: 2px solid var(--color-accent-700); outline-offset: 2px; }
+.adm-kpi-link .ui-kpi-card { height: 100%; min-height: 8.4rem; justify-content: flex-start; }
+.adm-kpi-link .ui-kpi-card .ui-kpi-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-kpi-link .ui-kpi-card .ui-kpi-value { font-size: 2rem; line-height: 1.1; }
+.adm-kpi-link .ui-kpi-card .ui-kpi-subtext { min-height: 2.4em; font-size: .8rem; line-height: 1.2; }
+.adm-kpi-link .ui-kpi-sparkline { margin-top: auto; }
+.ui-kpi-neutral::before { background: var(--color-border-strong) !important; }
+.ui-kpi-neutral .ui-kpi-icon { background: var(--color-surface-sunken); color: var(--color-muted); }
+.ui-kpi-warm::before { background: var(--color-warning-500) !important; }
+.ui-kpi-warm .ui-kpi-icon { background: var(--color-warning-50); color: var(--color-warning-700); }
+
+/* Main grid */
+.adm-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr); gap: var(--space-4); align-items: start; }
+.adm-grid > * { min-width: 0; }
+@media (max-width: 1000px) { .adm-grid { grid-template-columns: 1fr; } }
+.adm-card-body { display: grid; gap: var(--space-3); }
+.adm-card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.adm-card-head h2 { margin: 0; color: var(--color-heading); font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+.adm-card-head p { margin: .2rem 0 0; color: var(--color-muted); font-size: .8rem; }
+.adm-link { color: var(--color-accent-700); font-size: .85rem; font-weight: 650; text-decoration: none; white-space: nowrap; }
+.adm-link:hover { text-decoration: underline; }
+.adm-link:focus-visible { outline: 2px solid var(--color-accent-700); outline-offset: 2px; border-radius: .25rem; }
+.adm-more { display: flex; justify-content: center; padding-top: var(--space-2); }
+
+/* Employee capacity rows */
+.adm-emp-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.adm-emp-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(8.5rem, 1fr); align-items: center; gap: var(--space-3) var(--space-4); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); color: inherit; text-decoration: none; transition: border-color 150ms ease, background-color 150ms ease; }
+.adm-emp-row:hover { border-color: var(--color-accent-700); background: var(--color-surface-hover); }
+.adm-emp-row:focus-visible { outline: 2px solid var(--color-accent-700); outline-offset: 2px; }
+.adm-person { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.adm-person strong { display: block; overflow: hidden; color: var(--color-heading); font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+.adm-person small { display: block; overflow: hidden; color: var(--color-muted); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.adm-status { min-width: 0; }
+.adm-status .ui-badge { max-width: 100%; overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.adm-load { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
+.adm-load strong { color: var(--color-heading); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.ui-capacity-neutral .ui-capacity-fill { background: var(--color-muted); }
+.ui-capacity-ok .ui-capacity-fill { background: var(--color-accent-600); }
+.ui-capacity-warm .ui-capacity-fill { background: var(--color-warning-500); }
+.ui-capacity-hot .ui-capacity-fill { background: var(--color-danger-600); }
+@media (max-width: 760px) {
+  .adm-emp-row { grid-template-columns: 1fr; gap: var(--space-2); }
+}
+
+/* Agencies table (uses the shared Table) */
+.adm-agency-name strong { display: block; color: var(--color-heading); font-size: .9rem; }
+.adm-agency-name small { color: var(--color-muted); font-size: .8rem; }
+.adm-num { font-variant-numeric: tabular-nums; }
+
+/* Needs attention */
+.adm-attention { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.adm-attention a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-left-width: .3rem; border-radius: var(--radius-control); color: var(--color-heading); font-size: .9rem; text-decoration: none; }
+.adm-attention a:hover { background: var(--color-surface-hover); }
+.adm-attention a:focus-visible { outline: 2px solid var(--color-accent-700); outline-offset: 2px; }
+.adm-attention .is-danger { border-left-color: var(--color-danger-600); }
+.adm-attention .is-warning { border-left-color: var(--color-warning-500); }
+.adm-attention .is-info { border-left-color: var(--color-info-700); }
+.adm-attention-icon { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 50%; }
+.is-danger .adm-attention-icon { background: var(--color-danger-50); color: var(--color-danger-700); }
+.is-warning .adm-attention-icon { background: var(--color-warning-50); color: var(--color-warning-700); }
+.is-info .adm-attention-icon { background: var(--color-info-50); color: var(--color-info-700); }
+.adm-attention-arrow { color: var(--color-muted); }
+
+/* Work summary */
+.adm-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.adm-summary dl { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6); margin: 0; }
+.adm-summary dt { color: var(--color-muted); font-size: .8rem; }
+.adm-summary dd { margin: .1rem 0 0; color: var(--color-heading); font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Loading skeleton: same grid as the real page */
+.adm-skeleton-kpi { height: 8.4rem; }
+.adm-skeleton-rows { display: grid; gap: var(--space-2); }
+.adm-skeleton-rows .ui-skeleton-row { height: 4rem; }
+.adm-skeleton-card { height: 14rem; }
+
+@media (max-width: 540px) {
+  .admin-dashboard .ui-page-header { align-items: flex-start; flex-direction: column; gap: var(--space-3); }
+  .admin-dashboard .ui-page-header-action { width: 100%; }
+  .adm-header-actions { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) { .adm-emp-row { transition: none; } }

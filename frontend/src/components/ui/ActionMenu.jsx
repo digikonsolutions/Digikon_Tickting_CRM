@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 // A "⋮" button that opens a menu of row actions. Items are { label, to?, onClick?, danger?, separator? }.
 // Keyboard: Enter/Space/ArrowDown opens, arrows move, Home/End jump, Escape closes and returns focus.
 // The menu is positioned with fixed coordinates so a scrolling table never clips it.
-export function ActionMenu({ label = 'Actions', items }) {
+export function ActionMenu({ label = 'Actions', items, triggerLabel, triggerIcon }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, right: 0 })
   const buttonRef = useRef(null)
@@ -58,15 +58,23 @@ export function ActionMenu({ label = 'Actions', items }) {
       <button
         ref={buttonRef}
         type="button"
-        className="ui-action-menu-button"
-        aria-label={label}
+        className={triggerLabel ? 'ui-button ui-button-primary ui-button-md ui-action-menu-trigger' : 'ui-action-menu-button'}
+        aria-label={triggerLabel ? undefined : label}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={toggle}
         onKeyDown={(event) => { if (event.key === 'ArrowDown' && !open) { event.preventDefault(); toggle() } }}
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
+        {triggerLabel
+          ? (
+            <>
+              {triggerIcon}
+              {triggerLabel}
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </>
+          )
+          : <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>}
       </button>
       {open && (
         <div ref={menuRef} id={menuId} className="ui-action-menu-list" role="menu" aria-label={label} style={{ top: position.top, right: position.right }} onKeyDown={onMenuKeyDown}>

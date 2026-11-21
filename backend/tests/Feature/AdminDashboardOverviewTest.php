@@ -196,6 +196,7 @@ class AdminDashboardOverviewTest extends TestCase
 
         $rows = collect($this->dashboard()->json('employee_capacity'))->keyBy('name');
 
+        $this->assertArrayHasKey('photo_url', $rows['Held']);
         $this->assertSame('web', $rows['Held']['department']);
         $this->assertSame('held', $rows['Held']['status']);
         $this->assertSame(['name' => 'Hannah Holder', 'agency_id' => $agency->id, 'agency_name' => 'Northwind'], $rows['Held']['holder']);

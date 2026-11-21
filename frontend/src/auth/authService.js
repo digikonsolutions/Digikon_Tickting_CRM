@@ -416,18 +416,34 @@ export const authService = {
     return request(`/agency/capacity?${query.toString()}`)
   },
   // One-call admin dashboard summary: { today, projects (counts), tickets, scheduled_hours, recent_projects }.
-  async getAdminDashboard({ status } = {}) {
+  // Admin agency status (active or suspended). Suspending ends every session of that agency's users.
+  async updateAdminAgency(id, status) {
+    if (AUTH_MODE === 'mock') return { agency: { id, status } }
+    return request(`/admin/agencies/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+  },
+  async getAdminDashboard({ status, week, employeeFilter } = {}) {
     if (AUTH_MODE === 'mock') {
       return {
         today: '',
+        week_start: '',
+        week_end: '',
+        generated_at: new Date().toISOString(),
+        weekly_budget_hours: 36,
+        employees: { total: 0, active: 0, inactive: 0, available: 0, held: 0, overloaded: 0, avg_utilization_percent: 0 },
+        agencies: { total: 0, active: 0, suspended: 0 },
+        employee_capacity: [],
+        agency_rows: [],
+        attention: [],
+        work_summary: { projects: { total: 0, scheduled: 0, in_progress: 0, completed: 0 }, tickets: { total: 0 } },
         projects: { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0 },
         tickets: { total: 0 },
         scheduled_hours: Array.from({ length: 7 }, () => ({ date: '', hours: '0.00' })),
         recent_projects: [],
       }
     }
-    const query = status ? `?status=${encodeURIComponent(status)}` : ''
-    return request(`/admin/dashboard${query}`)
+    // employeeFilter ('available', 'held', 'overloaded') narrows only the employee capacity list.
+    const query = historyQuery({ status, week, employee_filter: employeeFilter && employeeFilter !== 'all' ? employeeFilter : undefined })
+    return request(`/admin/dashboard${query ? `?${query}` : ''}`)
   },
   // Notifications for the signed-in user. `signal` lets callers abort stale polls.
   async getNotifications({ unread = false, cursor, signal } = {}) {
