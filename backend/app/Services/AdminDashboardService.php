@@ -33,6 +33,8 @@ class AdminDashboardService
 
     private const SEVERITY_RANK = ['danger' => 0, 'warning' => 1, 'info' => 2];
 
+    public function __construct(private AgencyContracts $contracts) {}
+
     /** @return array<string, mixed> */
     public function snapshot(CarbonImmutable $weekStart, string $employeeFilter = 'all'): array
     {
@@ -63,6 +65,7 @@ class AdminDashboardService
                     : 0,
             ],
             'agencies' => $agencies,
+            'contracts' => $this->contracts->overview($agencies['total']),
             'employee_capacity' => $this->employeeRows($weekStart, $weekEnd, $budget, $employeeFilter),
             'agency_rows' => $this->agencyRows($weekStart, $weekEnd),
             'attention' => $this->attention($employees, $projects, $documents, $idleAgencies),
@@ -196,17 +199,18 @@ class AdminDashboardService
         ];
     }
 
-    /** @return list<array<string, mixed>> */
-    private function agencyRows(CarbonImmutable $from, CarbonImmutable $to): array
+    /** One row per agency with its owner, holdings and this week's hours. Subselects keep it to a single query. */
+    private function agencyQuery(CarbonImmutable $from, CarbonImmutable $to): Builder
     {
-        $rows = DB::table('agencies as ag')
+        $owner = fn (string $column) => fn ($query) => $query->from('users as o')->select($column)
+            ->whereColumn('o.agency_id', 'ag.id')->where('o.role', Role::AgencyOwner->value)
+            ->orderBy('o.id')->limit(1);
+
+        return DB::table('agencies as ag')
             ->select(['ag.id', 'ag.name', 'ag.status'])
-            ->selectSub(
-                fn ($query) => $query->from('users as o')->select('o.name')
-                    ->whereColumn('o.agency_id', 'ag.id')->where('o.role', Role::AgencyOwner->value)
-                    ->orderBy('o.id')->limit(1),
-                'owner_name'
-            )
+            ->selectSub($owner('o.name'), 'owner_name')
+            ->selectSub($owner('o.id'), 'owner_id')
+            ->selectSub($owner('o.email'), 'owner_email')
             ->selectSub(
                 fn ($query) => $query->from('employee_assignments as ea')->selectRaw('COUNT(*)')
                     ->whereColumn('ea.agency_id', 'ag.id')->where('ea.status', 'active'),
@@ -229,19 +233,73 @@ class AdminDashboardService
             ->orderByDesc('hours_booked')
             ->orderByDesc('employees_held')
             ->orderBy('ag.name')
-            ->orderBy('ag.id')
-            ->limit(self::LIST_LIMIT)
-            ->get();
+            ->orderBy('ag.id');
+    }
 
-        return $rows->map(fn (object $row): array => [
-            'id' => (int) $row->id,
-            'name' => $row->name,
-            'owner_name' => $row->owner_name,
-            'status' => $row->status,
-            'employees_held' => (int) $row->employees_held,
-            'open_projects' => (int) $row->open_projects,
-            'hours_booked_this_week' => round((float) $row->hours_booked, 2),
-        ])->values()->all();
+    /** @return list<array<string, mixed>> */
+    private function agencyRows(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return $this->mapAgencyRows($this->agencyQuery($from, $to)->limit(self::LIST_LIMIT)->get());
+    }
+
+    /**
+     * The searchable, paginated list behind the Agencies page. Same row shape as the dashboard's agency rows.
+     *
+     * @return array{week_start: string, week_end: string, agencies: list<array<string, mixed>>, pagination: array<string, int>}
+     */
+    public function agencyPage(CarbonImmutable $week, ?string $search, int $perPage): array
+    {
+        $start = $week->startOfWeek(CarbonImmutable::MONDAY)->startOfDay();
+        $end = $start->addDays(max(config('scheduling.working_days', [1, 2, 3, 4, 5, 6])) - 1);
+        $page = $this->agencyQuery($start, $end)
+            ->when($search, fn ($query, string $term) => $query->where('ag.name', 'like', '%'.$term.'%'))
+            ->paginate($perPage);
+
+        return [
+            'week_start' => $start->toDateString(),
+            'week_end' => $end->toDateString(),
+            'agencies' => $this->mapAgencyRows(collect($page->items())),
+            'pagination' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+        ];
+    }
+
+    /**
+     * Plan, seats, included hours and renewal come from AgencyContracts. Until plans and contracts exist they are
+     * all null, which the UI shows as "No contract".
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function mapAgencyRows($rows): array
+    {
+        $contracts = $this->contracts->summaries($rows->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+        return $rows->map(function (object $row) use ($contracts): array {
+            $contract = $contracts[(int) $row->id] ?? null;
+            $limits = AgencyContracts::limits($contract);
+
+            return [
+                'id' => (int) $row->id,
+                'name' => $row->name,
+                'owner_id' => $row->owner_id !== null ? (int) $row->owner_id : null,
+                'owner_name' => $row->owner_name,
+                'owner_email' => $row->owner_email,
+                'status' => $row->status,
+                'employees_held' => (int) $row->employees_held,
+                'open_projects' => (int) $row->open_projects,
+                'hours_booked_this_week' => round((float) $row->hours_booked, 2),
+                'plan' => $contract['plan_name'] ?? null,
+                'seats_allowed' => $limits['seats'],
+                'hours_included' => $limits['hours'],
+                'renewal_date' => $contract['renews_on'] ?? ($contract['ends_on'] ?? null),
+                'has_contract' => $contract !== null,
+            ];
+        })->values()->all();
     }
 
     /** @return array<string, int> */

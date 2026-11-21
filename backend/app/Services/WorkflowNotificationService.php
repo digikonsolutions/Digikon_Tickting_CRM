@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Models\WorkItem;
+use App\Notifications\AgencyRequestNotice;
 use App\Notifications\AgencyStatusNotice;
 use App\Notifications\AssignmentEnded;
 use App\Notifications\AssignmentHeld;
@@ -26,6 +27,44 @@ use Illuminate\Support\Facades\Log;
 class WorkflowNotificationService
 {
     public function __construct(private TicketNotifier $notifier) {}
+
+    /**
+     * An agency user asks the administrators for more hours, a plan upgrade or a renewal. Every active admin gets an
+     * in-app notification (and an email if their preferences allow it). Returns how many admins were notified.
+     */
+    public function agencyRequest(Agency $agency, User $requester, string $type, ?string $message): int
+    {
+        $what = [
+            'more_hours' => ['requests more hours', 'more hours'],
+            'upgrade' => ['requests a plan upgrade', 'a plan upgrade'],
+            'renewal' => ['requests a contract renewal', 'a contract renewal'],
+        ][$type] ?? ['sends a request', 'help'];
+
+        $sent = 0;
+        try {
+            $admins = User::query()->where('role', Role::Admin->value)->where('is_active', true)->get();
+            $body = "{$requester->name} from {$agency->name} asks for {$what[1]}.";
+            if ($message !== null && trim($message) !== '') {
+                $body .= ' Message: '.trim($message);
+            }
+
+            foreach ($admins as $admin) {
+                $this->notifier->send($admin, AgencyRequestNotice::class, [
+                    'title' => "{$agency->name} {$what[0]}",
+                    'body' => $body,
+                    'url_path' => "/admin/agencies/{$agency->id}?tab=contract",
+                    'actor_name' => $requester->name,
+                    'action_text' => 'Open agency',
+                ]);
+                $sent++;
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            Log::warning('Workflow notification failed in agencyRequest: '.$e->getMessage(), ['exception' => $e]);
+        }
+
+        return $sent;
+    }
 
     /**
      * Notify employee when assigned to a new project.

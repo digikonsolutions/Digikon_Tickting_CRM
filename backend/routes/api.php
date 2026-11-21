@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AdminAgencyController;
 use App\Http\Controllers\AdminEmployeeController;
+use App\Http\Controllers\AgencyDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AgencyEmployeeProfileController;
 use App\Http\Controllers\EmployeeDocumentController;
@@ -40,6 +42,11 @@ Route::middleware('web')->prefix('auth')->group(function () {
 });
 
 Route::middleware('web')->prefix('agency')->group(function () {
+    // Owner and client dashboards, scoped to the caller's own agency. Requests notify every admin.
+    Route::get('/dashboard', [AgencyDashboardController::class, 'show'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    Route::post('/requests', [AgencyDashboardController::class, 'request'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:agency-requests']);
     Route::get('/team', [AgencyUserController::class, 'agencyTeam'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/directory', [AgencyUserController::class, 'agencyDirectory'])
@@ -137,6 +144,8 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::get('/admin/users',[AdminUserController::class, 'adminUsers']);
     Route::patch('/admin/users/{adminUser}', [AdminUserController::class, 'updateAdminUser']);
     Route::delete('/admin/users/{adminUser}', [AdminUserController::class, 'deleteAdminUser']);
+    Route::get('/admin/agencies', [AdminAgencyController::class, 'index']);
+    Route::get('/admin/agencies/{agency}', [AdminAgencyController::class, 'show'])->whereNumber('agency');
     Route::patch('/admin/agencies/{agency}', [AdminUserController::class, 'updateAdminAgency']);
     Route::get('/admin/time-summary', [TimeSummaryController::class, 'admin']);
     Route::get('/admin/dashboard', [WorkItemController::class, 'adminDashboard']);

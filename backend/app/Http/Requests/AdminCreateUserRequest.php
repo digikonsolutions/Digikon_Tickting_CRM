@@ -15,6 +15,16 @@ class AdminCreateUserRequest extends FormRequest
         if (is_string($email)) {
             $this->merge(['email' => mb_strtolower(trim($email))]);
         }
+
+        $name = $this->input('name');
+        if (is_string($name)) {
+            $this->merge(['name' => \App\Support\NameNormalizer::person($name)]);
+        }
+
+        $agencyName = $this->input('agency_name');
+        if (is_string($agencyName)) {
+            $this->merge(['agency_name' => \App\Support\NameNormalizer::organization($agencyName)]);
+        }
     }
 
     public function authorize(): bool

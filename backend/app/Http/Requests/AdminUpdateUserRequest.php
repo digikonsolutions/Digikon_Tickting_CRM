@@ -14,6 +14,11 @@ class AdminUpdateUserRequest extends FormRequest
         if (is_string($email)) {
             $this->merge(['email' => mb_strtolower(trim($email))]);
         }
+
+        $name = $this->input('name');
+        if (is_string($name)) {
+            $this->merge(['name' => \App\Support\NameNormalizer::person($name)]);
+        }
     }
 
     public function authorize(): bool

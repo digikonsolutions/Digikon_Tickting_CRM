@@ -21,6 +21,10 @@ class AdminUpdateEmployeeRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $name = $this->input('name');
+        if (is_string($name)) {
+            $this->merge(['name' => \App\Support\NameNormalizer::person($name)]);
+        }
         $this->prepareProfileInput();
     }
 

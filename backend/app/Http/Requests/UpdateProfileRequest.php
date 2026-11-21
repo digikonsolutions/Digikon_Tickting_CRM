@@ -24,8 +24,8 @@ class UpdateProfileRequest extends FormRequest
         $name = $this->input('name');
 
         if (is_string($name)) {
-            // Trim and collapse any run of whitespace (including non-breaking spaces) to a single space.
-            $this->merge(['name' => trim((string) preg_replace('/[\s\p{Z}]+/u', ' ', $name))]);
+            // Trim, collapse whitespace, and fix clearly broken capitalisation (see NameNormalizer).
+            $this->merge(['name' => \App\Support\NameNormalizer::person($name)]);
         }
     }
 
