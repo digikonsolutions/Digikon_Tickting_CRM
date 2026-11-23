@@ -254,7 +254,8 @@ describe('TeamTable', () => {
     expect(screen.getByText(/NW-4 · Build header/)).toBeInTheDocument()
     expect(screen.getByText('Brochure')).toBeInTheDocument()
     expect(screen.getByText(/2 waiting/)).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: /booked this week, emma alpha/i })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: /booked today, emma alpha/i })).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar', { name: /this week/i })).not.toBeInTheDocument() // the week lives on the employee page
     expect(screen.getByText('Dec 14')).toBeInTheDocument()
   })
 

@@ -45,13 +45,12 @@ export function TeamTable({ rows, menuItemsFor, onAddTask }) {
     },
     {
       key: 'hours',
-      label: 'Today / this week',
+      label: 'Today',
       render: (_value, row) => {
         const capacity = row.queue.capacity ?? {}
         return (
           <span className="tt-bars">
             <CapacityBar used={Number(capacity.hours_today_used ?? 0)} budget={Number(capacity.daily_hours ?? 6)} label="today" ariaLabel={`Hours booked today, ${row.assignment.employee.name}`} />
-            <CapacityBar used={Number(capacity.hours_week_used ?? 0)} budget={Number(capacity.weekly_hours ?? 36)} label="this week" ariaLabel={`Hours booked this week, ${row.assignment.employee.name}`} />
           </span>
         )
       },
