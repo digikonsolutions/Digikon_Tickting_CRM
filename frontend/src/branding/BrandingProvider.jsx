@@ -116,7 +116,8 @@ export function BrandingProvider({ children }) {
   }, [branding, resolvedTheme])
 
   const logoUrl = branding?.logo_url ?? null
-  const displayName = branding?.display_name || null
+  // An agency user always sees their agency's name, never the platform's: the chosen display name, else the agency's own name.
+  const displayName = branding?.display_name || user?.agency?.display_name || user?.agency_name || null
   const faviconUrl = branding?.favicon_url ?? null
 
   useEffect(() => {

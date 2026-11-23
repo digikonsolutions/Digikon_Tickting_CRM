@@ -1261,3 +1261,29 @@
 .tk-card-title { color: var(--color-heading); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
 .tk-card-title:hover { text-decoration: underline; }
 .tk-card small { color: var(--color-muted); }
+
+/* ---------- Agency portal sign-in polish ---------- */
+/* The soft glows follow the brand colour, so no other colour ever shows behind an agency's sign-in. */
+.auth-page {
+  background:
+    radial-gradient(ellipse at 8% 10%, color-mix(in srgb, var(--color-accent-400) 14%, transparent), transparent 28rem),
+    linear-gradient(160deg, var(--color-auth-bg-start, var(--brand-soft)) 0%, var(--color-auth-bg-end, var(--color-page)) 100%);
+}
+.auth-page::before { background: radial-gradient(circle, color-mix(in srgb, var(--color-accent-400) 25%, transparent) 0%, transparent 70%); }
+
+.portal-logo { display: block; max-width: 11rem; max-height: 2.75rem; width: auto; height: auto; object-fit: contain; }
+.auth-showcase.is-agency { overflow: hidden; }
+.auth-showcase.is-agency::after {
+  position: absolute; right: -6rem; bottom: -6rem; width: 18rem; height: 18rem; border-radius: 50%; content: "";
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 16%, transparent) 0%, transparent 68%); pointer-events: none;
+}
+.auth-showcase.is-agency .showcase-title { max-width: 16ch; font-size: clamp(1.75rem, 2.6vw, 2.25rem); text-wrap: balance; }
+.auth-showcase.is-agency .showcase-subtitle { max-width: 28ch; }
+.portal-secure { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: .45rem; margin: 0; color: var(--color-muted); font-size: .8rem; }
+.portal-help { margin: 0 0 .35rem; color: var(--color-muted); font-size: .85rem; text-align: center; }
+.portal-help a { color: var(--brand-hover); font-weight: 600; }
+.is-agency .auth-copyright { margin: 0; text-align: center; font-size: .8rem; color: var(--color-muted); }
+.is-agency .auth-form-footer { display: grid; gap: .1rem; }
+/* On phones the tagline panel is hidden, so the card carries the tagline instead. */
+.portal-tagline { display: none; margin: .4rem 0 0; color: var(--brand-hover); font-size: .85rem; font-weight: 600; }
+@media (max-width: 899px) { .portal-tagline { display: block; } }

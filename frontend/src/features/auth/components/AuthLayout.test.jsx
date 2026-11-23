@@ -59,6 +59,26 @@ describe('AuthLayout', () => {
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull()
   })
 
+  it('names the sign-in region after the agency and builds its headline from the tagline', () => {
+    const { container, rerender } = renderLayout({ slug: 'northwind', brand })
+    expect(container.querySelector('.auth-shell')).toHaveAttribute('aria-label', 'Northwind account access')
+    expect(container.querySelector('.showcase-title').textContent).toBe('Websites that work')
+
+    rerender(
+      <MemoryRouter>
+        <PortalContext.Provider value={{ slug: 'northwind', brand: { ...brand, tagline: null } }}>
+          <AuthLayout title="Sign in"><span /></AuthLayout>
+        </PortalContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(container.querySelector('.showcase-title').textContent).toBe('Welcome to Northwind')
+  })
+
+  it('shows the help line in the card footer, so it is visible on phones too', () => {
+    const { container } = renderLayout({ slug: 'northwind', brand })
+
+    expect(container.querySelector('.auth-form-footer .portal-help a[href="mailto:help@northwind.test"]')).not.toBeNull()
+  })
   it('on the platform pages keeps the ClientHub brand (the control case)', () => {
     const { container } = renderLayout(null)
 

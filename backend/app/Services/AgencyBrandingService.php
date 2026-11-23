@@ -81,7 +81,8 @@ class AgencyBrandingService
         // Validate the uploaded file first.
         if (! $file->isValid()) {
             \Log::error('Branding upload failed: uploaded file is invalid');
-            return $b; // early exit – keep previous branding.
+            // Say so: returning the old branding as if it worked would leave the owner believing the upload succeeded.
+            throw \Illuminate\Validation\ValidationException::withMessages(['file' => 'This file could not be uploaded. Try again.']);
         }
 
         // Determine folder inside Cloudinary for this agency.
@@ -94,7 +95,7 @@ class AgencyBrandingService
         } catch (\Throwable $e) {
             // Log the failure without exposing details to the client.
             \Log::error('Branding upload exception: ' . get_class($e) . ' – ' . $e->getMessage());
-            return $b;
+            throw \Illuminate\Validation\ValidationException::withMessages(['file' => 'We could not save this image. Try a different file, or try again in a minute.']);
         }
 
         // Determine the DB columns for public_id and url.

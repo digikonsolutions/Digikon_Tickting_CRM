@@ -5,22 +5,28 @@ import { usePortal } from '../PortalContext'
 
 const YEAR = new Date().getFullYear()
 
-// An agency's own sign-in page: its name or logo, tagline and colour. No platform name, no product preview.
+// An agency's own sign-in page: its name or logo, a headline from its tagline, its colour and a help line. No platform
+// name and no product preview.
 function AgencyAuthLayout({ portal, eyebrow, title, description, children, footer }) {
   const { brand, slug } = portal
   const mark = brand.logo_url
     ? <img className="portal-logo" src={brand.logo_url} alt={brand.display_name} />
     : <><span className="brand-mark" aria-hidden="true">{brand.display_name.charAt(0).toUpperCase()}</span><span className="brand-name">{brand.display_name}</span></>
+  const headline = brand.tagline || `Welcome to ${brand.display_name}`
+  const help = brand.support_email && <p className="portal-help">Need help? <a href={`mailto:${brand.support_email}`}>{brand.support_email}</a></p>
   return (
-    <main className="auth-page">
-      <div className="auth-shell" aria-label={` account access`}>
-        <aside className="auth-showcase">
+    <main className="auth-page is-agency">
+      <div className="auth-shell" aria-label={`${brand.display_name} account access`}>
+        <aside className="auth-showcase is-agency">
           <Link className="brand" to={portalPath(slug)}>{mark}</Link>
           <div className="showcase-content">
-            <h2 className="showcase-title">{brand.display_name}</h2>
-            {brand.tagline && <p className="showcase-subtitle">{brand.tagline}</p>}
+            <h2 className="showcase-title">{headline}</h2>
+            <p className="showcase-subtitle">Sign in to see your projects, tickets and team.</p>
           </div>
-          {brand.support_email && <p className="showcase-caption">Need help? <a href={`mailto:${brand.support_email}`}>{brand.support_email}</a></p>}
+          <p className="portal-secure">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+            Your workspace is private and protected
+          </p>
         </aside>
         <div className="auth-main">
           <section className="auth-card">
@@ -29,10 +35,12 @@ function AgencyAuthLayout({ portal, eyebrow, title, description, children, foote
               {eyebrow && <span className="auth-eyebrow"><span className="auth-status-dot" aria-hidden="true" />{eyebrow}</span>}
               <h1>{title}</h1>
               {description && <p>{description}</p>}
+              {brand.tagline && <p className="portal-tagline">{brand.tagline}</p>}
             </div>
             {children}
             {footer && <p className="auth-footer">{footer}</p>}
             <div className="auth-form-footer">
+              {help}
               <p className="auth-copyright">&copy; {YEAR} {brand.display_name}</p>
             </div>
           </section>
@@ -41,7 +49,6 @@ function AgencyAuthLayout({ portal, eyebrow, title, description, children, foote
     </main>
   )
 }
-
 export function AuthLayout({ eyebrow, title, description, children, footer }) {
   const portal = usePortal()
   if (portal) return <AgencyAuthLayout portal={portal} eyebrow={eyebrow} title={title} description={description} footer={footer}>{children}</AgencyAuthLayout>

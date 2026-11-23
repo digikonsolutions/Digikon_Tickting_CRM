@@ -144,6 +144,32 @@ class AgencyPortalTest extends TestCase
         $this->actingAs($client)->putJson('/api/agency/branding', ['support_email' => 'x@example.test'])->assertForbidden();
     }
 
+    public function test_a_failed_logo_upload_is_reported_and_keeps_the_existing_logo(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $agency->branding()->create(['logo_url' => 'https://cdn.example.test/old.png']);
+        $owner = $this->user(Role::AgencyOwner, $agency);
+        $this->app->instance(\App\Services\CloudinaryUploader::class, new class extends \App\Services\CloudinaryUploader
+        {
+            public function __construct() {}
+
+            public function upload(\Illuminate\Http\UploadedFile $file, string $folder, array $options = []): array
+            {
+                throw new \RuntimeException('Cloudinary is unavailable');
+            }
+        });
+        // A real 128x128 PNG (this machine's PHP has no GD, so the bytes are built by hand).
+        $chunk = fn (string $type, string $data): string => pack('N', strlen($data)).$type.$data.pack('N', crc32($type.$data));
+        $bytes = "\x89PNG\r\n\x1a\n".$chunk('IHDR', pack('NNCCCCC', 128, 128, 8, 0, 0, 0, 0)).$chunk('IDAT', gzcompress(str_repeat("\x00".str_repeat("\x80", 128), 128))).$chunk('IEND', '');
+        $png = \Illuminate\Http\UploadedFile::fake()->createWithContent('logo.png', $bytes);
+
+        $this->actingAs($owner)->post('/api/agency/branding/logo', ['file' => $png], ['Accept' => 'application/json'])
+            ->assertUnprocessable()->assertJsonValidationErrors('file')
+            ->assertJsonPath('errors.file.0', 'We could not save this image. Try a different file, or try again in a minute.');
+
+        $this->assertSame('https://cdn.example.test/old.png', $agency->branding()->first()->logo_url);
+    }
+
     public function test_the_agency_block_in_me_uses_the_display_name_and_nothing_internal(): void
     {
         $agency = Agency::create(['name' => 'Northwind Legal Entity Ltd']);

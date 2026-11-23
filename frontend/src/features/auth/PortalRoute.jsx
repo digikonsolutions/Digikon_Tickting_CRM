@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Outlet, useParams } from 'react-router-dom'
 import { authService } from '../../auth/authService'
+import { useAuth } from '../../auth/useAuth'
 import { storePortal } from '../../auth/portal'
 import { brandingVariables } from '../../branding/brandingVariables'
 import { Loader } from '../../components/ui'
@@ -24,6 +25,8 @@ function PortalNotFound() {
  */
 export function PortalRoute() {
   const { slug } = useParams()
+  const { user } = useAuth()
+  const signedIn = Boolean(user)
   const [state, setState] = useState({ slug: null, brand: null, failed: false })
 
   useEffect(() => {
@@ -38,12 +41,14 @@ export function PortalRoute() {
   const brand = ready ? state.brand : null
 
   useLayoutEffect(() => {
-    if (!brand) return undefined
+    // Signed-in users get their branding from BrandingProvider; this only paints the logged-out portal pages.
+    // (Both write the same variables, so an unmount cleanup here must never run after the provider has applied them.)
+    if (!brand || signedIn) return undefined
     const root = document.documentElement
     const vars = brandingVariables({ primary_color: brand.primary_color })
     Object.entries(vars).forEach(([name, value]) => root.style.setProperty(name, value))
     return () => Object.keys(vars).forEach((name) => root.style.removeProperty(name))
-  }, [brand])
+  }, [brand, signedIn])
 
   useEffect(() => {
     if (!brand) return undefined

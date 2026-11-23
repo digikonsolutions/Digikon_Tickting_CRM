@@ -73,3 +73,4 @@
 .od-activity a { color: var(--color-heading); text-decoration: none; overflow-wrap: anywhere; }
 .od-activity a:hover { text-decoration: underline; }
 .od-activity time { color: var(--color-muted); font-size: .8rem; }
+.od-top .od-eyebrow { margin: 0 0 .15rem; color: var(--brand-hover); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }

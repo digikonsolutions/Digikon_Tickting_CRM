@@ -5,6 +5,7 @@ import { authService } from '../../auth/authService'
 import { PortalRoute } from './PortalRoute'
 
 vi.mock('../../auth/authService', () => ({ authService: { getPublicBranding: vi.fn() } }))
+vi.mock('../../auth/useAuth', () => ({ useAuth: () => ({ user: null }) }))
 
 const brand = { slug: 'northwind', display_name: 'Northwind', tagline: 'Make it work', logo_url: null, favicon_url: 'https://cdn.example.test/fav.png', primary_color: '#C2410C', support_email: null }
 

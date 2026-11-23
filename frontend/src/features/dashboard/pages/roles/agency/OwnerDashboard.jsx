@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../../../auth/useAuth'
+import { useBranding } from '../../../../../branding/useBranding'
 import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { formatDate, formatDateRange, pluralize } from '../../../../../lib/format'
@@ -209,6 +210,8 @@ function Activity({ items }) {
 // The agency owner's home: what needs doing now, the plan and hours, then the work.
 export function OwnerDashboard() {
   const { user } = useAuth()
+  // The tagline and welcome message set on the Branding page.
+  const { tagline, welcomeMessage } = useBranding()
   const load = useCallback(() => authService.getAgencyDashboard(), [])
   const { data, error, isLoading, reload } = useAsync(load)
   const [requestType, setRequestType] = useState(null)
@@ -233,7 +236,11 @@ export function OwnerDashboard() {
   return (
     <section className="page dashboard agency-dashboard owner-dashboard">
       <div className="od-top">
-        <div><h1>{greeting()}, {firstName}</h1><p>{dashboard.agency.name}</p></div>
+        <div>
+          {tagline && <p className="od-eyebrow">{tagline}</p>}
+          <h1>{greeting()}, {firstName}</h1>
+          <p>{welcomeMessage || dashboard.agency.name}</p>
+        </div>
         <div className="od-top-actions">
           <Link className={`ui-button ui-button-primary ui-button-sm${projectsFull || hoursUsedUp ? ' is-disabled' : ''}`} to="/agency/projects?new=1" aria-disabled={projectsFull || hoursUsedUp} title={projectsFull ? 'Open project limit reached' : hoursUsedUp ? 'All included hours are used' : undefined}>Create project</Link>
           <Link className="ui-button ui-button-secondary ui-button-sm" to="/agency/tickets?new=1">Create ticket</Link>
