@@ -57,7 +57,7 @@ function Kpis({ kpis, clientLimit, employeeLimit }) {
     { label: 'Open projects', value: kpis.open_projects, to: '/agency/projects', icon: 'briefcase' },
     { label: 'Tickets in progress', value: kpis.tickets_in_progress, to: '/agency/tickets?status=in_progress', icon: 'ticket' },
     { label: 'Tickets waiting on you', value: kpis.tickets_waiting_on_you, to: '/agency/tickets?waiting=you', icon: 'chat', hot: kpis.tickets_waiting_on_you > 0 },
-    { label: 'Employees', value: employeeLimit?.used ?? 0, to: '/agency/employees', icon: 'users' },
+    { label: 'Employees', value: employeeLimit?.allowed != null ? `${employeeLimit.used} / ${employeeLimit.allowed}` : (employeeLimit?.used ?? 0), to: '/agency/employees', icon: 'users' },
     { label: 'Clients', value: clientLimit?.allowed != null ? `${kpis.clients} / ${clientLimit.allowed}` : kpis.clients, to: '/agency/clients', icon: 'user' },
   ]
   return (
