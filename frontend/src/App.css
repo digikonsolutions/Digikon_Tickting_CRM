@@ -88,7 +88,7 @@
   color: var(--color-white);
   font-size: 1.05rem;
   font-weight: 900;
-  box-shadow: 0 4px 10px rgb(13 148 136 / 24%);
+  box-shadow: var(--brand-shadow-sm);
 }
 
 .brand-name {
@@ -206,7 +206,7 @@
 }
 
 .preview-badge-in-progress {
-  border-color: rgb(13 148 136 / 20%);
+  border-color: var(--brand-border-soft);
   background: var(--color-accent-50);
   color: var(--color-accent-600);
 }

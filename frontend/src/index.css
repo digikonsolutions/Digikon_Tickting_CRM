@@ -80,10 +80,14 @@
   --color-accent-600: #0f766e;
   --color-accent-700: #115e59;
   --color-accent-ring: rgb(13 148 136 / 18%);
-  --color-auth-bg-start: #f0fdfa;
+  --brand-shadow-sm: 0 4px 10px rgb(13 148 136 / 24%);
+  --brand-shadow-xs: 0 .3rem .8rem rgb(13 148 136 / 8%);
+  --brand-border-soft: rgb(13 148 136 / 20%);
+  /* The sign-in page tints follow the brand, so an agency portal never shows another colour. */
+  --color-auth-bg-start: var(--brand-soft);
   --color-auth-bg-end: #f8fafc;
-  --color-auth-panel-start: #ecfdf5;
-  --color-auth-panel-end: #f0fdfa;
+  --color-auth-panel-start: color-mix(in srgb, var(--brand-soft) 70%, white);
+  --color-auth-panel-end: var(--brand-soft);
   --color-sidebar-active: color-mix(in srgb, var(--color-accent-400) 12%, transparent);
 
   /* Spacing (4px base) */

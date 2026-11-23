@@ -1,4 +1,4 @@
-import { darken, ensureContrast, generateScale, lighten, isHex, mix, readableTextOn, withAlpha } from './colorUtils'
+import { MIN_TEXT_CONTRAST, contrastRatio, meetsAAOnWhite, darken, ensureContrast, generateScale, lighten, isHex, mix, readableTextOn, withAlpha } from './colorUtils'
 
 export const CORNER_RADII = {
   soft: { card: '.75rem', control: '.5rem', sm: '.375rem' },
@@ -21,10 +21,20 @@ export function brandingVariables(branding, { dark = false, complete = false } =
   // branding: the default teal when no primary colour is chosen, and explicit radii.
   const chosen = isHex(branding.primary_color) ? branding.primary_color : (complete ? DEFAULT_PRIMARY : null)
 
-  if (chosen) {
-    const primary = chosen.toUpperCase()
+  // Contrast guard: buttons and badges put text on the brand colour, so a colour that cannot carry readable text
+  // (4.5:1 for the better of white and dark text) is ignored and the default look is used instead.
+  // The colour is also used as text and icons on the page background (links, active navigation), so it must be
+  // readable there too: on white in the light theme, on the dark surface in the dark theme.
+  const readableAsText = chosen && (dark ? contrastRatio(chosen.toUpperCase(), '#111827') >= MIN_TEXT_CONTRAST : meetsAAOnWhite(chosen.toUpperCase()))
+  const guarded = readableAsText && contrastRatio(generateScale(chosen.toUpperCase(), { dark })[600], readableTextOn(chosen.toUpperCase())) >= MIN_TEXT_CONTRAST ? chosen : null
+
+  if (guarded) {
+    const primary = guarded.toUpperCase()
     const scale = generateScale(primary, { dark })
     Object.assign(vars, {
+      '--brand-shadow-sm': `0 4px 10px ${withAlpha(primary, 0.24)}`,
+      '--brand-shadow-xs': `0 .3rem .8rem ${withAlpha(primary, 0.08)}`,
+      '--brand-border-soft': withAlpha(primary, 0.2),
       '--brand': scale[600],
       '--brand-hover': scale[700],
       '--brand-soft': scale[50],
@@ -64,7 +74,7 @@ export function brandingVariables(branding, { dark = false, complete = false } =
   // Brand-coloured text must stay readable on dark surfaces: a lightened primary, AA on the card colour
   // and on the (lighter) tinted badge background. Light themes use the primary itself (AA on white).
   if (dark) {
-    const base = (chosen ?? DEFAULT_PRIMARY).toUpperCase()
+    const base = (guarded ?? DEFAULT_PRIMARY).toUpperCase()
     vars['--brand-text'] = ensureContrast(base, mix(base, '#111827', 0.26), 5)
   }
 
