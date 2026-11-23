@@ -26,6 +26,11 @@ class TimeEntry extends Model
         ];
     }
 
+    public function workItem(): BelongsTo
+    {
+        return $this->belongsTo(WorkItem::class);
+    }
+
     public function ticket(): BelongsTo
     {
         return $this->belongsTo(Ticket::class);

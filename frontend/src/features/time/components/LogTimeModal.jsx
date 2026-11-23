@@ -7,7 +7,7 @@ const MAX_DAYS_BACK = 14
 
 // Manual time entry. The server enforces every limit (1 min to 12 h, no future dates, 14 days back,
 // 16 h per day); the form only mirrors them so most mistakes are caught before sending.
-export function LogTimeModal({ ticket, onClose, onLogged }) {
+export function LogTimeModal({ ticket, project, onClose, onLogged }) {
   const today = todayStr()
   const [date, setDate] = useState(today)
   const [hours, setHours] = useState('')
@@ -24,7 +24,8 @@ export function LogTimeModal({ ticket, onClose, onLogged }) {
     setIsSending(true)
     setError(null)
     try {
-      await authService.logTime(ticket.id, { entryDate: date, minutes: total, note: note.trim() })
+      const entry = { entryDate: date, minutes: total, note: note.trim() }
+      await (project ? authService.logProjectTime(project.id, entry) : authService.logTime(ticket.id, entry))
       await onLogged()
     } catch (reason) {
       setError(reason)
@@ -35,7 +36,7 @@ export function LogTimeModal({ ticket, onClose, onLogged }) {
   const fieldError = (name) => error?.errors?.[name]?.[0]
 
   return (
-    <Modal open onClose={() => !isSending && onClose()} title={`Log time on ${ticket.key}`}>
+    <Modal open onClose={() => !isSending && onClose()} title={`Log time on ${project ? project.title : ticket.key}`}>
       <form className="time-form" onSubmit={submit}>
         {error && !fieldError('entry_date') && !fieldError('minutes') && <Alert variant="error">{error.message}</Alert>}
         <Input

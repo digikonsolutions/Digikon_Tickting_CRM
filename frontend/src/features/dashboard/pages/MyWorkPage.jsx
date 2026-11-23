@@ -11,7 +11,7 @@ import { TicketComments } from '../../comments'
 import { MyQueueSection } from '../../queue/components/MyQueueSection'
 import '../../queue/queue.css'
 import { WaitingChip } from '../../tickets'
-import { TimeProgress, TimerButton, TimesheetTab, useTimerChanged } from '../../time'
+import { LogTimeModal, ProjectTimerButton, TimeProgress, TimerButton, TimesheetTab, useTimerChanged } from '../../time'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
 import { addDays, formatDate, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
@@ -48,13 +48,15 @@ export function MyWorkPage() {
   const [activeTab, setActiveTab] = useState('today')
   const [drawerTicket, setDrawerTicket] = useState(null)
   const [busyProject, setBusyProject] = useState(null)
+  const [logProject, setLogProject] = useState(null)
 
   const loadData = useCallback(async () => {
-    const [projects, tickets] = await Promise.all([
+    const [projects, tickets, timer] = await Promise.all([
       authService.listMyWork(),
       authService.listMyTickets(),
+      authService.getActiveTimer().catch(() => ({ entry: null })),
     ])
-    return { projects: projects.projects, tickets: tickets.tickets, capacity: projects.capacity }
+    return { projects: projects.projects, tickets: tickets.tickets, capacity: projects.capacity, runningProjectId: timer.entry?.ticket_id == null ? (timer.entry?.project?.id ?? null) : null }
   }, [])
 
   const { data, error, isLoading, reload } = useAsync(loadData)
@@ -219,6 +221,12 @@ export function MyWorkPage() {
                   <small className="mw-project-meta">{project.agency_name ?? 'Agency'}{confirmed ? ` · ${formatDateRange(project.start_date, project.due_date)}` : ''}</small>
                 </span>
                 <ProjectStatusBadge project={project} />
+                {project.status === 'in_progress' && !(ticketsByProject[String(project.id)] ?? []).some((ticket) => ticket.status !== 'cancelled') && (
+                  <>
+                    <ProjectTimerButton project={project} running={data?.runningProjectId === project.id} />
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setLogProject(project)}>Log time</Button>
+                  </>
+                )}
                 {project.status === 'scheduled' ? (
                   <Button type="button" size="sm" disabled={Boolean(blocked)} title={blocked ?? undefined} loading={busyProject === project.id} loadingText="Starting…" onClick={() => runProject(project, 'start')}>Start project</Button>
                 ) : (
@@ -502,6 +510,7 @@ export function MyWorkPage() {
 
           <div className="mw-tab-panel" role="tabpanel">
             {renderMyProjects()}
+          {logProject && <LogTimeModal project={logProject} onClose={() => setLogProject(null)} onLogged={async () => { setLogProject(null); showToast('Time logged.'); await reload() }} />}
           {activeTab === 'today' && renderToday()}
             {activeTab === 'week' && renderWeek()}
             {activeTab === 'all' && renderAllTickets()}

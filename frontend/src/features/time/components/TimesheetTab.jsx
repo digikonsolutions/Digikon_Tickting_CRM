@@ -51,16 +51,23 @@ export function TimesheetTab({ refreshKey = 0 }) {
             <h3 className="timesheet-heading">Scheduled</h3>
             <DayStrip schedule={asSchedule('scheduled_hours')} emptyText="Nothing scheduled this week." />
 
-            {data.tickets.length > 0 && (
+            {(data.tickets.length > 0 || (data.projects ?? []).length > 0) && (
               <table className="timesheet-table">
-                <caption className="sr-only">Hours per ticket this week</caption>
-                <thead><tr><th scope="col">Ticket</th><th scope="col">Logged</th><th scope="col">Scheduled</th></tr></thead>
+                <caption className="sr-only">Hours per ticket and project this week</caption>
+                <thead><tr><th scope="col">Ticket or project</th><th scope="col">Logged</th><th scope="col">Scheduled</th></tr></thead>
                 <tbody>
                   {data.tickets.map((ticket) => (
                     <tr key={ticket.ticket_id}>
                       <th scope="row"><Link to={`/tickets/${ticket.key}`}><TicketKey ticketKey={ticket.key} /> {ticket.title}</Link></th>
                       <td>{formatHours(ticket.logged_hours)}</td>
                       <td>{formatHours(ticket.scheduled_hours)}</td>
+                    </tr>
+                  ))}
+                  {(data.projects ?? []).map((project) => (
+                    <tr key={`project-${project.project_id}`}>
+                      <th scope="row">{project.title} <small className="ui-muted">(project)</small></th>
+                      <td>{formatHours(project.logged_hours)}</td>
+                      <td>—</td>
                     </tr>
                   ))}
                 </tbody>

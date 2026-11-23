@@ -109,4 +109,57 @@ class EmployeeStartProjectTest extends TestCase
         $project->forceFill(['awaiting_schedule' => false])->save();
         $this->postJson("/api/work-items/{$project->id}/start")->assertOk();
     }
+
+    public function test_time_can_be_tracked_straight_on_a_project_without_tickets(): void
+    {
+        $project = $this->project();
+        $this->actingAs($this->employee)->postJson("/api/work-items/{$project->id}/time/start")->assertUnprocessable();   // not started yet
+        $this->postJson("/api/work-items/{$project->id}/start")->assertOk();
+
+        $started = $this->postJson("/api/work-items/{$project->id}/time/start")->assertCreated()->assertJsonPath('entry.ticket_id', null)->assertJsonPath('entry.project.id', $project->id)->json('entry.id');
+        $this->postJson("/api/work-items/{$project->id}/time/start")->assertUnprocessable();   // already running
+        $this->getJson('/api/time/active')->assertOk()->assertJsonPath('entry.id', $started)->assertJsonPath('entry.project.title', $project->title);
+        $this->postJson('/api/time/stop')->assertOk()->assertJsonPath('entry.running', false);
+
+        $today = now(config('app.timezone'))->toDateString();
+        $this->postJson("/api/work-items/{$project->id}/time", ['entry_date' => $today, 'minutes' => 90, 'note' => 'Setup'])->assertCreated()->assertJsonPath('entry.hours', 1.5);
+
+        $week = $this->getJson('/api/time/week')->assertOk();
+        $this->assertSame($project->id, $week->json('projects.0.project_id'));
+        $this->assertGreaterThanOrEqual(1.5, $week->json('projects.0.logged_hours'));
+
+        // Others cannot log on it.
+        $this->actingAs($this->makeEmployee('Eve Other'))->postJson("/api/work-items/{$project->id}/time", ['entry_date' => $today, 'minutes' => 30])->assertNotFound();
+        $this->actingAs($this->owner)->postJson("/api/work-items/{$project->id}/time", ['entry_date' => $today, 'minutes' => 30])->assertForbidden();
+    }
+
+    public function test_project_time_is_refused_once_it_has_tickets_and_stops_when_the_project_finishes(): void
+    {
+        $project = $this->project();
+        $this->actingAs($this->employee)->postJson("/api/work-items/{$project->id}/start")->assertOk();
+        $this->postJson("/api/work-items/{$project->id}/time/start")->assertCreated();
+
+        $this->postJson("/api/work-items/{$project->id}/finish")->assertOk();
+        $this->assertSame(0, \App\Models\TimeEntry::query()->whereNull('ended_at')->where('source', 'timer')->count(), 'finishing stops the running project timer');
+
+        $other = $this->project('Second');
+        $this->postJson("/api/work-items/{$other->id}/start")->assertOk();
+        Ticket::create([
+            'agency_id' => $other->agency_id, 'work_item_id' => $other->id, 'created_by' => $this->owner->id, 'number' => 2,
+            'title' => 'T', 'description' => 'x', 'estimated_hours' => 1, 'priority' => 'normal', 'status' => 'todo', 'position' => 1,
+        ]);
+        $this->postJson("/api/work-items/{$other->id}/time/start")->assertUnprocessable()->assertJsonValidationErrors('project');
+    }
+
+    public function test_the_time_summary_counts_project_level_time(): void
+    {
+        $project = $this->project();
+        $this->actingAs($this->employee)->postJson("/api/work-items/{$project->id}/start")->assertOk();
+        $today = now(config('app.timezone'))->toDateString();
+        $this->postJson("/api/work-items/{$project->id}/time", ['entry_date' => $today, 'minutes' => 120])->assertCreated();
+
+        $admin = User::factory()->create(['role' => Role::Admin, 'is_active' => true]);
+        $summary = $this->actingAs($admin)->getJson("/api/admin/time-summary?from={$today}&to={$today}&group_by=employee")->assertOk();
+        $this->assertEquals(2.0, $summary->json('totals.logged_hours'));
+    }
 }

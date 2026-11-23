@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Ticket;
 use App\Models\TicketAllocation;
 use App\Models\TimeEntry;
+use App\Models\WorkItem;
 use App\Services\TicketAccess;
 use App\Services\TimeTracker;
 use Carbon\CarbonImmutable;
@@ -29,6 +30,33 @@ class TimeController extends Controller
         ], 201);
     }
 
+    /** Start a timer straight on the employee's own project (one without tickets). */
+    public function startProject(Request $request, WorkItem $workItem): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($workItem->employee_id === $user->id, 404);
+        $result = $this->time->startForProject($user, $workItem);
+
+        return response()->json([
+            'entry' => $this->entry($result['started'], null, $user),
+            'stopped' => $result['stopped'] ? $this->entry($result['stopped'], null, $user) : null,
+        ], 201);
+    }
+
+    public function storeProject(Request $request, WorkItem $workItem): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($workItem->employee_id === $user->id, 404);
+        $data = $request->validate([
+            'entry_date' => ['required', 'date_format:Y-m-d'],
+            'minutes' => ['required', 'integer'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $entry = $this->time->logManualForProject($user, $workItem, $data['entry_date'], (int) $data['minutes'], $data['note'] ?? null);
+
+        return response()->json(['entry' => $this->entry($entry, null, $user)], 201);
+    }
+
     public function stop(Request $request): JsonResponse
     {
         $stopped = $this->time->stop($request->user());
@@ -41,7 +69,7 @@ class TimeController extends Controller
         $running = $this->time->runningFor($request->user());
 
         return response()->json([
-            'entry' => $running ? $this->entry($running, $running->ticket()->with('agency')->first(), $request->user()) : null,
+            'entry' => $running ? $this->entry($running, $running->ticket_id === null ? null : $running->ticket()->with('agency')->first(), $request->user()) : null,
             'server_time' => CarbonImmutable::now()->toISOString(),
         ]);
     }
@@ -123,12 +151,18 @@ class TimeController extends Controller
             ->selectRaw('ticket_allocations.ticket_id AS ticket_id, ticket_allocations.work_date AS work_date, SUM(ticket_allocations.hours) AS hours')
             ->groupBy('ticket_allocations.ticket_id', 'ticket_allocations.work_date')->get();
 
+        $projectLogged = TimeEntry::query()
+            ->where('user_id', $user->id)->whereNotNull('minutes')->whereNull('ticket_id')
+            ->whereDate('entry_date', '>=', $weekStart->toDateString())->whereDate('entry_date', '<=', $weekEnd->toDateString())
+            ->selectRaw('work_item_id, entry_date, SUM(minutes) AS minutes')
+            ->groupBy('work_item_id', 'entry_date')->get();
+
         $days = [];
         foreach ($workingDays as $isoDay) {
             $date = $weekStart->addDays($isoDay - 1)->toDateString();
             $days[] = [
                 'date' => $date,
-                'logged_hours' => TimeTracker::hours($logged->filter(fn ($row) => substr((string) $row->entry_date, 0, 10) === $date)->sum('minutes')),
+                'logged_hours' => TimeTracker::hours($logged->filter(fn ($row) => substr((string) $row->entry_date, 0, 10) === $date)->sum('minutes') + $projectLogged->filter(fn ($row) => substr((string) $row->entry_date, 0, 10) === $date)->sum('minutes')),
                 'scheduled_hours' => round((float) $scheduled->filter(fn ($row) => substr((string) $row->work_date, 0, 10) === $date)->sum('hours'), 2),
             ];
         }
@@ -147,6 +181,11 @@ class TimeController extends Controller
             'week_end' => $weekEnd->toDateString(),
             'days' => $days,
             'tickets' => $tickets,
+            'projects' => WorkItem::query()->whereIn('id', $projectLogged->pluck('work_item_id')->unique())->get(['id', 'title'])->map(fn (WorkItem $project): array => [
+                'project_id' => $project->id,
+                'title' => $project->title,
+                'logged_hours' => TimeTracker::hours($projectLogged->where('work_item_id', $project->id)->sum('minutes')),
+            ])->values(),
             'totals' => [
                 'logged_hours' => round(collect($days)->sum('logged_hours'), 2),
                 'scheduled_hours' => round(collect($days)->sum('scheduled_hours'), 2),
@@ -163,6 +202,9 @@ class TimeController extends Controller
         $payload = $this->time->payload($entry, $viewer);
         if ($ticket) {
             $payload['ticket'] = ['id' => $ticket->id, 'key' => $ticket->key, 'title' => $ticket->title];
+        } elseif ($entry->ticket_id === null) {
+            $project = $entry->workItem()->first();
+            $payload['project'] = $project ? ['id' => $project->id, 'title' => $project->title] : null;
         }
 
         return $payload;

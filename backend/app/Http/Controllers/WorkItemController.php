@@ -453,6 +453,7 @@ class WorkItemController extends Controller
                 ->delete();
 
             app(TimeTracker::class)->stopForTickets($ticketIds, 'project_cancelled');
+            app(TimeTracker::class)->stopForProject($workItem->id, 'project_cancelled');
             foreach ($openTickets as $openTicket) {
                 $openTicket->update(['status' => 'cancelled']);
                 $recorder->record($openTicket, 'cancelled', ['cause' => 'project'], $user);
@@ -685,6 +686,7 @@ class WorkItemController extends Controller
             }
 
             $locked->forceFill(['status' => 'completed', 'completed_at' => now()])->save();
+            app(\App\Services\TimeTracker::class)->stopForProject($locked->id, 'project_finished');
             app(\App\Services\ActivityLogger::class)->projectStatusChanged($user, $locked, 'in_progress', 'completed');
 
             return $locked;

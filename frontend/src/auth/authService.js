@@ -821,6 +821,15 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), running: true }, stopped: null }
     return request(`/tickets/${encodeURIComponent(ticketId)}/time/start`, { method: 'POST' })
   },
+  // Time straight on a project that has no tickets.
+  async startProjectTimer(projectId) {
+    if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), running: true }, stopped: null }
+    return request(`/work-items/${encodeURIComponent(projectId)}/time/start`, { method: 'POST' })
+  },
+  async logProjectTime(projectId, { entryDate, minutes, note }) {
+    if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), minutes, note } }
+    return request(`/work-items/${encodeURIComponent(projectId)}/time`, { method: 'POST', body: JSON.stringify({ entry_date: entryDate, minutes, note: note || null }) })
+  },
   async stopTimer() {
     if (AUTH_MODE === 'mock') return { entry: { id: Date.now(), running: false } }
     return request('/time/stop', { method: 'POST' })

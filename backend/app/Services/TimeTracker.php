@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Ticket;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Models\WorkItem;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -128,6 +129,9 @@ class TimeTracker
 
     public function stopForUser(User $user, string $reason): void
     {
+        foreach (TimeEntry::query()->where('user_id', $user->id)->whereNull('ticket_id')->where('source', 'timer')->whereNull('ended_at')->pluck('work_item_id') as $projectId) {
+            $this->stopForProject((int) $projectId, $reason);
+        }
         $this->stopForTickets(
             TimeEntry::query()->where('user_id', $user->id)->where('source', 'timer')->whereNull('ended_at')->pluck('ticket_id'),
             $reason
@@ -170,9 +174,84 @@ class TimeTracker
         return $entry;
     }
 
+    /* ---- time straight on a project (one without tickets) ----------------------------------- */
+
+    /** Only the assigned employee, on a project that is in progress and has no tickets: otherwise time goes on a ticket. */
+    private function assertProjectTime(User $user, WorkItem $project, bool $forTimer): void
+    {
+        abort_unless($user->role === Role::Employee && $project->employee_id === $user->id, 403, 'Only the employee assigned to this project can log time.');
+        $allowed = $forTimer ? ['in_progress'] : ['in_progress', 'completed'];
+        if (! in_array($project->status, $allowed, true)) {
+            throw ValidationException::withMessages(['project' => $forTimer ? 'Start the project before running a timer on it.' : 'Time can only be logged on a project that is started.']);
+        }
+        if ($project->tickets()->where('status', '!=', 'cancelled')->exists()) {
+            throw ValidationException::withMessages(['project' => 'This project has tickets. Log time on the ticket you are working on.']);
+        }
+    }
+
+    /** @return array{started: TimeEntry, stopped: TimeEntry|null} */
+    public function startForProject(User $user, WorkItem $project): array
+    {
+        $this->assertProjectTime($user, $project, true);
+
+        return DB::transaction(function () use ($user, $project): array {
+            $running = TimeEntry::query()->where('user_id', $user->id)->where('source', 'timer')->whereNull('ended_at')->lockForUpdate()->first();
+            if ($running && $running->ticket_id === null && $running->work_item_id === $project->id) {
+                throw ValidationException::withMessages(['project' => 'A timer is already running on this project.']);
+            }
+            $stopped = $running ? $this->finish($running, 'switched', $user) : null;
+
+            $now = $this->now();
+            $started = TimeEntry::create([
+                'ticket_id' => null,
+                'work_item_id' => $project->id,
+                'user_id' => $user->id,
+                'entry_date' => $now->toDateString(),
+                'started_at' => $now,
+                'source' => 'timer',
+            ]);
+            $this->forgetRunning($user->id);
+
+            return ['started' => $started, 'stopped' => $stopped];
+        });
+    }
+
+    public function logManualForProject(User $user, WorkItem $project, string $date, int $minutes, ?string $note): TimeEntry
+    {
+        $this->assertProjectTime($user, $project, false);
+        $this->assertEntryRules($user, $date, $minutes, null);
+
+        return TimeEntry::create([
+            'ticket_id' => null,
+            'work_item_id' => $project->id,
+            'user_id' => $user->id,
+            'entry_date' => $date,
+            'minutes' => $minutes,
+            'note' => $note !== null && trim($note) !== '' ? trim($note) : null,
+            'source' => 'manual',
+        ]);
+    }
+
+    /** Stops timers running straight on a project (it was finished or cancelled). */
+    public function stopForProject(int $projectId, string $reason): int
+    {
+        $entries = TimeEntry::query()->where('work_item_id', $projectId)->whereNull('ticket_id')->where('source', 'timer')->whereNull('ended_at')->get();
+        foreach ($entries as $entry) {
+            $this->finish($entry, $reason, null);
+            $this->forgetRunning($entry->user_id);
+        }
+
+        return $entries->count();
+    }
+
     private function recordLogged(TimeEntry $entry, ?User $actor): void
     {
-        $this->recorder->record($entry->ticket()->first(), 'time_logged', [
+        $ticket = $entry->ticket_id === null ? null : $entry->ticket()->first();
+        if ($ticket === null) {
+            // Time logged straight on a project has no ticket thread to appear in.
+            return;
+        }
+        $this->recorder->record($ticket, 'time_logged', [
             'entry_id' => $entry->id,
             'minutes' => $entry->minutes,
             'entry_date' => $entry->entry_date->toDateString(),
@@ -316,6 +395,7 @@ class TimeTracker
         return [
             'id' => $entry->id,
             'ticket_id' => $entry->ticket_id,
+            'project_id' => $entry->work_item_id,
             'user' => ['id' => $entry->user_id, 'name' => $entry->relationLoaded('user') ? $entry->user?->name : null],
             'entry_date' => $entry->entry_date->toDateString(),
             'minutes' => $entry->minutes,

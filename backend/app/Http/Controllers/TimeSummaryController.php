@@ -57,6 +57,19 @@ class TimeSummaryController extends Controller
                 [$from->toDateString(), $to->toDateString(), $from->toDateString(), $to->toDateString()]
             );
 
+        // ... plus one row per project without tickets: time logged straight on it, and the hours planned for it.
+        $facts->unionAll(
+            DB::table('work_items as wi')
+                ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('tickets as pt')->whereColumn('pt.work_item_id', 'wi.id')->where('pt.status', '!=', 'cancelled'))
+                ->when($agencyId !== null, fn ($query) => $query->where('wi.agency_id', $agencyId))
+                ->selectRaw(
+                    'NULL AS ticket_id, wi.estimated_hours AS estimated_hours, wi.employee_id, wi.agency_id, wi.id AS project_id, '
+                    .'COALESCE((SELECT SUM(te.minutes) FROM time_entries te WHERE te.work_item_id = wi.id AND te.ticket_id IS NULL AND te.deleted_at IS NULL AND te.minutes IS NOT NULL AND te.entry_date >= ? AND te.entry_date <= ?), 0) / 60.0 AS logged, '
+                    .'COALESCE((SELECT SUM(wa.hours) FROM work_item_allocations wa WHERE wa.work_item_id = wi.id AND wa.work_date >= ? AND wa.work_date <= ?), 0) AS scheduled',
+                    [$from->toDateString(), $to->toDateString(), $from->toDateString(), $to->toDateString()]
+                )
+        );
+
         // ... then grouped once.
         $rows = DB::query()->fromSub($facts, 'f')
             ->leftJoin("{$group['table']} as g", 'g.id', '=', "f.{$group['column']}")

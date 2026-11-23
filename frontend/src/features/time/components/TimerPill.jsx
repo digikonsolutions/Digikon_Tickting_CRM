@@ -72,12 +72,12 @@ export function TimerPill() {
     <div className="timer-pill-slot">
       {entry && (
         <div className="timer-pill" role="group" aria-label="Running timer">
-          <Link to={`/tickets/${entry.ticket?.key}`} className="timer-pill-link" title={entry.ticket?.title}>
+          <Link to={entry.ticket ? `/tickets/${entry.ticket.key}` : '/my-work'} className="timer-pill-link" title={entry.ticket?.title ?? entry.project?.title}>
             <span className="timer-pill-dot" aria-hidden="true" />
-            <span className="timer-pill-key">{entry.ticket?.key}</span>
+            <span className="timer-pill-key">{entry.ticket?.key ?? entry.project?.title}</span>
             <time className="timer-pill-clock">{formatClock(seconds)}</time>
           </Link>
-          <button type="button" className="timer-pill-stop" onClick={stop} disabled={isStopping} aria-label={`Stop timer on ${entry.ticket?.key}`} title="Stop timer">
+          <button type="button" className="timer-pill-stop" onClick={stop} disabled={isStopping} aria-label={`Stop timer on ${entry.ticket?.key ?? entry.project?.title}`} title="Stop timer">
             <Icon name="stop" size={14} />
           </button>
         </div>
