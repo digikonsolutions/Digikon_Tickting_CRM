@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } from '../auth/RouteGuards'
-import { ROLES } from '../auth/roles'
+import { isAgencyRole, ROLES } from '../auth/roles'
 import { useAuth } from '../auth/useAuth'
 import { PortalRoute } from '../features/auth/PortalRoute'
 import { Loader } from '../components/ui'
@@ -60,7 +60,7 @@ export function AppRoutes() {
         <Route path="/dev/ui" element={<Suspense fallback={<Loader />}><DevUiPage /></Suspense>} />
       )}
       <Route path="/a/:slug" element={<PortalRoute />}>
-        <Route element={<PublicOnlyRoute />}>
+        <Route element={<PortalGate />}>
           <Route index element={<LoginPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
@@ -143,6 +143,13 @@ export function AppRoutes() {
       <Route path="*" element={<UnknownRoute />} />
     </Routes>
   )
+}
+
+// An agency portal's sign-in pages: agency users who are already signed in go home, while platform staff may open the page
+// (to check an agency's branding) without being bounced to their own dashboard.
+function PortalGate() {
+  const { user } = useAuth()
+  return user && isAgencyRole(user.role) ? <PublicOnlyRoute /> : <Outlet />
 }
 
 // Signed-in users get a real 404; signed-out users are sent to sign in as before.

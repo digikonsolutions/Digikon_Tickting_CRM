@@ -46,6 +46,8 @@ class AdminAgencyController extends Controller
         return response()->json(['agency' => [
             'id' => $agency->id,
             'name' => $agency->name,
+            'slug' => $agency->slug,
+            'portal_path' => '/a/'.$agency->slug,
             'status' => $agency->status,
             'ticket_prefix' => $agency->ticket_prefix,
             'created_at' => $agency->created_at?->toISOString(),

@@ -208,7 +208,7 @@ class AdminDashboardService
             ->orderBy('o.id')->limit(1);
 
         return DB::table('agencies as ag')
-            ->select(['ag.id', 'ag.name', 'ag.status'])
+            ->select(['ag.id', 'ag.name', 'ag.slug', 'ag.status'])
             ->selectSub($owner('o.name'), 'owner_name')
             ->selectSub($owner('o.id'), 'owner_id')
             ->selectSub($owner('o.email'), 'owner_email')
@@ -287,6 +287,7 @@ class AdminDashboardService
             return [
                 'id' => (int) $row->id,
                 'name' => $row->name,
+                'slug' => $row->slug,
                 'owner_id' => $row->owner_id !== null ? (int) $row->owner_id : null,
                 'owner_name' => $row->owner_name,
                 'owner_email' => $row->owner_email,

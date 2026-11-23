@@ -75,6 +75,9 @@ export function AdminAgencyDetailPage() {
         action={(
           <div className="adm-header-actions">
             <Badge variant={suspending ? 'success' : draft ? 'slate' : 'warning'}>{statusLabel}</Badge>
+            {agency.slug && (suspending
+              ? <a className="ui-button ui-button-secondary" href={`/a/${agency.slug}/login`} target="_blank" rel="noreferrer noopener" title="Opens the agency's own sign-in page. Use a private window if you are signed in here.">Open portal</a>
+              : <Button type="button" variant="secondary" disabled title="The portal is available once the agency is active.">Open portal</Button>)}
             <Button type="button" variant={suspending ? 'danger' : 'primary'} onClick={() => setStatusTarget({ id: agency.id, name: agency.name, status: agency.status })}>
               {draft ? 'Activate & send invite' : suspending ? 'Suspend agency' : 'Activate agency'}
             </Button>

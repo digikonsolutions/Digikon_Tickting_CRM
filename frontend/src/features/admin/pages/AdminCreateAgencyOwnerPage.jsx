@@ -310,6 +310,16 @@ function CreatedSummary({ result, logo, contractDoc, onAnother }) {
     }
   }
 
+  const portalUrl = `${window.location.origin}${result.agency.portal_path ?? ''}`
+  async function copyPortal() {
+    try {
+      await navigator.clipboard.writeText(portalUrl)
+      showToast('Portal link copied.')
+    } catch {
+      showToast('Could not copy automatically. Select the link and copy it.', 'error')
+    }
+  }
+
   const labels = { document: 'Contract file', logo: 'Logo' }
   const files = { document: contractDoc, logo }
   const busy = Object.values(uploads).some((upload) => upload?.state === 'uploading' || upload?.state === 'pending')
@@ -324,6 +334,18 @@ function CreatedSummary({ result, logo, contractDoc, onAnother }) {
           Owner: <strong>{result.owner.name}</strong> ({result.owner.email}) · <Badge variant={agencyStatus === 'draft' ? 'slate' : 'success'}>{agencyStatus === 'draft' ? 'Draft' : 'Active'}</Badge>
         </p>
       </div>
+
+      {result.agency.portal_path && (
+        <div className="onb-portal">
+          <h3>Portal address</h3>
+          <p><a href={portalUrl} target="_blank" rel="noreferrer noopener">{portalUrl}</a></p>
+          <p className="adm-muted">{agencyStatus === 'draft' ? 'The owner can sign in here once the agency is activated.' : 'The owner and their clients sign in here. Open it to check the branding.'}</p>
+          <div className="onb-portal-actions">
+            <Button type="button" variant="secondary" size="sm" onClick={copyPortal}>Copy link</Button>
+            <a className="ui-button ui-button-secondary ui-button-sm" href={portalUrl} target="_blank" rel="noreferrer noopener">Open portal</a>
+          </div>
+        </div>
+      )}
 
       {warnings.length > 0 && (
         <Alert variant="warning" title="Worth knowing">

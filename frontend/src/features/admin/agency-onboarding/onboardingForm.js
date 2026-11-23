@@ -58,7 +58,7 @@ export function emptyWizard() {
       billing_cycle: 'monthly', overage_rate: '', start_date: todayString(), end_date: '', auto_renew: false, notice_period_days: '',
       status: 'active', trial_end_date: '', payment_terms_days: '', discount_percent: '', features: '',
     },
-    setup: { employee_ids: [], brand_color: '', send_invite: true, welcome_enabled: false, welcome_message: '' },
+    setup: { employee_ids: [], brand_color: '', slug: '', display_name: '', tagline: '', support_email: '', send_invite: true, welcome_enabled: false, welcome_message: '' },
   }
 }
 
@@ -97,6 +97,15 @@ export function contractSummary(contract) {
 export const featuresOf = (contract) => String(contract.features ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
 
 const blank = (value) => value === '' || value === null || value === undefined
+
+/** "Northwind Studio!" -> "northwind-studio": the portal address the server would generate from an agency name. */
+export function slugify(name) {
+  const base = String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 34)
+  return base.length >= 3 ? base : ''
+}
+
+export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
+const RESERVED_SLUGS = ['admin', 'api', 'login', 'a', 'assets', 'storage', 'up', 'www', 'app', 'support', 'static', 'public']
 const NUMBER_FIELDS = ['employees', 'hours_per_month', 'max_open_projects', 'max_client_accounts', 'price', 'overage_rate', 'notice_period_days', 'payment_terms_days', 'discount_percent']
 
 function clean(section) {
@@ -119,6 +128,9 @@ export function buildPayload(values, mode) {
 
   const setup = { employee_ids: values.setup.employee_ids, send_invite: values.setup.send_invite }
   if (values.setup.brand_color) setup.brand_color = values.setup.brand_color.toUpperCase()
+  for (const key of ['display_name', 'tagline', 'support_email']) if (values.setup[key].trim()) setup[key] = values.setup[key].trim()
+  // Only an address the admin typed is sent; otherwise the server builds one from the agency name.
+  if (values.setup.slug.trim()) setup.slug = values.setup.slug.trim().toLowerCase()
   if (values.setup.welcome_enabled && values.setup.welcome_message.trim()) setup.welcome_message = values.setup.welcome_message.trim()
 
   return { mode, owner: clean(values.owner), agency, contract, setup }
@@ -163,6 +175,10 @@ export function validateStep(stepId, values) {
     const color = values.setup.brand_color
     if (!blank(color) && !HEX.test(color)) add('setup.brand_color', 'Use a hex colour like #0F766E.')
     else if (!blank(color) && contrastOnWhite(color) < 4.5) add('setup.brand_color', 'This colour is too light to read on white. Pick a darker shade.')
+    const slug = values.setup.slug.trim().toLowerCase()
+    if (slug && (slug.length < 3 || slug.length > 40 || !SLUG_PATTERN.test(slug))) add('setup.slug', 'Use 3 to 40 lowercase letters, digits and single hyphens, for example northwind-studio.')
+    else if (RESERVED_SLUGS.includes(slug)) add('setup.slug', 'This portal address is reserved. Choose another.')
+    if (!blank(values.setup.support_email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.setup.support_email.trim())) add('setup.support_email', 'Enter a valid email address.')
     const seats = values.contractEnabled && !blank(values.contract.employees) ? Number(values.contract.employees) : null
     if (seats !== null && values.setup.employee_ids.length > seats) add('setup.employee_ids', `The contract allows ${seats} employee${seats === 1 ? '' : 's'}, but ${values.setup.employee_ids.length} are chosen.`)
   }

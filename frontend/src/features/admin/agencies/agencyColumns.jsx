@@ -30,6 +30,9 @@ export function agencyMenuItems(row, onToggle) {
     { label: 'Hours & usage', to: `${base}?tab=usage` },
     { label: 'Employees held', to: `${base}?tab=employees` },
     { label: 'Projects', to: `${base}?tab=projects` },
+    row.slug && row.status === 'active'
+      ? { label: 'Open portal', href: `/a/${row.slug}/login`, external: true }
+      : { label: 'Open portal', disabled: true, title: 'The portal is available once the agency is active.', onClick: () => {} },
     row.owner_id
       ? { label: 'Agency owner profile', to: `/admin/agency-owners?search=${encodeURIComponent(row.owner_email ?? row.owner_name ?? '')}` }
       : { label: 'Agency owner profile', disabled: true, title: 'This agency has no owner yet', onClick: () => {} },

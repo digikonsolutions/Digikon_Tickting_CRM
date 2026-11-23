@@ -92,7 +92,9 @@ export function DropdownMenu({ label = 'Actions', items, triggerLabel, triggerIc
             return (
               <div key={item.label} role="none">
                 {item.separator && <hr className="ui-action-menu-separator" />}
-                {item.to
+                {item.href
+                  ? <a role="menuitem" className={className} href={item.href} target="_blank" rel="noreferrer noopener" onClick={() => close(false)}>{item.label}</a>
+                  : item.to
                   ? <Link role="menuitem" className={className} to={item.to} onClick={() => close(false)}>{item.label}</Link>
                   : <button type="button" role="menuitem" className={className} disabled={item.disabled} title={item.title} onClick={() => { close(false); item.onClick?.() }}>{item.label}</button>}
               </div>

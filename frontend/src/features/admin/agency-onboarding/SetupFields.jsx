@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { Alert, Button, FieldRow, FormSection, Textarea } from '../../../components/ui'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { authService } from '../../../auth/authService'
+import { Alert, Button, FieldRow, FormSection, Input, Textarea } from '../../../components/ui'
 import { Icon } from '../../../components/ui/Icon'
 import { EmployeePicker } from './EmployeePicker'
-import { LOGO_RULES, contrastOnWhite, firstError, formatBytes } from './onboardingForm'
+import { LOGO_RULES, SLUG_PATTERN, contrastOnWhite, firstError, formatBytes, slugify } from './onboardingForm'
 
 // Setup and access: pre-assigned employees, logo and brand colour, the invitation message and internal notes.
 // Reusable: `setup` and `agency` are the two sections it edits (notes live on the agency object), each with its own
@@ -13,6 +14,19 @@ export function SetupFields({ setup, onSetup, agency, onAgency, errors, seats, l
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
   const ratio = contrastOnWhite(setup.brand_color)
   const colorProblem = firstError(errors, 'setup.brand_color')
+  // The address the agency will get: what the admin typed, or what the server builds from the agency name.
+  const autoSlug = slugify(agency.name)
+  const slug = setup.slug.trim() || autoSlug
+  const [availability, setAvailability] = useState({ slug: '', free: true })
+  useEffect(() => {
+    if (!slug || !SLUG_PATTERN.test(slug)) return undefined
+    const guard = { active: true }
+    // A hint only (an active portal answers 200, anything else 404); the server decides when the agency is created.
+    const timer = window.setTimeout(() => {
+      authService.getPublicBranding(slug).then(() => guard.active && setAvailability({ slug, free: false })).catch(() => guard.active && setAvailability({ slug, free: true }))
+    }, 400)
+    return () => { guard.active = false; window.clearTimeout(timer) }
+  }, [slug])
 
   return (
     <>
@@ -55,6 +69,20 @@ export function SetupFields({ setup, onSetup, agency, onAgency, errors, seats, l
             {colorProblem
               ? <p className="ui-field-error" role="alert">{colorProblem}</p>
               : ratio !== null && <p className="ui-field-help">Contrast on white: {ratio.toFixed(1)}:1 {ratio >= 4.5 ? '(good)' : '(too light)'}</p>}
+          </div>
+        </FieldRow>
+        <FieldRow>
+          <Input id="brand-display-name" label="Display name" maxLength={120} placeholder={agency.name || 'Shown instead of the agency name'} value={setup.display_name} onChange={(event) => onSetup({ ...setup, display_name: event.target.value })} helperText="What the agency's team sees as the product name." error={firstError(errors, 'setup.display_name')} />
+          <Input id="brand-tagline" label="Tagline" maxLength={140} value={setup.tagline} onChange={(event) => onSetup({ ...setup, tagline: event.target.value })} error={firstError(errors, 'setup.tagline')} />
+        </FieldRow>
+        <FieldRow>
+          <Input id="brand-support-email" label="Support email" type="email" maxLength={254} value={setup.support_email} onChange={(event) => onSetup({ ...setup, support_email: event.target.value })} helperText="Replies to the agency's emails go here." error={firstError(errors, 'setup.support_email')} />
+          <div>
+            <Input id="brand-slug" label="Portal address" maxLength={40} placeholder={autoSlug || 'agency-name'} value={setup.slug} onChange={(event) => onSetup({ ...setup, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+              helperText={slug ? `${window.location.origin}/a/${slug}` : 'Built from the agency name.'} error={firstError(errors, 'setup.slug')} />
+            {slug && availability.slug === slug && !firstError(errors, 'setup.slug') && (
+              <p className={`ui-field-help${availability.free ? '' : ' onb-slug-taken'}`} role="status">{availability.free ? 'Looks available.' : 'This address is already in use.'}</p>
+            )}
           </div>
         </FieldRow>
       </FormSection>

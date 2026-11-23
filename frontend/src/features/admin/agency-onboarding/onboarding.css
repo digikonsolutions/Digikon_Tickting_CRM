@@ -99,3 +99,10 @@
 .onb-plan-features .onb-plan-more::before { background: var(--color-border-strong); }
 .onb-plan-best { margin-top: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-sunken); color: var(--color-heading); font-size: .8rem; font-weight: 600; }
 .onb-includes { margin: 0; padding-left: 1.1rem; font-size: .85rem; }
+
+/* Portal address on the "created" screen and the slug hint */
+.onb-portal { display: grid; gap: .4rem; margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); }
+.onb-portal h3 { margin: 0; font-size: 1rem; }
+.onb-portal p { margin: 0; overflow-wrap: anywhere; }
+.onb-portal-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.onb-slug-taken { color: var(--color-danger-700); font-weight: 600; }
