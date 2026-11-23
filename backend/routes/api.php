@@ -298,6 +298,8 @@ Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::get('/employee/monitoring-policy', [MonitoringConsentController::class, 'show']);
     Route::post('/employee/monitoring-policy/accept', [MonitoringConsentController::class, 'accept']);
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
+    Route::post('/work-items/{workItem}/start', [WorkItemController::class, 'start'])->whereNumber('workItem');
+    Route::post('/work-items/{workItem}/finish', [WorkItemController::class, 'finish'])->whereNumber('workItem');
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
     Route::get('/work-items/mine/queue', [QueueController::class, 'mine']);
 });

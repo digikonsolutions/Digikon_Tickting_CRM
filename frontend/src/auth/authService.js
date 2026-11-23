@@ -984,6 +984,15 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { project: null, tickets: [] }
     return request(`/admin/projects/${encodeURIComponent(id)}`)
   },
+  // The assigned employee starts or finishes their own project; tickets are optional.
+  async startMyProject(id) {
+    if (AUTH_MODE === 'mock') return { project: { id, status: 'in_progress' } }
+    return request(`/work-items/${encodeURIComponent(id)}/start`, { method: 'POST' })
+  },
+  async finishMyProject(id) {
+    if (AUTH_MODE === 'mock') return { project: { id, status: 'completed' } }
+    return request(`/work-items/${encodeURIComponent(id)}/finish`, { method: 'POST' })
+  },
   async listMyWork() {
     if (AUTH_MODE === 'mock') return { projects: [], capacity: DEFAULT_CAPACITY }
     return request('/work-items/mine')

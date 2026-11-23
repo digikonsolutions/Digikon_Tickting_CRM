@@ -19,6 +19,8 @@ return [
     // with its details and an optional estimate; nothing is scheduled for them. Off = the older behaviour where an
     // agency's own start and due dates are auto-scheduled on save.
     'admin_only_scheduling' => env('SCHEDULING_ADMIN_ONLY', true),
+    // How many projects one employee may have in progress at once (they start projects themselves; tickets are optional).
+    'max_projects_in_progress' => 1,
     // Placeholder window (days) given to a request that is waiting for its schedule; the admin sets the real due date.
     'provisional_window_days' => 14,
     // Hours before an unconfirmed timeline is reminded about (each reminder is sent once), and before it counts as overdue.

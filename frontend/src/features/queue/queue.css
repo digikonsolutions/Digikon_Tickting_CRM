@@ -86,3 +86,7 @@
 .ep-queue li { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); align-items: start; }
 .ep-queue-main { display: grid; gap: .15rem; min-width: 0; }
 .ep-profile { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+/* Employee: my projects with Start / Mark done */
+.mw-projects { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.mw-projects li { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+.mw-project-line { display: grid; flex: 1 1 14rem; min-width: 0; }

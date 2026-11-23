@@ -5,7 +5,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Button, Card, CapacityBar, Drawer, DueText, EmptyState,
-  KpiCard, PageHeader, PlainText, PriorityBadge, Skeleton, StatusBadge, Tabs, TicketKey, useToast,
+  KpiCard, PageHeader, PlainText, PriorityBadge, ProjectStatusBadge, Skeleton, StatusBadge, Tabs, TicketKey, useToast,
 } from '../../../components/ui'
 import { TicketComments } from '../../comments'
 import { MyQueueSection } from '../../queue/components/MyQueueSection'
@@ -47,6 +47,7 @@ export function MyWorkPage() {
   const [postedComments, setPostedComments] = useState({})
   const [activeTab, setActiveTab] = useState('today')
   const [drawerTicket, setDrawerTicket] = useState(null)
+  const [busyProject, setBusyProject] = useState(null)
 
   const loadData = useCallback(async () => {
     const [projects, tickets] = await Promise.all([
@@ -106,6 +107,21 @@ export function MyWorkPage() {
       setActionError(reason)
     } finally {
       setBusyTicket(null)
+    }
+  }
+
+  // Start or finish one of my own projects. No ticket is needed; the server checks the schedule and the limit.
+  async function runProject(project, kind) {
+    setBusyProject(project.id)
+    setActionError(null)
+    try {
+      await (kind === 'start' ? authService.startMyProject(project.id) : authService.finishMyProject(project.id))
+      showToast(kind === 'start' ? `Started ${project.title}.` : `Finished ${project.title}.`)
+      await reload()
+    } catch (reason) {
+      setActionError(reason)
+    } finally {
+      setBusyProject(null)
     }
   }
 
@@ -181,6 +197,38 @@ export function MyWorkPage() {
           </Button>
         </div>
       </article>
+    )
+  }
+
+  // The employee's open projects. Starting needs no ticket; finishing waits for open tickets, if there are any.
+  function renderMyProjects() {
+    const open = projects.filter((project) => ['scheduled', 'in_progress'].includes(project.status))
+    if (!open.length) return null
+    const working = open.filter((project) => project.status === 'in_progress')
+    return (
+      <Card title="My projects" description="Start a project when you begin; tickets are optional.">
+        <ul className="mw-projects" aria-label="My projects">
+          {open.map((project) => {
+            const openTickets = (ticketsByProject[String(project.id)] ?? []).filter((ticket) => !['done', 'cancelled'].includes(ticket.status)).length
+            const confirmed = (project.schedule_state ?? 'confirmed') === 'confirmed'
+            const blocked = project.status === 'scheduled' && (!confirmed ? 'Waiting for the schedule to be confirmed.' : working.length > 0 ? 'Finish your current project first.' : null)
+            return (
+              <li key={project.id}>
+                <span className="mw-project-line">
+                  <strong>{project.title}</strong>
+                  <small className="mw-project-meta">{project.agency_name ?? 'Agency'}{confirmed ? ` · ${formatDateRange(project.start_date, project.due_date)}` : ''}</small>
+                </span>
+                <ProjectStatusBadge project={project} />
+                {project.status === 'scheduled' ? (
+                  <Button type="button" size="sm" disabled={Boolean(blocked)} title={blocked ?? undefined} loading={busyProject === project.id} loadingText="Starting…" onClick={() => runProject(project, 'start')}>Start project</Button>
+                ) : (
+                  <Button type="button" size="sm" variant="secondary" disabled={openTickets > 0} title={openTickets > 0 ? `${openTickets} open ticket${openTickets === 1 ? '' : 's'} to finish first.` : undefined} loading={busyProject === project.id} loadingText="Finishing…" onClick={() => runProject(project, 'finish')}>Mark done</Button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </Card>
     )
   }
 
@@ -453,7 +501,8 @@ export function MyWorkPage() {
           <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} />
 
           <div className="mw-tab-panel" role="tabpanel">
-            {activeTab === 'today' && renderToday()}
+            {renderMyProjects()}
+          {activeTab === 'today' && renderToday()}
             {activeTab === 'week' && renderWeek()}
             {activeTab === 'all' && renderAllTickets()}
             {activeTab === 'timesheet' && <TimesheetTab refreshKey={data} />}

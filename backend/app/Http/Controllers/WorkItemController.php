@@ -637,6 +637,69 @@ class WorkItemController extends Controller
         return response()->json(['projects' => $items, 'capacity' => WorkItemScheduler::capacity()]);
     }
 
+    /**
+     * The assigned employee starts their project: no ticket is needed. Only a project whose schedule is confirmed can be
+     * started, and an employee has a limited number in progress at once.
+     */
+    public function start(Request $request, WorkItem $workItem): JsonResponse
+    {
+        $user = $request->user();
+        $this->ensureActiveEmployeeAgency($user);
+
+        $item = DB::transaction(function () use ($user, $workItem): WorkItem {
+            $locked = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
+            abort_unless($user->role === Role::Employee && $locked->employee_id === $user->id, 404);
+            abort_unless($locked->status === 'scheduled', 422, 'Only a scheduled project can be started.');
+            if ($locked->isAwaitingSchedule() || (TimelineReview::required() && $locked->timeline_status !== 'confirmed')) {
+                throw ValidationException::withMessages(['status' => 'This project can be started once its schedule is confirmed.']);
+            }
+            $limit = (int) config('scheduling.max_projects_in_progress', 1);
+            $active = WorkItem::query()->where('employee_id', $user->id)->where('status', 'in_progress')->where('id', '<>', $locked->id)->count();
+            if ($limit > 0 && $active >= $limit) {
+                throw ValidationException::withMessages(['status' => 'Finish the project you are working on before starting another.']);
+            }
+
+            $locked->forceFill(['status' => 'in_progress', 'started_at' => now()])->save();
+            app(\App\Services\ActivityLogger::class)->projectStatusChanged($user, $locked, 'scheduled', 'in_progress');
+
+            return $locked;
+        });
+
+        $this->announceProjectStatus($item, 'scheduled', $user);
+
+        return response()->json(['project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true)]);
+    }
+
+    /** The assigned employee marks the project done. A project with open tickets finishes when its tickets do. */
+    public function finish(Request $request, WorkItem $workItem): JsonResponse
+    {
+        $user = $request->user();
+        $this->ensureActiveEmployeeAgency($user);
+
+        $item = DB::transaction(function () use ($user, $workItem): WorkItem {
+            $locked = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
+            abort_unless($user->role === Role::Employee && $locked->employee_id === $user->id, 404);
+            abort_unless($locked->status === 'in_progress', 422, 'Only a project in progress can be finished.');
+            if ($locked->tickets()->whereNotIn('status', ['done', 'cancelled'])->exists()) {
+                throw ValidationException::withMessages(['status' => 'Finish or cancel its open tickets first. The project completes with them.']);
+            }
+
+            $locked->forceFill(['status' => 'completed', 'completed_at' => now()])->save();
+            app(\App\Services\ActivityLogger::class)->projectStatusChanged($user, $locked, 'in_progress', 'completed');
+
+            return $locked;
+        });
+
+        $this->announceProjectStatus($item, 'in_progress', $user);
+
+        return response()->json(['project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true)]);
+    }
+
+    private function announceProjectStatus(WorkItem $item, string $from, User $actor): void
+    {
+        app(WorkflowNotificationService::class)->projectStatusChanged($item->fresh()->load(['client']), $from, $item->status, $actor);
+    }
+
     private function ensureActiveEmployeeAgency(User $user): void
     {
         if ($user->agency_id !== null) {
@@ -696,6 +759,8 @@ class WorkItemController extends Controller
             'agency_id' => $item->agency_id,
             'assignment_id' => $item->assignment_id,
             'timeline_status' => $item->timeline_status,
+            'started_at' => $item->started_at?->toISOString(),
+            'completed_at' => $item->completed_at?->toISOString(),
             'schedule_state' => $item->scheduleState(),
             'planned_hours' => $item->scheduledHours(),
             'assignment_status' => $item->assignment?->status,
