@@ -40,7 +40,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth-admin-signup', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('project-create', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
-        RateLimiter::for('attachments', fn (Request $request) => Limit::perMinute(30)
+        // Queue reorders replan an employee's whole schedule: 20 a minute per signed-in user.
+        RateLimiter::for('queue-reorder', fn (Request $request) => Limit::perMinute(20)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        RateLimiter::for('attachments',fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         // Changing a password: 5 attempts a minute per signed-in user (wrong guesses count).
         RateLimiter::for('password-change', fn (Request $request) => Limit::perMinute(5)

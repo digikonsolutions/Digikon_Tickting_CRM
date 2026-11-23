@@ -37,9 +37,20 @@ class Ticket extends Model
         'key',
     ];
 
+    protected static function booted(): void
+    {
+        // Whatever moves a ticket to "in progress" (workflow, status endpoint, tests) stamps when work first began.
+        static::saving(function (Ticket $ticket): void {
+            if ($ticket->status === 'in_progress' && $ticket->started_at === null) {
+                $ticket->started_at = now();
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
+            'started_at' => 'datetime',
             'agency_id' => 'integer',
             'number' => 'integer',
             'estimated_hours' => 'decimal:2',

@@ -29,6 +29,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\QueueController;
 use App\Http\Controllers\WorkItemController;
 use Illuminate\Support\Facades\Route;
 
@@ -96,6 +97,13 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/assignments/{assignment}/usage', [EmployeeAssignmentController::class, 'usage'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    // The employee's queue of open projects: owners and clients read it, only the owner previews and reorders.
+    Route::get('/assignments/{assignment}/queue', [QueueController::class, 'show'])
+        ->whereNumber('assignment')->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
+    Route::post('/assignments/{assignment}/queue/preview', [QueueController::class, 'preview'])
+        ->whereNumber('assignment')->middleware(['auth', 'role:agency_owner', 'agency.active', 'throttle:queue-reorder']);
+    Route::patch('/assignments/{assignment}/queue/reorder', [QueueController::class, 'reorder'])
+        ->whereNumber('assignment')->middleware(['auth', 'role:agency_owner', 'agency.active', 'throttle:queue-reorder']);
     Route::delete('/assignments/{assignment}', [EmployeeAssignmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/attention', [TicketController::class, 'attention'])
@@ -215,6 +223,7 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::get('/admin/dashboard', [WorkItemController::class, 'adminDashboard']);
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
     Route::get('/admin/projects/{workItem}', [WorkItemController::class, 'adminShow']);
+    Route::get('/admin/employees/{employee}/queue', [QueueController::class, 'admin'])->whereNumber('employee');
     Route::get('/admin/assignments', [EmployeeAssignmentController::class, 'adminIndex']);
     Route::delete('/admin/assignments/{assignment}', [EmployeeAssignmentController::class, 'adminDestroy']);
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);
@@ -269,6 +278,7 @@ Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::post('/employee/monitoring-policy/accept', [MonitoringConsentController::class, 'accept']);
     Route::get('/work-items/mine', [WorkItemController::class, 'mine']);
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
+    Route::get('/work-items/mine/queue', [QueueController::class, 'mine']);
 });
 
 // Notifications for the signed-in user (any role). Everything is scoped to the caller.
