@@ -81,13 +81,16 @@ class EmployeeQueuePlanner
      * @param  list<int>  $newOrder  every open project exactly once
      * @return array{items: list<array<string, mixed>>, conflicts: list<array<string, mixed>>, fits: bool}
      */
-    public function preview(User $employee, array $newOrder): array
+    public function preview(User $employee, array $newOrder, ?int $newItemId = null): array
     {
         $items = $this->openItems($employee);
         $order = $this->validatedOrder($items, $newOrder);
 
-        $result = $this->simulate($items, $order, $this->persistedAllocations($items));
-        $baseline = $this->simulate($items, $items->pluck('id')->all(), $this->persistedAllocations($items));
+        $allocations = $this->persistedAllocations($items);
+        $result = $this->simulate($items, $order, $allocations);
+        // A project that is being added is compared with the queue as it is without it.
+        $existing = $newItemId === null ? $items : $items->reject(fn (WorkItem $item): bool => $item->id === $newItemId)->values();
+        $baseline = $this->simulate($existing, array_values(array_diff($items->pluck('id')->all(), [$newItemId])), $allocations);
         $current = $this->persistedRange($items);
 
         return $this->present($items, $result, $baseline, $current);
@@ -100,9 +103,9 @@ class EmployeeQueuePlanner
      * @param  list<int>|null  $order
      * @return array{items: list<array<string, mixed>>, changed: list<int>, order: list<int>}
      */
-    public function replan(User $employee, ?array $order = null, ?User $actor = null, string $event = 'replanned', array $meta = []): array
+    public function replan(User $employee, ?array $order = null, ?User $actor = null, string $event = 'replanned', array $meta = [], bool $allowSlips = false): array
     {
-        return DB::transaction(function () use ($employee, $order, $actor, $event, $meta): array {
+        return DB::transaction(function () use ($employee, $order, $actor, $event, $meta, $allowSlips): array {
             User::query()->lockForUpdate()->findOrFail($employee->id);
             $items = $this->openItems($employee, lock: true);
             $current = $items->pluck('id')->all();
@@ -115,6 +118,14 @@ class EmployeeQueuePlanner
             $existing = $newId === null ? $items : $items->reject(fn (WorkItem $item): bool => $item->id === $newId)->values();
             $baseline = $this->simulate($existing, array_values(array_diff($current, [$newId])), $allocations);
             $conflicts = $this->conflicts($items, $result, $baseline);
+            if ($allowSlips) {
+                // The caller has accepted that other projects move past their due dates (a confirmed rush insert);
+                // the new project itself must still fit, and nothing may be left without a place to be done.
+                $conflicts = array_values(array_filter(
+                    $conflicts,
+                    fn (array $c): bool => $c['work_item_id'] === $newId || $c['slips_by_days'] >= self::HORIZON_DAYS
+                ));
+            }
             if ($conflicts !== []) {
                 throw QueueConflict::forConflicts($conflicts);
             }

@@ -17,6 +17,7 @@ class EmployeeAssignment extends Model
         'active_employee_id',
         'started_at',
         'ended_at',
+        'expires_at',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class EmployeeAssignment extends Model
         return [
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
+            'expires_at' => 'datetime',
         ];
     }
 

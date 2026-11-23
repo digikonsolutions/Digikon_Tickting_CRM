@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 /** A queue change that would push projects past their due dates. Carries the projects and slips. */
@@ -25,5 +26,15 @@ class QueueConflict extends ValidationException
         $exception->conflicts = $conflicts;
 
         return $exception;
+    }
+
+    /** The API also tells the client which projects would slip, so it can show them. */
+    public function render(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'The given data was invalid.',
+            'errors' => $this->errors(),
+            'conflicts' => $this->conflicts,
+        ], 422);
     }
 }

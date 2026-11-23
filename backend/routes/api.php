@@ -29,6 +29,8 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\AdminRushRequestController;
+use App\Http\Controllers\AgencyRushRequestController;
 use App\Http\Controllers\QueueController;
 use App\Http\Controllers\WorkItemController;
 use Illuminate\Support\Facades\Route;
@@ -104,6 +106,15 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->whereNumber('assignment')->middleware(['auth', 'role:agency_owner', 'agency.active', 'throttle:queue-reorder']);
     Route::patch('/assignments/{assignment}/queue/reorder', [QueueController::class, 'reorder'])
         ->whereNumber('assignment')->middleware(['auth', 'role:agency_owner', 'agency.active', 'throttle:queue-reorder']);
+    // Urgent requests the agency can pay for. Anyone raises one; only the owner accepts or declines a quote.
+    Route::middleware(['auth', 'role:agency_owner,agency_client', 'agency.active'])->prefix('rush-requests')->whereNumber('id')->group(function () {
+        Route::get('/', [AgencyRushRequestController::class, 'index']);
+        Route::post('/', [AgencyRushRequestController::class, 'store'])->middleware('throttle:rush-create');
+        Route::get('/{id}', [AgencyRushRequestController::class, 'show']);
+        Route::patch('/{id}/cancel', [AgencyRushRequestController::class, 'cancel']);
+        Route::post('/{id}/accept', [AgencyRushRequestController::class, 'accept'])->middleware('role:agency_owner');
+        Route::post('/{id}/decline', [AgencyRushRequestController::class, 'decline'])->middleware('role:agency_owner');
+    });
     Route::delete('/assignments/{assignment}', [EmployeeAssignmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::get('/attention', [TicketController::class, 'attention'])
@@ -224,6 +235,10 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::get('/admin/projects', [WorkItemController::class, 'adminIndex']);
     Route::get('/admin/projects/{workItem}', [WorkItemController::class, 'adminShow']);
     Route::get('/admin/employees/{employee}/queue', [QueueController::class, 'admin'])->whereNumber('employee');
+    Route::get('/admin/rush-requests', [AdminRushRequestController::class, 'index']);
+    Route::post('/admin/rush-requests/{id}/quote', [AdminRushRequestController::class, 'quote'])->whereNumber('id');
+    Route::post('/admin/rush-requests/{id}/reject', [AdminRushRequestController::class, 'reject'])->whereNumber('id');
+    Route::get('/admin/charges', [AdminRushRequestController::class, 'charges']);
     Route::get('/admin/assignments', [EmployeeAssignmentController::class, 'adminIndex']);
     Route::delete('/admin/assignments/{assignment}', [EmployeeAssignmentController::class, 'adminDestroy']);
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex']);
