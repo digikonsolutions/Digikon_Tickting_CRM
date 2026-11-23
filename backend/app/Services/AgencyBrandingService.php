@@ -44,7 +44,8 @@ class AgencyBrandingService
 
         // Cloudinary URLs are stored directly; fall back to null if missing.
         return [
-            'agency_name'          => $agency->name,
+            // The brand name the agency chose; the internal agency record name is never exposed to agency users.
+            'agency_name'          => filled($b->display_name) ? $b->display_name : $agency->name,
             'display_name'         => $b->display_name,
             'tagline'              => $b->tagline,
             'welcome_message'      => $b->welcome_message,
