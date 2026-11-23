@@ -22,3 +22,6 @@ Schedule::command('rush:expire-quotes')->everyFiveMinutes();
 
 // Temporary employee assignments (extra team member on a rush request) end at their expiry.
 Schedule::command('assignments:expire-temporary')->everyFiveMinutes();
+
+// Work starting today and deadlines (3 days, 1 day, today, overdue) reach employees as notifications, once each.
+Schedule::command('app:send-work-reminders')->everyThirtyMinutes()->withoutOverlapping()->timezone(config('app.timezone'));

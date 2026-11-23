@@ -62,6 +62,12 @@ class NotificationPreferences
             'email_default' => true,
             'locked' => true,
         ],
+        'reminder' => [
+            'label' => 'Work reminders',
+            'description' => 'Work that should start today, and deadlines that are close or missed.',
+            'email_default' => false,
+            'locked' => false,
+        ],
         'queue' => [
             'label' => 'Queue changes',
             'description' => 'Your queue of projects was reordered or changed.',

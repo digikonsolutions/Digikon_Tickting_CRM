@@ -191,6 +191,10 @@ php artisan schedule:work   # runs rush:expire-quotes and assignments:expire-tem
 
 Both commands can also be run by hand (`php artisan rush:expire-quotes`, `php artisan assignments:expire-temporary`). Notifications are queued jobs (`NotifyRushRequest`, `NotifyQueueChange`); the replan itself always runs synchronously inside the request. In tests the queue is `sync`, and `Queue::fake()` / `Notification::fake()` make delivery assertable.
 
+### Work reminders
+
+`app:send-work-reminders` runs every 30 minutes (`withoutOverlapping`, app timezone) and adds to the existing notifications: same bell, same `/api/notifications` routes, preference type "Work reminders" (in-app by default). It covers employees only (active accounts), for open projects and for `todo` / `in_progress` tickets on open projects: `project_start` / `ticket_start` on the start date, `deadline_soon` 3 days and 1 day before the due date, `deadline_today`, then `deadline_overdue` once a day until the work is closed. Each reminder stores a `dedupe_key` (`project:{id}:due:1`, `ticket:{id}:overdue:2026-12-09`, ...), so running the command again never repeats one, and a failed delivery is retried on the next run. Locally run `php artisan schedule:work` (or the command by hand); in production add the cron entry `* * * * * php artisan schedule:run`.
+
 ### Attachments
 
 Files are stored on a private disk (`config/attachments.php`, never `public`) under UUID names and are only reachable through `GET /api/attachments/{id}/download`, which re-checks ticket access, sends `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment` (inline only for png/jpeg/gif/webp). The file content is sniffed with `finfo` and must agree with the extension; svg, html, js, php and executables are rejected, zip only when `ATTACHMENTS_ALLOW_ARCHIVES=true`. Attachments are scanned through the `AttachmentScanner` contract (`NullScanner` by default; bind a real one such as ClamAV in `AppServiceProvider`). Adding or removing a file records an `attachment_added` / `attachment_removed` event (internal when the file is internal).
