@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { brandingVariables, resolveTheme } from '../../../../branding/brandingVariables'
 
+const YEAR = new Date().getFullYear()
+
 function PreviewLogo({ url, name, collapsedMark }) {
   const [failed, setFailed] = useState(null)
   if (url && failed !== url) {
@@ -21,12 +23,14 @@ function PreviewLogo({ url, name, collapsedMark }) {
  */
 export function BrandingPreview({ draft, logoUrl, faviconUrl, agencyName, systemDark }) {
   const [override, setOverride] = useState(null)
+  const [view, setView] = useState('app')
   const theme = override ?? resolveTheme(draft, systemDark)
   const vars = brandingVariables(draft, { dark: theme === 'dark', complete: true })
   const name = draft.display_name?.trim() || agencyName || 'Your agency'
   const mark = name.charAt(0).toUpperCase()
   const welcome = draft.welcome_message?.trim() || 'Here is what needs your attention today.'
   const eyebrow = draft.tagline?.trim() || 'Agency client'
+  const support = draft.support_email?.trim()
 
   return (
     <div className="ab-preview">
@@ -47,6 +51,15 @@ export function BrandingPreview({ draft, logoUrl, faviconUrl, agencyName, system
         </div>
       </div>
 
+      <div className="ab-preview-toolbar">
+        <span className="ab-preview-label" id="ab-preview-view-label">Preview page</span>
+        <div className="ab-segment" role="group" aria-labelledby="ab-preview-view-label">
+          {[['app', 'Workspace'], ['signin', 'Sign-in page']].map(([id, label]) => (
+            <button key={id} type="button" className={`ab-segment-btn${view === id ? ' is-active' : ''}`} aria-pressed={view === id} onClick={() => setView(id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
       <div className="ab-pv" data-pv-theme={theme} style={vars}>
         <div className="ab-pv-tabbar" aria-hidden="true">
           <span className="ab-pv-tab">
@@ -55,7 +68,25 @@ export function BrandingPreview({ draft, logoUrl, faviconUrl, agencyName, system
           </span>
         </div>
 
-        <div className={`ab-pv-frame${draft.sidebar_style === 'brand' ? ' is-brand-sidebar' : ''}`}>
+        {view === 'signin' && (
+          <div className="ab-pv-login" data-testid="signin-preview" aria-hidden="true">
+            <div className="ab-pv-login-side">
+              <div className="ab-pv-brand"><PreviewLogo url={logoUrl} name={name} collapsedMark={mark} /></div>
+              {logoUrl && <strong>{name}</strong>}
+              {draft.tagline?.trim() && <span>{draft.tagline.trim()}</span>}
+            </div>
+            <div className="ab-pv-login-card">
+              <strong>Sign in to {name}</strong>
+              <span className="ab-pv-field">Work email</span>
+              <span className="ab-pv-field">Password</span>
+              <span className="ab-pv-btn">Sign in</span>
+              {support && <small>Need help? {support}</small>}
+              <small>&copy; {YEAR} {name}</small>
+            </div>
+          </div>
+        )}
+
+        <div className={`ab-pv-frame${draft.sidebar_style === 'brand' ? ' is-brand-sidebar' : ''}`} hidden={view === 'signin'}>
           <aside className="ab-pv-sidebar" aria-hidden="true">
             <div className="ab-pv-brand"><PreviewLogo url={logoUrl} name={name} collapsedMark={mark} /></div>
             <span className="ab-pv-nav is-active"><i />Dashboard</span>

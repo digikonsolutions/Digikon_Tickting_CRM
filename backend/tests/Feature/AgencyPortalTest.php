@@ -128,6 +128,22 @@ class AgencyPortalTest extends TestCase
         $this->postJson('/api/auth/login', ['email' => $owner->email, 'password' => 'wrong', 'agency_slug' => 'northwind'])->assertStatus(429);
     }
 
+    public function test_the_owner_sets_support_email_and_sender_name_and_the_portal_shows_them(): void
+    {
+        $agency = Agency::create(['name' => 'Northwind']);
+        $owner = $this->user(Role::AgencyOwner, $agency);
+        $client = $this->user(Role::AgencyClient, $agency);
+
+        $this->actingAs($owner)->putJson('/api/agency/branding', ['support_email' => 'help@northwind.test', 'email_from_name' => '  Northwind  Support '])->assertOk()
+            ->assertJsonPath('branding.support_email', 'help@northwind.test')->assertJsonPath('branding.email_from_name', 'Northwind Support')->assertJsonPath('branding.slug', 'northwind');
+        $this->getJson('/api/public/agencies/northwind/branding')->assertJsonPath('branding.support_email', 'help@northwind.test');
+        $this->putJson('/api/agency/branding', ['support_email' => 'not-an-email'])->assertUnprocessable()->assertJsonValidationErrors('support_email');
+        $this->putJson('/api/agency/branding', ['support_email' => null])->assertOk()->assertJsonPath('branding.support_email', null);
+
+        // Clients can read the brand but never change it.
+        $this->actingAs($client)->putJson('/api/agency/branding', ['support_email' => 'x@example.test'])->assertForbidden();
+    }
+
     public function test_the_agency_block_in_me_uses_the_display_name_and_nothing_internal(): void
     {
         $agency = Agency::create(['name' => 'Northwind Legal Entity Ltd']);

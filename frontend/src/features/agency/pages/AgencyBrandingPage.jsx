@@ -10,7 +10,7 @@ import { ColorField } from '../components/branding/ColorField'
 import { contrastOnWhite } from '../components/branding/colorPresets'
 import { ImageUploadField } from '../components/branding/ImageUploadField'
 
-const TEXT_FIELDS = ['display_name', 'tagline', 'welcome_message']
+const TEXT_FIELDS = ['display_name', 'tagline', 'welcome_message', 'support_email', 'email_from_name']
 const COLOR_FIELDS = ['primary_color', 'accent_color']
 const ENUM_FIELDS = ['theme_mode', 'sidebar_style', 'corner_style']
 const FIELDS = [...TEXT_FIELDS, ...COLOR_FIELDS, ...ENUM_FIELDS]
@@ -20,6 +20,8 @@ function toDraft(branding) {
     display_name: branding?.display_name ?? '',
     tagline: branding?.tagline ?? '',
     welcome_message: branding?.welcome_message ?? '',
+    support_email: branding?.support_email ?? '',
+    email_from_name: branding?.email_from_name ?? '',
     primary_color: branding?.primary_color ?? '',
     accent_color: branding?.accent_color ?? '',
     theme_mode: branding?.theme_mode ?? 'light',
@@ -150,6 +152,15 @@ function BrandingForm({ initial }) {
     applyServer(branding)
   }
 
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/a/${saved.slug}`)
+      showToast('Sign-in link copied.')
+    } catch {
+      showToast('Could not copy automatically. Select the link and copy it.', 'error')
+    }
+  }
+
   const fieldError = (field) => error?.status === 422 ? error.errors?.[field]?.[0] : undefined
   const unshown = error && (error.status !== 422 || Object.keys(error.errors ?? {}).some((field) => !FIELDS.includes(field))) ? error : null
   const showPreview = isDesktop || previewOpen
@@ -203,6 +214,38 @@ function BrandingForm({ initial }) {
                 onChange={(event) => set('welcome_message', event.target.value)}
                 error={fieldError('welcome_message')}
                 helperText={`A short note for your team and clients on the dashboard banner. (${draft.welcome_message.length}/240)`}
+              />
+            </div>
+          </Card>
+
+          <Card title="Sign-in and email" description="Where your team and clients sign in, and how your emails look.">
+            <div className="ab-fields">
+              {saved.slug && (
+                <div className="ui-field">
+                  <span className="ui-field-label">Sign-in address</span>
+                  <p className="ab-address">
+                    <code>{`${window.location.origin}/a/${saved.slug}`}</code>
+                    <Button type="button" variant="secondary" size="sm" onClick={copyAddress}>Copy link</Button>
+                  </p>
+                  <p className="ui-field-help">Share this with your team and clients. Contact support to change the address; links in earlier emails would stop working.</p>
+                </div>
+              )}
+              <Input
+                label="Support email"
+                type="email"
+                value={draft.support_email}
+                maxLength={254}
+                onChange={(event) => set('support_email', event.target.value)}
+                error={fieldError('support_email')}
+                helperText="Shown on your sign-in page, and replies to your emails go here."
+              />
+              <Input
+                label="Email sender name"
+                value={draft.email_from_name}
+                maxLength={120}
+                onChange={(event) => set('email_from_name', event.target.value)}
+                error={fieldError('email_from_name')}
+                helperText={`The name on emails your team and clients receive. Leave empty to use ${draft.display_name.trim() || agencyName || 'your display name'}.`}
               />
             </div>
           </Card>

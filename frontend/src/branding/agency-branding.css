@@ -258,3 +258,21 @@
 /* Branded banner text: the derived tints change with the theme, so use plain white on the (always dark) gradient. */
 :root[data-theme] .welcome-banner p { color: rgb(255 255 255 / 92%); }
 :root[data-theme] .welcome-banner .welcome-eyebrow { color: rgb(255 255 255 / 82%); }
+
+/* Sign-in page view of the live preview */
+.ab-pv-login { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); min-height: 17rem; background: var(--pv-page); color: var(--pv-text); }
+.ab-pv-login-side { display: grid; align-content: center; gap: .5rem; padding: 1rem; background: var(--color-auth-panel-end, var(--brand-soft)); }
+.ab-pv-login-side strong { font-size: .95rem; }
+.ab-pv-login-side span { font-size: .75rem; opacity: .85; overflow-wrap: anywhere; }
+.ab-pv-login-card { display: grid; align-content: center; gap: .45rem; padding: 1rem; }
+.ab-pv-login-card strong { font-size: .9rem; }
+.ab-pv-login-card small { font-size: .7rem; opacity: .8; overflow-wrap: anywhere; }
+.ab-pv-field { padding: .35rem .5rem; border: 1px solid var(--pv-border); border-radius: var(--radius-sm); font-size: .72rem; opacity: .75; }
+.ab-pv-login .ab-pv-btn { justify-self: start; }
+.ab-address { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; }
+.ab-address code { overflow-wrap: anywhere; }
+@media (max-width: 520px) { .ab-pv-login { grid-template-columns: 1fr; } }
+
+/* The two segmented controls share one narrow toolbar: let them wrap and size to their labels. */
+.ab-preview-toolbar { flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
+.ab-segment-btn { min-width: 0; padding: 0 .85rem; white-space: nowrap; }
