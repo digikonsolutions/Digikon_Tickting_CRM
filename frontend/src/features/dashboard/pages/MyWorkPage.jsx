@@ -8,6 +8,8 @@ import {
   KpiCard, PageHeader, PlainText, PriorityBadge, Skeleton, StatusBadge, Tabs, TicketKey, useToast,
 } from '../../../components/ui'
 import { TicketComments } from '../../comments'
+import { MyQueueSection } from '../../queue/components/MyQueueSection'
+import '../../queue/queue.css'
 import { WaitingChip } from '../../tickets'
 import { TimeProgress, TimerButton, TimesheetTab, useTimerChanged } from '../../time'
 import { DEFAULT_CAPACITY, WORKING_WEEKDAYS } from '../../../lib/constants'
@@ -443,6 +445,9 @@ export function MyWorkPage() {
             <KpiCard icon="inbox" title="To do" value={statusCounts.todo} tone="teal" />
             <KpiCard icon="check" title="Done" value={statusCounts.done} tone="teal" />
           </div>
+
+          {/* Read-only queue: what is on now and what comes next (no prices, ever). */}
+          <MyQueueSection />
 
           {/* Tabs */}
           <Tabs tabs={tabItems} activeTab={activeTab} onChange={setActiveTab} />

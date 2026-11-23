@@ -15,6 +15,7 @@ import {
   AdminEmployeeProfilePage,
   AdminProjectDetailPage,
   AdminProjectsPage,
+  AdminRushRequestsPage,
   AdminTicketsPage,
   AdminUsersPage,
 } from '../features/admin'
@@ -29,6 +30,7 @@ import {
   ProjectDetailPage,
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
+import { TeamQueuePage } from '../features/queue'
 import { AdminEmployeePage } from '../features/activity'
 import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeline'
 import { AdminHistoryPage } from '../features/history'
@@ -88,6 +90,7 @@ export function AppRoutes() {
             <Route path="/admin/tickets" element={<AdminTicketsPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/assignments" element={<AdminAssignmentsPage />} />
+            <Route path="/admin/rush-requests" element={<AdminRushRequestsPage />} />
             <Route path="/admin/time" element={<TimeSummaryPage scope="admin" />} />
             <Route path="/admin/employees" element={<AdminUsersPage key={ROLES.EMPLOYEE} role={ROLES.EMPLOYEE} title="Employees" createTo="/admin/employees/new" createLabel="Create employee" />} />
             <Route path="/admin/employees/new" element={<AdminCreateEmployeePage />} />
@@ -129,6 +132,7 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />
+            <Route path="/agency/queue" element={<TeamQueuePage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />

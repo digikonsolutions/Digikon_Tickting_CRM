@@ -11,7 +11,7 @@ const FORM_ID = 'project-form'
 
 // Create a project, or edit one, in a dialog (the list comes first). On create the chosen employee's real
 // availability is checked on the server (same rules as the scheduler) before the button enables.
-export function ProjectFormModal({ project, assignments, assignmentsLoading, onClose, onSaved }) {
+export function ProjectFormModal({ project, assignments, assignmentsLoading, defaultAssignmentId, onRequestUrgent, onClose, onSaved }) {
   const editing = Boolean(project)
   const [today] = useState(todayStr)
   const [values, setValues] = useState(() => {
@@ -20,7 +20,7 @@ export function ProjectFormModal({ project, assignments, assignmentsLoading, onC
     due.setDate(due.getDate() + 6)
     return { title: '', description: '', estimated_hours: '6', start_date: todayStr(), due_date: toDateStr(due) }
   })
-  const [assignmentId, setAssignmentId] = useState(project ? String(project.assignment_id) : '')
+  const [assignmentId, setAssignmentId] = useState(project ? String(project.assignment_id) : (defaultAssignmentId ? String(defaultAssignmentId) : ''))
   const [files, setFiles] = useState([])
   const [fileNotice, setFileNotice] = useState(null)
   const [error, setError] = useState(null)
@@ -144,6 +144,13 @@ export function ProjectFormModal({ project, assignments, assignmentsLoading, onC
             <ProjectBriefFields errors={error?.errors} />
             <FilePicker files={files} onChange={setFiles} notice={fileNotice} onNotice={setFileNotice} disabled={saving} />
           </FormSection>
+        )}
+        {!editing && onRequestUrgent && (
+          <p className="ui-field-help">
+            Cannot wait in the queue?{' '}
+            <button type="button" className="ui-link-button" onClick={() => onRequestUrgent({ assignmentId, defaults: { title: values.title.trim(), description: values.description.trim(), estimated_hours: hours > 0 ? hours : '', needed_by: values.due_date } })}>Request urgent help</button>
+            {' '}for a price quote. Nothing is charged until your account owner accepts it.
+          </p>
         )}
         {error && error.status !== 422 && <ApiErrorMessage error={error} />}
         {error?.status === 422 && error.message && !error.errors && <Alert variant="error">{error.message}</Alert>}

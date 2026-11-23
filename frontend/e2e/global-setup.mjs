@@ -101,7 +101,8 @@ export default async function globalSetup() {
 
   // 3. The owner invites a client into their agency.
   const ownerApi = new Api()
-  await ownerApi.call('POST', '/auth/login', { email: owner.email, password: owner.password })
+  // Agency users sign in only through their agency's portal, so the portal's slug goes with the credentials.
+  await ownerApi.call('POST', '/auth/login', { email: owner.email, password: owner.password, agency_slug: 'e2e-agency' })
   await ownerApi.call('POST', '/agency/users', { name: client.name, email: client.email, role: 'agency_client' })
   await setPassword(client.email, client.password)
 

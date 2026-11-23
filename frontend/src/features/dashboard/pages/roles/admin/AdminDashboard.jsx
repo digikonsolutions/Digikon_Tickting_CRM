@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { authService } from '../../../../../auth/authService'
 import { useAsync } from '../../../../../hooks/useAsync'
 import { Alert, Button, DropdownMenu, Icon, PageHeader } from '../../../../../components/ui'
@@ -6,7 +7,21 @@ import { AgencyStatusModal } from '../../../../admin/agencies/AgencyStatusModal'
 import {
   AgenciesCard, AttentionCard, ContractsCard, DashboardSkeleton, EmployeeCapacityCard, KpiRow, QuickActionsCard, RecentProjectsCard,
 } from './AdminDashboardCards'
+import { useUrgentCounts } from '../../../../admin/pages/useUrgentCounts'
 import './adminDashboard.css'
+
+// Urgent requests waiting for a quote or for the agency's answer. Hidden when there is nothing to do.
+function UrgentRequestsStrip() {
+  const counts = useUrgentCounts(true)
+  if (!counts.pending && !counts.quoted) return null
+  return (
+    <Alert variant={counts.pending ? 'warning' : 'info'} title="Urgent requests">
+      {counts.pending > 0 && <span>{counts.pending} waiting for a quote. </span>}
+      {counts.quoted > 0 && <span>{counts.quoted} quoted, waiting for the agency. </span>}
+      <Link to="/admin/rush-requests">Open urgent requests</Link>
+    </Alert>
+  )
+}
 
 const NEW_ITEMS = [
   { label: 'Employee', to: '/admin/employees/new' },
@@ -61,6 +76,7 @@ export const AdminDashboard = () => {
 
       {data && (
         <>
+          <UrgentRequestsStrip />
           <KpiRow data={data} />
           <div className="adm-cols">
             <div className="adm-col">

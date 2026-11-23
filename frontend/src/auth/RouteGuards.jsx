@@ -11,6 +11,7 @@ import { NotificationBell } from '../features/notifications'
 import { TimerPill } from '../features/time'
 import { MonitoringConsent, useHeartbeat } from '../features/activity'
 import { AssistantWidget } from '../features/assistant'
+import { useUrgentCounts } from '../features/admin/pages/useUrgentCounts'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -54,6 +55,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'Work' },
     { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'People' },
     { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
+    { to: '/admin/rush-requests', label: 'Urgent requests', icon: 'alert', section: 'Work', badgeKey: 'urgent' },
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
     { to: '/admin/agencies', label: 'Agencies', icon: 'building', section: 'People' },
     { to: '/admin/agency-owners', label: 'Agency owners', icon: 'user', section: 'People' },
@@ -68,6 +70,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/agency/projects', label: 'Projects', icon: 'briefcase', section: 'Workspace' },
     { to: '/agency/tickets', label: 'Tickets', icon: 'ticket', section: 'Workspace' },
     { to: '/agency/employees', label: 'Employees', icon: 'users', section: 'Manage' },
+    { to: '/agency/queue', label: 'Team queue', icon: 'queue', section: 'Manage' },
     { to: '/agency/reports', label: 'Reports', icon: 'chart', section: 'Manage' },
     { to: '/agency/time', label: 'Time summary', icon: 'clock', section: 'Manage' },
     { to: '/agency/branding', label: 'Branding', icon: 'palette', section: 'Manage' },
@@ -82,6 +85,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/agency/tickets', label: 'Tickets', icon: 'ticket' },
     { to: '/agency/reports', label: 'Reports', icon: 'chart' },
     { to: '/agency/employees', label: 'Employees', icon: 'users' },
+    { to: '/agency/queue', label: 'Team queue', icon: 'queue' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
 })
@@ -111,6 +115,9 @@ export function AppLayout() {
   const [isNavOpen, setIsNavOpen] = useState(false)
   // Silent for employees only: no panel, no indicator. Everything it records is visible to admins alone.
   useHeartbeat(user.role === ROLES.EMPLOYEE)
+  // Admins see how many urgent requests are waiting for a quote next to the menu entry.
+  const urgentCounts = useUrgentCounts(user.role === ROLES.ADMIN)
+  const badges = { urgent: urgentCounts.pending }
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
       return window.localStorage.getItem('ui:sidebar-collapsed') === 'true'
@@ -156,6 +163,8 @@ export function AppLayout() {
       '/admin/tickets': 'All tickets',
       '/admin/reports': 'Reports',
       '/admin/assignments': 'Assignments',
+      '/admin/rush-requests': 'Urgent requests',
+      '/agency/queue': 'Team queue',
       '/admin/time': 'Time report',
       '/agency/time': 'Time summary',
       '/agency/dashboard': 'Dashboard',
@@ -273,11 +282,12 @@ export function AppLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  aria-label={item.label}
+                  aria-label={badges[item.badgeKey] ? `${item.label}, ${badges[item.badgeKey]} waiting` : item.label}
                   title={item.label}
                   onClick={() => setIsNavOpen(false)}
                 >
                   <Icon name={item.icon} size={18} /><span>{item.label}</span>
+                  {badges[item.badgeKey] > 0 && <Badge variant="warning" className="sidebar-badge">{badges[item.badgeKey]}</Badge>}
                 </NavLink>
               ))}
             </div>

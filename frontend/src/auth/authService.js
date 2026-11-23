@@ -7,12 +7,14 @@ const AUTH_MODE = import.meta.env.VITE_AUTH_MODE ?? 'api'
 const SAFE_ERROR_MESSAGE = 'Something went wrong. Please try again.'
 
 export class ApiError extends Error {
-  constructor(message, { status = 0, errors = {}, retryAfter = null } = {}) {
+  constructor(message, { status = 0, errors = {}, retryAfter = null, payload = null } = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.errors = errors
     this.retryAfter = retryAfter
+    // The whole error body, for endpoints that explain more than a message (queue conflicts, rush impact).
+    this.payload = payload
   }
 }
 
@@ -99,6 +101,7 @@ async function request(path, options = {}) {
         status,
         errors: payload?.errors ?? {},
         retryAfter: response.headers.get('retry-after'),
+        payload,
       })
     }
 
@@ -415,7 +418,72 @@ export const authService = {
     const query = week ? `?week=${encodeURIComponent(week)}` : ''
     return request(`/agency/assignments${query}`)
   },
-  async getAssignmentUsage(id, week) {
+  // Team queue: an employee's open projects in order, with what is happening now and the capacity left.
+  async getAssignmentQueue(assignmentId) {
+    if (AUTH_MODE === 'mock') return { now: null, up_next: [], pinned_work_item_ids: [], capacity: {} }
+    return request(`/agency/assignments/${encodeURIComponent(assignmentId)}/queue`)
+  },
+  async previewQueueOrder(assignmentId, orderedWorkItemIds) {
+    if (AUTH_MODE === 'mock') return { items: [], conflicts: [], fits: true }
+    return request(`/agency/assignments/${encodeURIComponent(assignmentId)}/queue/preview`, { method: 'POST', body: JSON.stringify({ ordered_work_item_ids: orderedWorkItemIds }) })
+  },
+  async reorderQueue(assignmentId, orderedWorkItemIds) {
+    if (AUTH_MODE === 'mock') return { now: null, up_next: [], pinned_work_item_ids: [], capacity: {} }
+    return request(`/agency/assignments/${encodeURIComponent(assignmentId)}/queue/reorder`, { method: 'PATCH', body: JSON.stringify({ ordered_work_item_ids: orderedWorkItemIds }) })
+  },
+  async getMyQueue() {
+    if (AUTH_MODE === 'mock') return { now: null, up_next: [], pinned_work_item_ids: [], capacity: {} }
+    return request('/work-items/mine/queue')
+  },
+  async getEmployeeQueueAsAdmin(employeeId) {
+    if (AUTH_MODE === 'mock') return { now: null, up_next: [], pinned_work_item_ids: [], capacity: {} }
+    return request(`/admin/employees/${encodeURIComponent(employeeId)}/queue`)
+  },
+  // Urgent (rush) requests. Prices are quoted first; the owner alone accepts.
+  async listRushRequests() {
+    if (AUTH_MODE === 'mock') return { rush_requests: [] }
+    return request('/agency/rush-requests')
+  },
+  async getRushRequest(id) {
+    if (AUTH_MODE === 'mock') return { rush_request: null }
+    return request(`/agency/rush-requests/${encodeURIComponent(id)}`)
+  },
+  async createRushRequest(data) {
+    if (AUTH_MODE === 'mock') return { rush_request: { id: Date.now(), status: 'pending', ...data } }
+    return request('/agency/rush-requests', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async cancelRushRequest(id) {
+    if (AUTH_MODE === 'mock') return { rush_request: { id, status: 'cancelled' } }
+    return request(`/agency/rush-requests/${encodeURIComponent(id)}/cancel`, { method: 'PATCH' })
+  },
+  async acceptRushRequest(id, { confirmImpact = false } = {}) {
+    if (AUTH_MODE === 'mock') return { rush_request: { id, status: 'fulfilled' } }
+    return request(`/agency/rush-requests/${encodeURIComponent(id)}/accept`, { method: 'POST', body: JSON.stringify({ confirm_impact: confirmImpact }) })
+  },
+  async declineRushRequest(id) {
+    if (AUTH_MODE === 'mock') return { rush_request: { id, status: 'cancelled' } }
+    return request(`/agency/rush-requests/${encodeURIComponent(id)}/decline`, { method: 'POST' })
+  },
+  async listAdminRushRequests({ status, type, agencyId, page = 1, perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { rush_requests: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 }, counts: { pending: 0, quoted: 0 } }
+    return request(`/admin/rush-requests?${historyQuery({ status, type, agency_id: agencyId, page, per_page: perPage })}`)
+  },
+  async quoteRushRequest(id, data) {
+    if (AUTH_MODE === 'mock') return { rush_request: { id, status: 'quoted' } }
+    return request(`/admin/rush-requests/${encodeURIComponent(id)}/quote`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async rejectRushRequest(id, reason) {
+    if (AUTH_MODE === 'mock') return { rush_request: { id, status: 'rejected' } }
+    return request(`/admin/rush-requests/${encodeURIComponent(id)}/reject`, { method: 'POST', body: JSON.stringify({ reason }) })
+  },
+  async listAdminCharges({ status, agencyId, from, to, page = 1, perPage = 25 } = {}) {
+    if (AUTH_MODE === 'mock') return { charges: [], totals: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
+    return request(`/admin/charges?${historyQuery({ status, agency_id: agencyId, from, to, page, per_page: perPage })}`)
+  },
+  async listAvailableEmployeesAsAdmin() {
+    if (AUTH_MODE === 'mock') return { employees: [] }
+    return request('/admin/employees/available')
+  },  async getAssignmentUsage(id, week) {
     if (AUTH_MODE === 'mock') return { assignment_id: id, used: '0.00', remaining: DEFAULT_CAPACITY.weekly_hours.toFixed(2), days: [] }
     const query = week ? `?week=${encodeURIComponent(week)}` : ''
     return request(`/agency/assignments/${encodeURIComponent(id)}/usage${query}`)

@@ -177,3 +177,6 @@ h1, h2, h3, h4 { color: var(--color-heading); line-height: var(--leading-tight);
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* A count next to a sidebar entry (urgent requests waiting for an admin). */
+.sidebar-badge { margin-left: auto; }

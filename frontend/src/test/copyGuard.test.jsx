@@ -29,6 +29,18 @@ const mocks = vi.hoisted(() => {
     active_projects: [{ id: 2, title: 'Website', status: 'in_progress', client_name: 'Cara Client', employee: { id: 5, name: 'Sam Team' }, due_date: '2026-12-01', estimated_hours: 6, ticket_hours_total: 2, ticket_hours_done: 1, progress_percent: 50, health: 'on_track' }],
     activity: [{ key: 'e1', type: 'comment', text: 'Northwind Support commented on “Header”', at: '2026-11-23T06:00:00Z', to: null }],
   }
+  const queueFixture = {
+    employee: { id: 5, name: 'Sam Team', photo_url: null },
+    now: { kind: 'ticket', ticket_id: 1, ticket_key: 'NW-4', title: 'Build header', work_item_id: 2, project_title: 'Website', started_at: '2026-11-23T06:00:00Z', hours_logged: 1, hours_estimated: 4 },
+    up_next: [{ work_item_id: 11, title: 'Brochure', client_name: 'Cara Client', created_by_id: 2, estimated_hours: '6.00', planned_start: '2026-11-24', planned_end: '2026-11-24', due_date: '2026-12-01', status: 'scheduled', position: 2, fits: false }],
+    pinned_work_item_ids: [2],
+    capacity: { daily_hours: 6, weekly_hours: 36, hours_today_used: '6.00', hours_week_used: '12.00', hours_week_remaining: '24.00', free_from: { date: '2026-11-30', available_hours: '6.00' } },
+  }
+  const rushFixture = [
+    { id: 7, type: 'priority_insert', title: 'Fix checkout', status: 'quoted', estimated_hours: '3.00', needed_by: '2026-11-30', employee: { id: 5, name: 'Sam Team' }, message: null, quote: { amount_minor: 25000, currency: 'USD', amount_display: '250.00 USD', expires_at: '2026-11-25T10:00:00Z', note: 'Priority slot.' } },
+    { id: 8, type: 'extra_employee', title: 'More hands', status: 'rejected', estimated_hours: '6.00', needed_by: '2026-11-30', employee: null, message: 'No team member is available for this request.', quote: null },
+    { id: 9, type: 'priority_insert', title: 'Old fix', status: 'expired', estimated_hours: '2.00', needed_by: '2026-11-20', employee: { id: 5, name: 'Sam Team' }, message: null, quote: null },
+  ]
   const handlers = {
     isMockMode: false,
     getAgencyDashboard: () => Promise.resolve({ dashboard }),
@@ -40,13 +52,16 @@ const mocks = vi.hoisted(() => {
     listAgencyTickets: () => Promise.resolve({ tickets: [], pagination: { current_page: 1, last_page: 1, per_page: 25, total: 0 } }),
     listAgencyProjects: () => Promise.resolve({ projects: [], pagination: { current_page: 1, last_page: 1, total: 0 }, summary: {} }),
     listAgencyRequests: () => Promise.resolve({ requests: [] }),
+    getAssignmentQueue: () => Promise.resolve(queueFixture),
+    listRushRequests: () => Promise.resolve({ rush_requests: rushFixture }),
+    getRushRequest: () => Promise.resolve({ rush_request: { ...rushFixture[0], impact: { fits: true, requires_confirmation: true, new_project: { planned_start: '2026-12-08', planned_end: '2026-12-08', due_date: '2026-12-10', slips_by_days: 0 }, affected: [{ work_item_id: 12, title: 'Landing page', due_date: '2026-12-10', planned_end: '2026-12-11', slips_by_days: 1 }] } } }),
     getAgencyBranding: () => Promise.resolve({ branding: null }),
     agencyContractDocumentUrl: () => '#',
     requestAttachmentUrl: () => '#',
   }
   const user = { id: 9, name: 'Olive Owner', email: 'olive@example.test', role: 'agency_owner', agency_id: 1, agency_name: 'Northwind', agency: { slug: 'northwind', display_name: 'Northwind' }, branding: null }
 
-  return { dashboard, handlers, user, current: { user } }
+  return { dashboard, handlers, user, current: { user }, rushFixture }
 })
 
 vi.mock('../auth/authService', () => ({
@@ -72,6 +87,11 @@ const PAGES = [
   ['clients', async () => (await import('../features/agency/pages/AgencyClientsPage')).AgencyClientsPage, 'agency_owner'],
   ['tickets', async () => (await import('../features/agency/pages/AgencyTicketsPage')).AgencyTicketsPage, 'agency_owner'],
   ['projects', async () => (await import('../features/agency/pages/AgencyProjectsPage')).AgencyOwnerProjectsPage, 'agency_owner'],
+  ['team queue (owner)', async () => (await import('../features/queue')).TeamQueuePage, 'agency_owner'],
+  ['team queue (client)', async () => (await import('../features/queue')).TeamQueuePage, 'agency_client'],
+  ['rush requests (owner)', async () => { const { RushRequestsPanel } = await import('../features/queue/components/RushRequestsPanel'); return () => <RushRequestsPanel requests={mocks.rushFixture} isOwner onChanged={() => {}} /> }, 'agency_owner'],
+  ['rush requests (client)', async () => { const { RushRequestsPanel } = await import('../features/queue/components/RushRequestsPanel'); return () => <RushRequestsPanel requests={mocks.rushFixture.map((r) => ({ ...r, quote: null }))} isOwner={false} onChanged={() => {}} /> }, 'agency_client'],
+  ['urgent help dialog', async () => { const { RushRequestModal } = await import('../features/queue/components/RushRequestModal'); return () => <RushRequestModal assignments={[{ id: 3, employee: { id: 5, name: 'Sam Team' } }]} onClose={() => {}} /> }, 'agency_owner'],
   ['profile (owner)', async () => (await import('../features/auth/pages/ProfilePage')).ProfilePage, 'agency_owner'],
   ['profile (client)', async () => (await import('../features/auth/pages/ProfilePage')).ProfilePage, 'agency_client'],
 ]
@@ -103,6 +123,19 @@ describe('agency-facing copy', () => {
     expect(text).toMatch(/Needs attention/)
     expect(text).toMatch(/Sam Team/)
     expect(screen.queryByText(/Northwind Support commented/)).toBeInTheDocument()
+  })
+
+  it('the team queue really renders the employee card, so its copy check is not passing on an empty page', async () => {
+    mocks.current.user = mocks.user
+    const { TeamQueuePage } = await import('../features/queue')
+
+    const text = await visible(<TeamQueuePage />)
+
+    expect(text).toMatch(/Sam Team/)
+    expect(text).toMatch(/Now working on/)
+    expect(text).toMatch(/Free from/)
+    expect(text).toMatch(/Brochure/)
+    expect(text).toMatch(/Request urgent help/)
   })
 
   it('the pattern itself catches the words it is meant to catch', () => {

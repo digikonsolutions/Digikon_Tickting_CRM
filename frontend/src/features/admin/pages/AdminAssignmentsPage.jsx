@@ -4,6 +4,7 @@ import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Modal, PageHeader, Pagination, Table } from '../../../components/ui'
 import { formatShortDate, pluralize } from '../../../lib/format'
+import { EmployeeQueueDrawer } from '../../queue/components/EmployeeQueueDrawer'
 
 const PER_PAGE = 25
 const STATUS_LABELS = { active: 'Active', ended: 'Ended' }
@@ -11,6 +12,7 @@ const STATUS_LABELS = { active: 'Active', ended: 'Ended' }
 export function AdminAssignmentsPage() {
   const [page, setPage] = useState(1)
   const [confirm, setConfirm] = useState(null)
+  const [queueFor, setQueueFor] = useState(null)
   const [isEnding, setIsEnding] = useState(false)
   const [actionError, setActionError] = useState(null)
   const loadAssignments = useCallback(() => authService.listAdminAssignments({ page, perPage: PER_PAGE }), [page])
@@ -44,7 +46,12 @@ export function AdminAssignmentsPage() {
       key: 'actions',
       label: 'Actions',
       render: (_value, assignment) => assignment.status === 'active'
-        ? <Button type="button" variant="danger" size="sm" onClick={() => setConfirm(assignment)}>End assignment</Button>
+        ? (
+          <>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setQueueFor(assignment.employee)}>View queue</Button>{' '}
+            <Button type="button" variant="danger" size="sm" onClick={() => setConfirm(assignment)}>End assignment</Button>
+          </>
+        )
         : '—',
     },
   ]
@@ -71,6 +78,7 @@ export function AdminAssignmentsPage() {
       >
         <p>Ending this assignment will cancel its open projects and release future work allocations.</p>
       </Modal>
+      {queueFor && <EmployeeQueueDrawer employeeId={queueFor.id} name={queueFor.name} onClose={() => setQueueFor(null)} />}
     </section>
   )
 }

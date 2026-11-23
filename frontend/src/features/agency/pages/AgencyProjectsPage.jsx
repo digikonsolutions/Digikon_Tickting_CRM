@@ -6,6 +6,7 @@ import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, Button, FilterChips, Input, PageHeader, Pagination, ProjectCardList, useToast } from '../../../components/ui'
 import { ProjectFormModal } from '../components/ProjectFormModal'
+import { RushRequestModal } from '../../queue/components/RushRequestModal'
 
 const PROJECTS_PER_PAGE = 25
 const STATUS_FILTERS = [
@@ -31,6 +32,7 @@ export function AgencyProjectsPage({ viewAs }) {
   const [form, setForm] = useState({ open: params.get('new') === '1', project: null })
   const [opening, setOpening] = useState(false)
   const [openError, setOpenError] = useState(null)
+  const [rush, setRush] = useState(null)
 
   const update = useCallback((changes) => {
     setParams((current) => {
@@ -134,7 +136,10 @@ export function AgencyProjectsPage({ viewAs }) {
         <Alert variant="info">You have no employee on your agency yet, so projects cannot be created. <Link to="/agency/employees">Go to Employees</Link>.</Alert>
       )}
       {form.open && (
-        <ProjectFormModal project={form.project} assignments={assignments} assignmentsLoading={assignmentsState.isLoading} onClose={closeForm} onSaved={saved} />
+        <ProjectFormModal project={form.project} assignments={assignments} assignmentsLoading={assignmentsState.isLoading} onClose={closeForm} onSaved={saved} onRequestUrgent={(values) => { closeForm(); setRush(values) }} />
+      )}
+      {rush && (
+        <RushRequestModal assignments={assignments} defaultAssignmentId={rush.assignmentId} defaults={rush.defaults} onClose={() => setRush(null)} onSubmitted={() => { setRush(null); showToast('Request sent. You will get a quote before anything is charged.') }} />
       )}
     </section>
   )

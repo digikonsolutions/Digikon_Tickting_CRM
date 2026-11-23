@@ -10,8 +10,12 @@ export function loadUsers() {
   return JSON.parse(readFileSync(resolve(here, '.users.json'), 'utf8'))
 }
 
+// Agency users (owner, client, member) sign in through their agency's portal; everyone else uses /login.
+const AGENCY_EMAILS = ['owner@e2e.test', 'client@e2e.test', 'member@e2e.test']
+export const AGENCY_PORTAL = '/a/e2e-agency'
+
 export async function signIn(page, email, password) {
-  await page.goto('/login')
+  await page.goto(AGENCY_EMAILS.includes(email) ? `${AGENCY_PORTAL}/login` : '/login')
   await page.locator('input[type=email]').fill(email)
   await page.locator('input[type=password]').fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
@@ -29,7 +33,7 @@ export async function signInExpectingSuccess(page, email, password) {
 
 export async function signOut(page) {
   await page.locator('.sidebar-logout-button').click()
-  await expect(page).toHaveURL(/\/login/)
+  await expect(page).toHaveURL(/\/(login|a\/[a-z0-9-]+(\/login)?)\/?$/)
 }
 
 // Every identity surface in the shell: sidebar name, sidebar avatar, header avatar and the account menu.
