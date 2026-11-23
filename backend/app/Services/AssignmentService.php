@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\EmployeeAssignment;
 use App\Models\Ticket;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class AssignmentService
@@ -13,10 +14,10 @@ class AssignmentService
         $this->recorder ??= app(TicketEventRecorder::class);
     }
 
-    public function end(EmployeeAssignment $assignment, ?\App\Models\User $actor = null): void
+    public function end(EmployeeAssignment $assignment, ?User $actor = null): void
     {
         $released = collect();
-        DB::transaction(function () use ($assignment, &$released): void {
+        DB::transaction(function () use ($assignment, $actor, &$released): void {
             $locked = EmployeeAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
             if ($locked->status === 'ended') {
                 return;
@@ -28,7 +29,9 @@ class AssignmentService
 
             $workItems = $locked->workItems()->whereIn('status', ['scheduled', 'in_progress']);
             $workItemIds = $workItems->pluck('id');
-            $workItems->update(['status' => 'cancelled', 'updated_at' => now()]);
+            $removedItems = $workItems->get();
+            $workItems->update(['status' => 'cancelled', 'queue_position' => 0, 'updated_at' => now()]);
+            app(EmployeeQueuePlanner::class)->removed($removedItems, $actor ?? auth()->user(), 'assignment_ended');
             $today = now(config('app.timezone'))->toDateString();
             DB::table('work_item_allocations')
                 ->whereIn('work_item_id', $workItemIds)
@@ -63,7 +66,7 @@ class AssignmentService
             app(TimelineNotifier::class)->released($project);
         }
 
-        app(\App\Services\WorkflowNotificationService::class)->assignmentEnded(
+        app(WorkflowNotificationService::class)->assignmentEnded(
             $assignment->fresh()->load(['employee', 'holder', 'agency']),
             $actor ?? auth()->user()
         );

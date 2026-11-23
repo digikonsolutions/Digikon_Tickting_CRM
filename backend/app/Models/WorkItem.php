@@ -29,6 +29,7 @@ class WorkItem extends Model
         'start_date',
         'due_date',
         'status',
+        'queue_position',
         'objective',
         'deliverables',
         'target_url',

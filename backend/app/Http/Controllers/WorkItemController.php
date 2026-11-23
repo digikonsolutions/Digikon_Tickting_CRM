@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
 use App\Services\AdminDashboardService;
+use App\Services\EmployeeQueuePlanner;
+use App\Services\QueueConflict;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use App\Services\TimeTracker;
@@ -139,7 +141,7 @@ class WorkItemController extends Controller
         ]);
     }
 
-    public function store(StoreWorkItemRequest $request, WorkItemScheduler $scheduler): JsonResponse
+    public function store(StoreWorkItemRequest $request, EmployeeQueuePlanner $queue): JsonResponse
     {
         $creator = $request->user();
         $agency = $creator->agency;
@@ -160,7 +162,7 @@ class WorkItemController extends Controller
         $this->validateDateRange($start, $due);
         $requestedUnits = (int) round((float) $data['estimated_hours'] * 100);
 
-        $item = DB::transaction(function () use ($creator, $agency, $data, $assignment, $start, $due, $requestedUnits, $scheduler): WorkItem {
+        $item = DB::transaction(function () use ($creator, $agency, $data, $assignment, $start, $due, $requestedUnits, $queue): WorkItem {
             User::query()->lockForUpdate()->findOrFail($creator->id);
 
             if (
@@ -192,14 +194,6 @@ class WorkItemController extends Controller
                 ]);
             }
 
-            $plan = $scheduler->plan($lockedEmployee, $start, $due, $requestedUnits);
-
-            if ($plan === null) {
-                throw ValidationException::withMessages([
-                    'assignment_id' => 'This employee assignment does not have enough capacity in the selected date range. Extend the dates.',
-                ]);
-            }
-
             $item = WorkItem::create([
                 'agency_id' => $agency->id,
                 'client_id' => $creator->id,
@@ -211,15 +205,16 @@ class WorkItemController extends Controller
                 'start_date' => $start->toDateString(),
                 'due_date' => $due->toDateString(),
                 'status' => 'scheduled',
+                // New projects join the end of the employee's queue; the planner then allocates the hours.
+                'queue_position' => $queue->nextPosition($lockedEmployee),
                 ...Arr::only($data, WorkItem::BRIEF_FIELDS),
             ]);
 
-            foreach ($plan as $allocation) {
-                WorkItemAllocation::create([
-                    'work_item_id' => $item->id,
-                    'employee_id' => $lockedEmployee->id,
-                    'work_date' => $allocation['work_date'],
-                    'hours' => WorkItemScheduler::unitsToHours($allocation['units']),
+            try {
+                $queue->replan($lockedEmployee, null, $creator, 'added', ['work_item_id' => $item->id]);
+            } catch (QueueConflict) {
+                throw ValidationException::withMessages([
+                    'assignment_id' => 'This employee assignment does not have enough capacity in the selected date range. Extend the dates.',
                 ]);
             }
 

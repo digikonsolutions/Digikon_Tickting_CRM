@@ -117,7 +117,7 @@ class WorkItemScheduler
     /**
      * @return array{non_working_dates: list<string>, today: string, before_cutoff: bool}
      */
-    private function dateContext(): array
+    public function dateContext(): array
     {
         $now = CarbonImmutable::now(config('app.timezone'));
         $cutoff = (int) config('scheduling.today_cutoff_hour', 12);
@@ -132,7 +132,7 @@ class WorkItemScheduler
     /**
      * @param array{non_working_dates: list<string>, today: string, before_cutoff: bool} $context
      */
-    private function skipReason(CarbonImmutable $date, array $context): ?string
+    public function skipReason(CarbonImmutable $date, array $context): ?string
     {
         $workDate = $date->toDateString();
 

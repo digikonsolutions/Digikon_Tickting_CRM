@@ -190,9 +190,12 @@ class UserAccountService
                         ->where('status', '<>', 'completed')
                         ->pluck('id');
 
+                    $stillOpen = WorkItem::query()->whereIn('id', $workItemIds)->whereIn('status', EmployeeQueuePlanner::OPEN)->get();
+                    app(EmployeeQueuePlanner::class)->removed($stillOpen, auth()->user(), 'employee_deactivated');
+
                     DB::table('work_items')
                         ->whereIn('id', $workItemIds)
-                        ->update(['status' => 'cancelled', 'updated_at' => now()]);
+                        ->update(['status' => 'cancelled', 'queue_position' => 0, 'updated_at' => now()]);
 
                     DB::table('work_item_allocations')
                         ->where('employee_id', $user->id)
