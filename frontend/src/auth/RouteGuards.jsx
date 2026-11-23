@@ -57,7 +57,6 @@ const AGENCY_NAV = Object.freeze([
   { to: '/agency/tickets', label: 'Tickets', icon: 'ticket', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], also: ['/tickets/'] },
   { to: '/agency/employees', label: 'Employees', icon: 'users', section: 'Manage', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], badgeKey: 'rush' },
   { to: '/agency/reports', label: 'Reports', icon: 'chart', section: 'Manage', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
-  { to: '/agency/directory', label: 'Agency directory', icon: 'users', section: 'Manage', roles: [ROLES.AGENCY_CLIENT] },
   { to: '/agency/time', label: 'Time summary', icon: 'clock', section: 'Manage', roles: [ROLES.AGENCY_OWNER] },
   { to: '/agency/branding', label: 'Branding', icon: 'palette', section: 'Manage', roles: [ROLES.AGENCY_OWNER] },
 ])

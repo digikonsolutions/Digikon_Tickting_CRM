@@ -136,7 +136,7 @@ export function AppRoutes() {
             {/* The client's old address for the project list: same page as the owner's. */}
             <Route path="/agency/my-projects" element={<Navigate to="/agency/projects" replace />} />
           </Route>
-          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
+          <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER]} />}>
             <Route path="/agency/directory" element={<AgencyDirectoryPage />} />
           </Route>
         </Route>
