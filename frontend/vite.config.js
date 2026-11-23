@@ -8,4 +8,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // Unit and component tests run with "npm test"; end-to-end tests run with "npm run test:e2e".
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+    include: ['src/**/*.test.{js,jsx}'],
+    css: false,
+    restoreMocks: true,
+  },
 })
