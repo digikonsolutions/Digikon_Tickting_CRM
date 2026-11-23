@@ -4,6 +4,10 @@
 .tl-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-4); }
 .tl-facts small { display: block; margin-bottom: .2rem; color: var(--color-muted); font-size: .8rem; }
 .tl-explain { margin: var(--space-4) 0 0; color: var(--color-muted); font-size: .9rem; }
+.tl-requester { display: grid; gap: .1rem; }
+.tl-requester small { color: var(--color-muted); font-size: .78rem; }
+.tl-request-context, .tl-request-note { margin: 0; }
+.tl-request-note { margin-top: var(--space-2); color: var(--color-heading); font-style: italic; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .tl-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); font-weight: 600; }
 .tl-summary .is-ok { color: var(--color-success-700); }

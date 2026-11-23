@@ -10,6 +10,7 @@ import { getAgencyLabels } from '../../../lib/labels'
 import { WaitingChip } from '../../tickets'
 import { BRIEF_LIMITS, FilePicker, ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
 import { ActivityTimeline } from '../../activity'
+import { TimelinePanel } from '../../timeline'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent']
@@ -231,6 +232,7 @@ export function ProjectDetailPage() {
       </Card>
       <ProjectBriefView brief={project.brief} />
       <ProjectFiles projectId={project.id} />
+      <TimelinePanel projectId={project.id} onChanged={reload} />
       <Card
         title="Tickets"
         description="Tickets are slices of the project's scheduled hours and dates."

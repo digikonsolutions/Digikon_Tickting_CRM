@@ -9,6 +9,7 @@ import { TimelineChip } from '../TimelineChip'
 import '../timeline.css'
 
 const hrs = (value) => `${Number(value).toFixed(Number(value) % 1 === 0 ? 0 : 2)} h`
+const requesterLabel = (requester) => requester?.role === 'agency_client' ? 'Client' : 'Agency owner'
 
 // The admin's review queue: oldest first, with how long each has waited and what is overdue or urgent.
 export function AdminTimelineReviewsPage() {
@@ -39,6 +40,7 @@ export function AdminTimelineReviewsPage() {
   const columns = [
     { key: 'title', label: 'Project', render: (title, row) => <Link to={`/admin/timeline-reviews/${row.id}`}>{title}</Link> },
     { key: 'agency_name', label: 'Agency' },
+    { key: 'requester', label: 'Requested by', render: (requester) => requester ? <span className="tl-requester"><strong>{requester.name}</strong><small>{requester.is_reply ? `${requesterLabel(requester)} reply` : requesterLabel(requester)}</small></span> : <span className="ui-muted">System update</span> },
     { key: 'employee_name', label: 'Employee', render: (value) => value ?? '—' },
     { key: 'estimated_hours', label: 'Hours', render: (value) => hrs(value) },
     { key: 'start_date', label: 'Dates', render: (_value, row) => `${formatShortDate(row.start_date)} – ${formatShortDate(row.due_date)}` },

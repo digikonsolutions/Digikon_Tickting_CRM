@@ -12,6 +12,7 @@ import '../timeline.css'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const hrs = (value) => `${Number(value).toFixed(Number(value) % 1 === 0 ? 0 : 2)} h`
+const requesterLabel = (requester) => requester?.role === 'agency_client' ? 'Client' : 'Agency owner'
 
 function weeksOf(days) {
   // Group the day list into Monday-to-Saturday rows. Sundays are never shown.
@@ -152,6 +153,13 @@ export function TimelineReviewPage() {
         </div>
         <p className="tl-explain">{TIMELINE[timeline.status].explain}</p>
       </Card>
+
+      {scope === 'admin' && timeline.requester && (
+        <Alert variant="info" title={`${timeline.requester.is_reply ? 'Reply received from' : 'Timeline requested by'} ${timeline.requester.name}`}>
+          <p className="tl-request-context"><strong>{requesterLabel(timeline.requester)}</strong>{timeline.requester.is_reply ? ' sent this timeline back for review.' : ' submitted this timeline for review.'}</p>
+          {timeline.requester.note && <p className="tl-request-note">“{timeline.requester.note}”</p>}
+        </Alert>
+      )}
 
       {timeline.status === 'changes_requested' && (
         <Alert variant="warning" title="Changes were requested">The owner has been asked to reply. {scope === 'employee' ? 'You can confirm again once they have replied.' : 'You can still confirm directly if you prefer.'}</Alert>

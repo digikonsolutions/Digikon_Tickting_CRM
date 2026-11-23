@@ -52,11 +52,12 @@ function NeedsAttention({ items, onRequest }) {
   )
 }
 
-function Kpis({ kpis, clientLimit }) {
+function Kpis({ kpis, clientLimit, employeeLimit }) {
   const cards = [
     { label: 'Open projects', value: kpis.open_projects, to: '/agency/projects', icon: 'briefcase' },
     { label: 'Tickets in progress', value: kpis.tickets_in_progress, to: '/agency/tickets?status=in_progress', icon: 'ticket' },
     { label: 'Tickets waiting on you', value: kpis.tickets_waiting_on_you, to: '/agency/tickets?waiting=you', icon: 'chat', hot: kpis.tickets_waiting_on_you > 0 },
+    { label: 'Employees', value: employeeLimit?.used ?? 0, to: '/agency/employees', icon: 'users' },
     { label: 'Clients', value: clientLimit?.allowed != null ? `${kpis.clients} / ${clientLimit.allowed}` : kpis.clients, to: '/agency/clients', icon: 'user' },
   ]
   return (
@@ -242,7 +243,7 @@ export function OwnerDashboard() {
       {error && <Alert variant="warning" title="Could not refresh">Showing the last data we loaded. {error.message}<div className="ui-retry"><Button type="button" size="sm" variant="secondary" onClick={reload}>Try again</Button></div></Alert>}
 
       <NeedsAttention items={dashboard.needs_attention} onRequest={setRequestType} />
-      <Kpis kpis={dashboard.kpis} clientLimit={dashboard.limits.client_accounts} />
+      <Kpis kpis={dashboard.kpis} clientLimit={dashboard.limits.client_accounts} employeeLimit={dashboard.limits.employees} />
       <div className="od-cols">
         <div className="od-col">
           <ActiveProjects projects={dashboard.active_projects} />

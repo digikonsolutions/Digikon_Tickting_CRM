@@ -190,7 +190,13 @@ class TimelineReviewTest extends TestCase
         $this->assertSame('changes_requested', collect($this->getJson("/api/agency/projects/{$project->id}/timeline")->json('events'))->first()['type']);
 
         $this->postJson("/api/agency/projects/{$project->id}/timeline/respond", ['note' => 'Done: phase one is the 12 h.'])->assertOk()->assertJsonPath('timeline.status', 'proposed');
+        $this->actingAs($this->admin)->getJson('/api/admin/timeline-reviews')
+            ->assertJsonPath('reviews.0.requester.name', $this->owner->name)
+            ->assertJsonPath('reviews.0.requester.role', 'agency_owner')
+            ->assertJsonPath('reviews.0.requester.is_reply', true)
+            ->assertJsonPath('reviews.0.requester.note', 'Done: phase one is the 12 h.');
         Notification::assertSentTo($this->admin, TimelineNotice::class, fn ($n) => str_contains($n->payload['title'], 'Reply received') && str_contains($n->payload['body'], 'phase one'));
+        $this->actingAs($this->owner);
         $this->postJson("/api/agency/projects/{$project->id}/timeline/respond", ['note' => 'again'])->assertUnprocessable();      // nothing waiting any more
     }
 

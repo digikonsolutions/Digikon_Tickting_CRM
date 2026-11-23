@@ -97,6 +97,15 @@ class WorkItem extends Model
         return $this->hasMany(Ticket::class);
     }
 
+    /** Latest owner or client proposal, used to explain a review request to administrators. */
+    public function latestTimelineRequest(): HasOne
+    {
+        return $this->hasOne(TimelineEvent::class)->ofMany(['id' => 'max'], fn ($query) => $query
+            ->where('type', 'proposed')
+            ->whereIn('actor_role', ['agency_owner', 'agency_client'])
+        );
+    }
+
     /**
      * First ticket (by position) that is neither done nor cancelled.
      */

@@ -49,7 +49,7 @@ class TimelineController extends Controller
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
 
-        $rows = $this->pendingQuery()->with(['agency', 'client', 'employee'])
+        $rows = $this->pendingQuery()->with(['agency', 'client', 'employee', 'latestTimelineRequest'])
             ->withCount(['tickets as pending_tickets' => fn ($q) => $q->whereIn('timeline_status', TimelineReview::PENDING)])
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('timeline_status', $status))
             ->when($filters['agency'] ?? null, fn ($q, $agency) => $q->where('agency_id', $agency))
@@ -69,6 +69,7 @@ class TimelineController extends Controller
                 'start_date' => $p->start_date?->toDateString(), 'due_date' => $p->due_date?->toDateString(),
                 'timeline_status' => $p->timeline_status, 'pending_tickets' => (int) $p->pending_tickets,
                 'project_manager_id' => $p->project_manager_id, ...$this->age($p),
+                'requester' => $this->requester($p),
             ])->values(),
             'pagination' => ['current_page' => $rows->currentPage(), 'last_page' => $rows->lastPage(), 'per_page' => $rows->perPage(), 'total' => $rows->total()],
             'summary' => $this->summary(),
@@ -239,10 +240,29 @@ class TimelineController extends Controller
         return $project->tickets()->whereIn('timeline_status', TimelineReview::PENDING)->exists();
     }
 
+    /** @return array{name: string, role: string, is_reply: bool, note: string|null}|null */
+    private function requester(WorkItem $project): ?array
+    {
+        $event = $project->relationLoaded('latestTimelineRequest')
+            ? $project->latestTimelineRequest
+            : $project->latestTimelineRequest()->first();
+
+        if ($event === null || $event->actor_name === null || $event->actor_role === null) {
+            return null;
+        }
+
+        return [
+            'name' => $event->actor_name,
+            'role' => $event->actor_role,
+            'is_reply' => (bool) ($event->after['response'] ?? false),
+            'note' => $event->note,
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function payload(WorkItem $project, User $viewer): array
     {
-        $project->loadMissing(['agency', 'client', 'employee']);
+        $project->loadMissing(['agency', 'client', 'employee', 'latestTimelineRequest']);
         $employee = $project->employee;
         $own = collect($this->review->days($project))->keyBy('date');
         $from = collect([$project->start_date?->toDateString(), $own->keys()->first()])->filter()->min() ?? now()->toDateString();
@@ -280,6 +300,7 @@ class TimelineController extends Controller
                 'status' => $project->timeline_status, 'pending' => $pending, 'proposed_at' => $project->timeline_proposed_at?->toISOString(),
                 'confirmed_at' => $project->timeline_confirmed_at?->toISOString(), 'confirmed_by' => $confirmedBy?->name,
                 'project_manager' => $manager ? ['id' => $manager->id, 'name' => $manager->name] : null,
+                'requester' => $this->requester($project),
                 ...$this->age($project),
                 'can_edit' => $canEdit, 'can_confirm' => $canEdit && $pending && ! ($viewer->role === Role::Employee && $project->timeline_status === 'changes_requested'),
                 'can_request_changes' => $isAdmin && $pending && in_array($project->status, self::OPEN, true),
