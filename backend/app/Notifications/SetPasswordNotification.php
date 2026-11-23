@@ -4,12 +4,16 @@ namespace App\Notifications;
 
 use App\Enums\Role;
 use App\Services\MonitoringPolicy;
+use App\Support\MailBrand;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class SetPasswordNotification extends ResetPassword
 {
     private bool $isEmployee = false;
+
+    /** The agency brand of the recipient (null for staff, who keep the ClientHub brand). */
+    private ?array $brand = null;
 
     public function __construct($token, public bool $invite = false, public ?string $welcomeLine = null)
     {
@@ -19,6 +23,7 @@ class SetPasswordNotification extends ResetPassword
     public function toMail($notifiable): MailMessage
     {
         $this->isEmployee = $this->invite && $notifiable->role === Role::Employee;
+        $this->brand = MailBrand::for($notifiable);
 
         return parent::toMail($notifiable);
     }
@@ -29,9 +34,9 @@ class SetPasswordNotification extends ResetPassword
             $url .= (str_contains($url, '?') ? '&' : '?').'invite=1';
         }
 
-        $message = (new MailMessage)
-            ->subject('Set your password')
-            ->line('Use the button below to set or reset your password.');
+        $message = MailBrand::apply((new MailMessage)
+            ->subject($this->brand ? 'Set your password – '.$this->brand['name'] : 'Set your password')
+            ->line('Use the button below to set or reset your password.'), $this->brand);
 
         // An optional personal line from the administrator, shown above the button text.
         if ($this->invite && filled($this->welcomeLine)) {
@@ -49,6 +54,12 @@ class SetPasswordNotification extends ResetPassword
             }
         }
 
-        return $message->line('If you did not expect this email, you can ignore it.');
+        $message->line('If you did not expect this email, you can ignore it.');
+        if ($this->brand) {
+            // Never "Regards, Laravel": the signature is the agency's own team.
+            $message->salutation('The '.$this->brand['name'].' team');
+        }
+
+        return $message;
     }
 }

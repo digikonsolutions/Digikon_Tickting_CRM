@@ -58,11 +58,12 @@ abstract class TicketNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $frontend = rtrim((string) config('app.frontend_url'), '/');
-        $key = $this->payload['ticket_key'] ?? 'ClientHub';
-        $message = (new MailMessage)
+        $key = $this->payload['ticket_key'] ?? (\App\Support\MailBrand::for($notifiable)['name'] ?? 'ClientHub');
+        $brand = \App\Support\MailBrand::for($notifiable);
+        $message = \App\Support\MailBrand::apply((new MailMessage)
             ->subject("[{$key}] {$this->payload['title']}")
             ->greeting("Hello {$notifiable->name},")
-            ->line($this->payload['body']);
+            ->line($this->payload['body']), $brand);
 
         // Only ever the excerpt of a public comment: internal notes never reach an email body.
         if (! empty($this->payload['excerpt'])) {
@@ -74,7 +75,7 @@ abstract class TicketNotification extends Notification
 
         return $message
             ->action($actionText, $url)
-            ->line('You are receiving this because of activity in your ClientHub workspace.')
+            ->line('You are receiving this because of activity in your '.(\App\Support\MailBrand::for($notifiable)['name'] ?? 'ClientHub').' workspace.')
             ->line('[Manage notification settings]('.$frontend.'/settings/notifications)');
     }
 }

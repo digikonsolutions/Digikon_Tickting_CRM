@@ -68,6 +68,11 @@ class AppServiceProvider extends ServiceProvider
                 'email' => $user->getEmailForPasswordReset(),
             ], '', '&', PHP_QUERY_RFC3986);
 
+            // Agency users set and reset their password on their own portal; staff use the platform address.
+            if ($user instanceof \App\Models\User && $user->role->isAgencyRole() && $user->agency?->slug) {
+                return \App\Support\MailBrand::portalUrl($user->agency->slug, '/reset-password?'.$query);
+            }
+
             return rtrim(config('app.frontend_url'), '/').'/reset-password?'.$query;
         });
     }
