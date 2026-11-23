@@ -286,20 +286,23 @@ class TimelineController extends Controller
         $pending = $this->review->isPending($project);
         $changesWaiting = $project->timeline_status === 'changes_requested' || $project->tickets()->where('timeline_status', 'changes_requested')->exists();
         $manager = $project->project_manager_id ? User::query()->find($project->project_manager_id, ['id', 'name']) : null;
-        $confirmedBy = $project->timeline_confirmed_by ? User::query()->find($project->timeline_confirmed_by, ['id', 'name']) : null;
+        $confirmedBy = $project->timeline_confirmed_by ? User::query()->find($project->timeline_confirmed_by, ['id', 'name', 'role']) : null;
         $canEdit = $this->review->canEdit($viewer, $project) && in_array($project->status, self::OPEN, true);
+        // Agency users see internal staff only as "{agency} Support": no admin name, id or role.
+        $support = $viewer->role->isAgencyRole() ? \App\Services\AgencyBrandingPresenter::displayName($project->agency).' Support' : null;
 
         return [
             'project' => [
                 'id' => $project->id, 'title' => $project->title, 'description' => $project->description, 'status' => $project->status,
                 'estimated_hours' => (float) $project->estimated_hours, 'start_date' => $project->start_date?->toDateString(), 'due_date' => $project->due_date?->toDateString(),
-                'agency' => ['id' => $project->agency_id, 'name' => $project->agency?->name], 'client' => $project->client ? ['id' => $project->client->id, 'name' => $project->client->name] : null,
+                'agency' => ['id' => $project->agency_id, 'name' => $support && $project->agency ? \App\Services\AgencyBrandingPresenter::displayName($project->agency) : $project->agency?->name], 'client' => $project->client ? ['id' => $project->client->id, 'name' => $project->client->name] : null,
                 'employee' => $employee ? ['id' => $employee->id, 'name' => $employee->name] : null,
             ],
             'timeline' => [
                 'status' => $project->timeline_status, 'pending' => $pending, 'proposed_at' => $project->timeline_proposed_at?->toISOString(),
-                'confirmed_at' => $project->timeline_confirmed_at?->toISOString(), 'confirmed_by' => $confirmedBy?->name,
-                'project_manager' => $manager ? ['id' => $manager->id, 'name' => $manager->name] : null,
+                'confirmed_at' => $project->timeline_confirmed_at?->toISOString(),
+                'confirmed_by' => $confirmedBy && $support && $confirmedBy->role === Role::Admin ? $support : $confirmedBy?->name,
+                'project_manager' => $manager ? ($support ? ['id' => null, 'name' => $support] : ['id' => $manager->id, 'name' => $manager->name]) : null,
                 'requester' => $this->requester($project),
                 ...$this->age($project),
                 'can_edit' => $canEdit, 'can_confirm' => $canEdit && $pending && ! ($viewer->role === Role::Employee && $project->timeline_status === 'changes_requested'),
@@ -316,7 +319,9 @@ class TimelineController extends Controller
                 'id' => $a->id, 'name' => $a->original_name, 'size_bytes' => $a->size, 'download_url' => "/api/project-attachments/{$a->id}/download",
             ])->values(),
             'events' => TimelineEvent::query()->where('work_item_id', $project->id)->orderByDesc('id')->limit(100)->get()->map(fn (TimelineEvent $e): array => [
-                'id' => $e->id, 'type' => $e->type, 'subject' => $e->subject_type, 'actor' => $e->actor_name, 'actor_role' => $e->actor_role,
+                'id' => $e->id, 'type' => $e->type, 'subject' => $e->subject_type,
+                'actor' => $support && in_array($e->actor_role, ['admin', 'team_lead', 'qa'], true) ? $support : $e->actor_name,
+                'actor_role' => $support && in_array($e->actor_role, ['admin', 'team_lead', 'qa'], true) ? 'support' : $e->actor_role,
                 'note' => $e->note, 'before' => $e->before, 'after' => $e->after, 'created_at' => $e->created_at?->toISOString(),
             ])->values(),
         ];

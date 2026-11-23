@@ -35,9 +35,10 @@ class AgencyUserController extends Controller
                         ->whereIn('role', $agencyRoles);
                 });
 
-                $query->orWhere(function ($query): void {
+                $query->orWhere(function ($query) use ($viewer): void {
                     $query->where('role', Role::Employee->value)
-                        ->whereNull('agency_id');
+                        ->whereNull('agency_id')
+                        ->whereDoesntHave('employeeAssignments', fn ($q) => $q->where('status', 'active')->where('agency_id', '!=', $viewer->agency_id));
                 });
             })
             ->orderBy('name')
@@ -92,6 +93,7 @@ class AgencyUserController extends Controller
             $payload['role'] = 'team_member';
             $payload['agency_id'] = null;
             $payload['agency_name'] = $viewer->agency ? \App\Services\AgencyBrandingPresenter::displayName($viewer->agency) : null;
+            $payload = array_intersect_key($payload, array_flip(['id', 'name', 'email', 'role', 'agency_id', 'agency_name', 'photo_url']));
         }
 
         return $payload;
@@ -108,9 +110,10 @@ class AgencyUserController extends Controller
                 $query->where(function ($query) use ($member, $accounts): void {
                     $query->where('agency_id', $member->agency_id)
                         ->whereIn('role', $accounts->agencyDirectoryRoles());
-                })->orWhere(function ($query): void {
+                })->orWhere(function ($query) use ($member): void {
                     $query->where('role', Role::Employee->value)
-                        ->whereNull('agency_id');
+                        ->whereNull('agency_id')
+                        ->whereDoesntHave('employeeAssignments', fn ($q) => $q->where('status', 'active')->where('agency_id', '!=', $member->agency_id));
                 });
             })
             ->orderBy('name')
@@ -131,6 +134,7 @@ class AgencyUserController extends Controller
         $employees = User::query()
             ->where('role', Role::Employee->value)
             ->whereNull('agency_id')
+            ->whereDoesntHave('employeeAssignments', fn ($q) => $q->where('status', 'active')->where('agency_id', '!=', $viewer->agency_id))
             ->orderBy('name')
             ->orderBy('id')
             ->get()

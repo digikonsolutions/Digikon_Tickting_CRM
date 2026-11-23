@@ -20,6 +20,40 @@ class TicketNotifier
     public const COALESCE_MINUTES = 10;
 
     /**
+     * White-label: what an agency user reads must not name platform staff or the internal agency record. Staff names become
+     * "{agency} Support" and the internal agency name becomes the brand name, in the title, body, excerpt and actor.
+     * Done here, once, so every notification type is covered.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function forRecipient(User $user, array $payload): array
+    {
+        if (! $user->role->isAgencyRole() || $user->agency === null) {
+            return $payload;
+        }
+        $agency = $user->agency;
+        $brand = \App\Services\AgencyBrandingPresenter::displayName($agency);
+        $support = $brand.' Support';
+        $staff = User::query()->whereIn('role', ['admin', 'team_lead', 'qa'])->pluck('name')->filter()->unique()->sortByDesc(fn (string $name): int => strlen($name))->values()->all();
+        $clean = function (?string $text) use ($staff, $support, $agency, $brand): ?string {
+            if ($text === null) {
+                return null;
+            }
+            $text = $staff === [] ? $text : str_replace($staff, $support, $text);
+
+            return $agency->name !== $brand ? str_replace($agency->name, $brand, $text) : $text;
+        };
+        foreach (['title', 'body', 'excerpt', 'actor_name'] as $key) {
+            if (isset($payload[$key]) && is_string($payload[$key])) {
+                $payload[$key] = $clean($payload[$key]);
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
      * @param class-string<\App\Notifications\TicketNotification> $class
      * @param array<string, mixed> $payload
      */
@@ -29,6 +63,7 @@ class TicketNotifier
             return;
         }
 
+        $payload = $this->forRecipient($user, $payload);
         $type = $class::type();
 
         // Only coalesce notifications for the same ticket within the coalesce window

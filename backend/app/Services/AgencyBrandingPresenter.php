@@ -13,7 +13,8 @@ class AgencyBrandingPresenter
     /** @return array{slug: string, display_name: string, tagline: string|null, logo_url: string|null, favicon_url: string|null, primary_color: string|null, support_email: string|null} */
     public static function present(Agency $agency): array
     {
-        $b = $agency->relationLoaded('branding') ? $agency->branding : $agency->branding()->first();
+        // loadMissing caches the relation on this instance, so listing many rows of one agency costs a single query.
+        $b = $agency->loadMissing('branding')->branding;
 
         return [
             'slug' => (string) $agency->slug,

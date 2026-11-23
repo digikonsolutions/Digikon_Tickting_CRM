@@ -84,7 +84,7 @@ class AgencyRequestController extends Controller
         $notified = $notifications->agencyRequest($user->agency, $user, $data['type'], $data['message'] ?? null);
 
         return response()->json([
-            'message' => 'Your request was sent. An administrator will get back to you.',
+            'message' => 'Your request was sent. We will get back to you.',
             'notified' => $notified,
             'request' => $this->payload($agencyRequest->load(['attachments', 'user'])),
         ], 201);

@@ -73,6 +73,32 @@ class AdminAgencyController extends Controller
     }
 
     /** Sets the agency's logo through the existing Cloudinary-backed white-label settings. */
+    /**
+     * Admin edit of an agency's brand, including its portal slug. Changing the slug changes the portal address: links in
+     * emails already sent (set-password, invitations) point at the old slug and stop working.
+     */
+    public function updateBranding(Request $request, Agency $agency, AgencyBrandingService $branding): JsonResponse
+    {
+        $data = $request->validate([
+            'slug' => ['sometimes', 'string', 'min:3', 'max:40', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', 'not_in:'.implode(',', Agency::RESERVED_SLUGS), \Illuminate\Validation\Rule::unique('agencies', 'slug')->ignore($agency->id)],
+            'display_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'tagline' => ['sometimes', 'nullable', 'string', 'max:140'],
+            'primary_color' => ['sometimes', 'nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'support_email' => ['sometimes', 'nullable', 'email:rfc', 'max:254'],
+            'email_from_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+        ]);
+        if (isset($data['primary_color']) && ! \App\Support\ColorContrast::passesOnWhite($data['primary_color'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['primary_color' => 'This colour is too light for text on white (4.5:1 needed). Pick a darker shade.']);
+        }
+        if (isset($data['slug'])) {
+            $agency->update(['slug' => $data['slug']]);
+            unset($data['slug']);
+        }
+        $branding->update($agency, array_map(fn ($v) => is_string($v) && trim($v) === '' ? null : $v, $data));
+
+        return response()->json(['branding' => \App\Services\AgencyBrandingPresenter::present($agency->fresh('branding'))]);
+    }
+
     public function uploadLogo(Request $request, Agency $agency, AgencyBrandingService $branding): JsonResponse
     {
         $request->validate(['file' => ['required', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048']]);

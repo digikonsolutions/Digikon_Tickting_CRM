@@ -241,7 +241,8 @@ class EmployeeAssignmentController extends Controller
                 'email' => $assignment->employee->email,
             ],
             'agency_id' => $assignment->agency_id,
-            'agency_name' => $assignment->agency->name,
+            // Agency users see their brand name, never the internal agency record name.
+            'agency_name' => auth()->user()?->role->isAgencyRole() ? \App\Services\AgencyBrandingPresenter::displayName($assignment->agency) : $assignment->agency->name,
             'status' => $assignment->status,
             'started_at' => $assignment->started_at?->toISOString(),
             'ended_at' => $assignment->ended_at?->toISOString(),

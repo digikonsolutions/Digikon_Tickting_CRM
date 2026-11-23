@@ -129,7 +129,8 @@ return [
 
     'cookie' => env(
         'SESSION_COOKIE',
-        Str::slug(env('APP_NAME', 'laravel'), '_').'_session'
+        // Neutral on purpose: the cookie name must not carry the app or any brand name.
+        'portal_session'
     ),
 
     /*

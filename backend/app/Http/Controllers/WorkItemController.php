@@ -633,7 +633,7 @@ class WorkItemController extends Controller
             'assignment_id' => $item->assignment_id,
             'timeline_status' => $item->timeline_status,
             'assignment_status' => $item->assignment?->status,
-            'agency_name' => $item->agency?->name,
+            'agency_name' => $item->agency && auth()->user()?->role->isAgencyRole() ? \App\Services\AgencyBrandingPresenter::displayName($item->agency) : $item->agency?->name,
             'client' => $item->client ? [
                 'id' => $item->client->id,
                 'name' => $item->client->name,

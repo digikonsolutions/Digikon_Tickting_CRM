@@ -165,14 +165,16 @@ class OwnerDashboardExtras
     public function activity(int $agencyId, int $limit = 10): array
     {
         $labels = ['created' => 'created', 'updated' => 'updated', 'cancelled' => 'cancelled', 'status_changed' => 'moved', 'comment' => 'commented on', 'attachment_added' => 'attached a file to'];
+        $support = AgencyBrandingPresenter::displayName(\App\Models\Agency::query()->findOrFail($agencyId)).' Support';
         $events = DB::table('ticket_events as e')->join('tickets as t', 't.id', '=', 'e.ticket_id')->join('work_items as w', 'w.id', '=', 'e.work_item_id')->join('agencies as a', 'a.id', '=', 'w.agency_id')
             ->where('w.agency_id', $agencyId)->where('e.visibility', 'public')->whereNotIn('e.type', ['reordered', 'time_logged', 'attachment_removed'])
             ->orderByDesc('e.id')->limit($limit)
-            ->get(['e.id', 'e.type', 'e.actor_name', 'e.created_at', 't.number', 'a.ticket_prefix', 't.title'])
+            ->get(['e.id', 'e.type', 'e.actor_name', 'e.actor_role', 'e.created_at', 't.number', 'a.ticket_prefix', 't.title'])
             ->map(fn (object $e): array => [
                 'key' => 'event-'.$e->id,
                 'type' => $e->type,
-                'text' => ($e->actor_name ?? 'Someone').' '.($labels[$e->type] ?? 'updated').' “'.$e->title.'”',
+                // Platform staff appear as the agency's own support, never by name.
+                'text' => (in_array($e->actor_role, ['admin', 'team_lead', 'qa'], true) ? $support : ($e->actor_name ?? 'Someone')).' '.($labels[$e->type] ?? 'updated').' “'.$e->title.'”',
                 'at' => CarbonImmutable::parse($e->created_at)->toISOString(),
                 'to' => $e->ticket_prefix && $e->number ? "/tickets/{$e->ticket_prefix}-{$e->number}" : null,
             ]);

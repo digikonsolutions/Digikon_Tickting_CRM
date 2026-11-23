@@ -63,7 +63,7 @@ class AgencyDashboardService
 
         return [
             'role' => Role::AgencyOwner->value,
-            'agency' => ['id' => $agency->id, 'name' => $agency->name, 'status' => $agency->status],
+            'agency' => ['id' => $agency->id, 'name' => AgencyBrandingPresenter::displayName($agency), 'status' => $agency->status],
             'contract' => $contract === null ? null : [...$contract, 'days_remaining' => AgencyContracts::daysRemaining($contract)],
             'limits' => [
                 'employees' => $this->limit($counts['employees_held'], $limits['seats']),
@@ -106,7 +106,7 @@ class AgencyDashboardService
 
         return [
             'role' => Role::AgencyClient->value,
-            'agency' => ['id' => $agency->id, 'name' => $agency->name],
+            'agency' => ['id' => $agency->id, 'name' => AgencyBrandingPresenter::displayName($agency)],
             'contract' => AgencyContracts::redactForClient($contract),
             'limits' => [
                 'employees' => ['used' => $counts['employees_held']],
