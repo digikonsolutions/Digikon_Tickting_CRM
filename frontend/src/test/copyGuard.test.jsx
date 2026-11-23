@@ -131,7 +131,7 @@ describe('agency-facing copy', () => {
     const text = await visible(<AgencyEmployeesPage />)
 
     expect(text).toMatch(/Sam Team/)
-    expect(text).toMatch(/Now working on/)
+    expect(text).toMatch(/Today \/ this week/)
     expect(text).toMatch(/Up next/)
     expect(text).toMatch(/Brochure/)
     expect(text).toMatch(/Request urgent help/)

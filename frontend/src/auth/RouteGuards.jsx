@@ -93,6 +93,7 @@ const BREADCRUMB_PARENTS = [
   [/^\/agency\/projects\/\d+$/, { label: 'Projects', to: '/agency/projects' }],
   [/^\/agency\/clients\/\d+$/, { label: 'Clients', to: '/agency/clients' }],
   [/^\/agency\/employees\/\d+\/activity$/, { label: 'Employees', to: '/agency/employees' }],
+  [/^\/agency\/employees\/\d+$/, { label: 'Employees', to: '/agency/employees' }],
   [/^\/admin\/projects\/\d+$/, { label: 'All projects', to: '/admin/projects' }],
   [/^\/admin\/agencies\/\d+$/, { label: 'Agencies', to: '/admin/agencies' }],
   [/^\/admin\/employees\/\d+(\/activity)?$/, { label: 'Employees', to: '/admin/employees' }],
@@ -146,6 +147,8 @@ export function AppLayout() {
       ? 'Client'
       : /^\/agency\/employees\/\d+\/activity$/.test(location.pathname)
       ? 'Employee activity'
+      : /^\/agency\/employees\/\d+$/.test(location.pathname)
+      ? 'Employee'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/')
       ? 'Project details'
       : ({

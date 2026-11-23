@@ -23,6 +23,7 @@ import {
   AgencyBrandingPage,
   AgencyProjectsPage,
   AgencyDirectoryPage,
+  AgencyEmployeePage,
   AgencyEmployeesPage,
   AgencyClientsPage,
   AgencyTicketsPage,
@@ -130,6 +131,7 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />
+            <Route path="/agency/employees/:assignmentId" element={<AgencyEmployeePage />} />
             <Route path="/agency/queue" element={<Navigate to="/agency/employees?tab=rush" replace />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>

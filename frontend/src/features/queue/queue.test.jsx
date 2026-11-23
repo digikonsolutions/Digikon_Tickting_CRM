@@ -18,7 +18,7 @@ const { QueueCard } = await import('./components/QueueCard')
 const { RushRequestModal } = await import('./components/RushRequestModal')
 const { RushRequestsPanel } = await import('./components/RushRequestsPanel')
 const { MyQueueSection } = await import('./components/MyQueueSection')
-const { TeamMemberCard } = await import('./components/TeamMemberCard')
+const { TeamTable } = await import('./components/TeamTable')
 
 const queue = {
   employee: { id: 5, name: 'Emma Alpha', photo_url: null },
@@ -243,28 +243,39 @@ describe('MyQueueSection (employee)', () => {
   })
 })
 
-describe('TeamMemberCard', () => {
-  it('shows now, up next, compact bars and a keyboard-reachable menu', async () => {
+describe('TeamTable', () => {
+  const assignment = { id: 3, employee: { id: 5, name: 'Emma Alpha', email: 'emma@example.test' } }
+  const rows = [{ id: 3, assignment, queue }]
+
+  it('shows now, up next, both bars and when the employee is free, with a link to the employee page', () => {
+    wrap(<TeamTable rows={rows} onAddTask={() => {}} menuItemsFor={() => []} />)
+
+    expect(screen.getByRole('link', { name: 'Emma Alpha' })).toHaveAttribute('href', '/agency/employees/3')
+    expect(screen.getByText(/NW-4 · Build header/)).toBeInTheDocument()
+    expect(screen.getByText('Brochure')).toBeInTheDocument()
+    expect(screen.getByText(/2 waiting/)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: /booked this week, emma alpha/i })).toBeInTheDocument()
+    expect(screen.getByText('Dec 14')).toBeInTheDocument()
+  })
+
+  it('adds a task from the row and opens the menu from the keyboard-reachable button', async () => {
     const user = userEvent.setup()
     const onAddTask = vi.fn()
     const onProfile = vi.fn()
-    wrap(<TeamMemberCard queue={queue} onAddTask={onAddTask} menuItems={[{ label: 'View profile', onClick: onProfile }, { label: 'Request urgent help' }]} />)
+    wrap(<TeamTable rows={rows} onAddTask={onAddTask} menuItemsFor={() => [{ label: 'View profile', onClick: onProfile }, { label: 'Request urgent help' }]} />)
 
-    expect(screen.getByText(/NW-4 · Build header/)).toBeInTheDocument()
-    expect(within(screen.getByRole('list', { name: /projects waiting for emma alpha/i })).getAllByRole('listitem')).toHaveLength(2)
-    expect(screen.getByRole('progressbar', { name: /booked this week/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Add task' }))
-    expect(onAddTask).toHaveBeenCalled()
-
+    expect(onAddTask).toHaveBeenCalledWith(3)
     await user.click(screen.getByRole('button', { name: /more actions for emma alpha/i }))
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['View profile', 'Request urgent help'])
     await user.click(screen.getByRole('menuitem', { name: 'View profile' }))
     expect(onProfile).toHaveBeenCalled()
   })
 
-  it('shows when the employee is free and an empty up next', () => {
-    wrap(<TeamMemberCard queue={{ ...queue, now: null, up_next: [] }} onAddTask={() => {}} />)
-    expect(screen.getByText(/Free from/)).toHaveTextContent('Dec 14')
-    expect(screen.getByText(/Nothing waiting/)).toBeInTheDocument()
+  it('says so when nothing is in progress or waiting', () => {
+    wrap(<TeamTable rows={[{ id: 3, assignment, queue: { ...queue, now: null, up_next: [], capacity: { ...queue.capacity, free_from: null } } }]} onAddTask={() => {}} menuItemsFor={() => []} />)
+    expect(screen.getByText('Nothing in progress')).toBeInTheDocument()
+    expect(screen.getByText('Nothing waiting')).toBeInTheDocument()
+    expect(screen.getByText(/No time in 4 months/)).toBeInTheDocument()
   })
 })

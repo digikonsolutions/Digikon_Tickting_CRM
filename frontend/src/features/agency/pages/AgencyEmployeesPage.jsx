@@ -7,10 +7,9 @@ import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
   EmptyState, Input, Modal, PageHeader, Skeleton, Tabs, useToast,
 } from '../../../components/ui'
-import { QueueCard } from '../../queue/components/QueueCard'
 import { RushRequestModal } from '../../queue/components/RushRequestModal'
 import { RushRequestsPanel } from '../../queue/components/RushRequestsPanel'
-import { TeamMemberCard } from '../../queue/components/TeamMemberCard'
+import { TeamTable } from '../../queue/components/TeamTable'
 import { RUSH_CHANGED_EVENT } from '../../queue/useOpenRushCount'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import '../../queue/queue.css'
@@ -47,7 +46,6 @@ export function AgencyEmployeesPage() {
   const tab = ['rush', 'week'].includes(searchParams.get('tab')) ? searchParams.get('tab') : 'team'
   const [taskForm, setTaskForm] = useState(null)
   const [rush, setRush] = useState(null)
-  const [queueView, setQueueView] = useState(null)
   const [drawerOpen, setDrawerOpen] = useState(() => searchParams.get('hold') === '1')
   const [drawerSearch, setDrawerSearch] = useState('')
   const [impactData, setImpactData] = useState(null)
@@ -309,23 +307,17 @@ export function AgencyEmployeesPage() {
         ) : queuesLoading && !queueData ? (
           <div className="queue-grid"><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /></div>
         ) : assignments.length > 0 ? (
-          <div className="queue-grid">
-            {assignments.map((assignment) => queueData.queues[assignment.id] && (
-              <TeamMemberCard
-                key={assignment.id}
-                queue={queueData.queues[assignment.id]}
-                showReorder={isOwner}
-                onAddTask={() => setTaskForm({ assignmentId: assignment.id })}
-                onOpenQueue={() => setQueueView(assignment.id)}
-                menuItems={[
-                  { label: 'View profile', onClick: () => setProfileId(assignment.employee.id) },
-                  ...(isOwner ? [{ label: 'Work activity', to: `/agency/employees/${assignment.employee.id}/activity` }] : []),
-                  { label: 'Request urgent help', onClick: () => openRush(assignment.id) },
-                  ...(ownerManaged ? [{ label: 'Release employee', danger: true, separator: true, onClick: () => openEndConfirm(assignment) }] : []),
-                ]}
-              />
-            ))}
-          </div>
+          <TeamTable
+            rows={assignments.filter((assignment) => queueData.queues[assignment.id]).map((assignment) => ({ id: assignment.id, assignment, queue: queueData.queues[assignment.id] }))}
+            onAddTask={(assignmentId) => setTaskForm({ assignmentId })}
+            menuItemsFor={(assignment) => [
+              { label: 'Open employee', to: `/agency/employees/${assignment.id}` },
+              { label: 'View profile', onClick: () => setProfileId(assignment.employee.id) },
+              ...(isOwner ? [{ label: 'Work activity', to: `/agency/employees/${assignment.employee.id}/activity` }] : []),
+              { label: 'Request urgent help', onClick: () => openRush(assignment.id) },
+              ...(ownerManaged ? [{ label: 'Release employee', danger: true, separator: true, onClick: () => openEndConfirm(assignment) }] : []),
+            ]}
+          />
         ) : (!queuesLoading && emptyTeam)}
       </div>
 
@@ -371,21 +363,6 @@ export function AgencyEmployeesPage() {
           onSubmitted={() => { setRush(null); showToast('Request sent. You will get a quote before anything is charged.'); setTab('rush'); reloadQueues() }}
         />
       )}
-      <Modal open={Boolean(queueView && queueData?.queues[queueView])} onClose={() => setQueueView(null)} title="Queue order">
-        {queueView && queueData?.queues[queueView] && (
-          <QueueCard
-            assignmentId={queueView}
-            queue={queueData.queues[queueView]}
-            isOwner={isOwner}
-            userId={user.id}
-            onAddTask={(id) => { setQueueView(null); setTaskForm({ assignmentId: id }) }}
-            onRequestHelp={(id) => { setQueueView(null); openRush(id) }}
-            onChanged={reloadQueues}
-            onMessage={showToast}
-          />
-        )}
-      </Modal>
-
       {/* Hold employee drawer */}
       {/* The profile drawer replaces the hold drawer while it is open (two stacked drawers would both
           answer Escape and fight over focus). Closing the profile brings the list back as it was. */}

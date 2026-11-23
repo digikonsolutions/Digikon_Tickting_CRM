@@ -1,6 +1,6 @@
 export { MyQueueSection } from './components/MyQueueSection'
 export { QueueCard } from './components/QueueCard'
 export { RushRequestModal } from './components/RushRequestModal'
-export { TeamMemberCard } from './components/TeamMemberCard'
+export { TeamTable } from './components/TeamTable'
 export { RushRequestsPanel } from './components/RushRequestsPanel'
 export { useOpenRushCount, RUSH_CHANGED_EVENT } from './useOpenRushCount'
