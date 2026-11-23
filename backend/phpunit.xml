@@ -19,6 +19,8 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- The suite predates admin-only scheduling: tests of the older auto-scheduling flow rely on this; the new flow is tested with the setting turned on. -->
+        <env name="SCHEDULING_ADMIN_ONLY" value="false"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>

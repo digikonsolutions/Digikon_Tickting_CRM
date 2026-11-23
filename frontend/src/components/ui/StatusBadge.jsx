@@ -12,6 +12,15 @@ export function StatusBadge({ status, role = null }) {
   return <Badge status={status} />
 }
 
+// A project's status for people who do not plan it. Until the schedule is confirmed an open project is not shown as
+// "Scheduled": it is "Awaiting schedule" (nothing planned yet) or "In review" (planned or proposed, not confirmed).
+export function ProjectStatusBadge({ project }) {
+  const open = ['scheduled', 'in_progress'].includes(project?.status)
+  if (open && project.schedule_state === 'awaiting') return <Badge variant="warning">Awaiting schedule</Badge>
+  if (open && project.schedule_state === 'in_review') return <Badge variant="info">In review</Badge>
+  return <StatusBadge status={project?.status} />
+}
+
 export function PriorityBadge({ priority }) {
   if (!priority) return null
   return <Badge status={priority} />

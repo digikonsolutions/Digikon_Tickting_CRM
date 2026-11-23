@@ -497,7 +497,7 @@ export const authService = {
     return request(`/admin/assignments/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
   // Paginated; resolves to { projects, pagination, summary } where summary counts the whole agency.
-  async listAgencyProjects({ page = 1, perPage = 25, status, assignmentId, search } = {}) {
+  async listAgencyProjects({ page = 1, perPage = 25, status, assignmentId, search, mine } = {}) {
     if (AUTH_MODE === 'mock') {
       return {
         projects: [],
@@ -509,6 +509,7 @@ export const authService = {
     if (status) query.set('status', status)
     if (assignmentId) query.set('assignment_id', String(assignmentId))
     if (search) query.set('search', search)
+    if (mine) query.set('mine', '1')
     return request(`/agency/projects?${query.toString()}`)
   },
   async getCapacity({ assignmentId, from, to }) {
@@ -579,16 +580,22 @@ export const authService = {
     return request('/agency/dashboard')
   },
   // Requests to the administrators: type is 'more_hours', 'employee', 'upgrade' or 'renewal'; notes and files are optional.
-  async sendAgencyRequest({ type, message, files = [] }) {
+  // The GHL service types and their fields (one definition on the server, shared by every form).
+  async getServiceCatalog() {
+    if (AUTH_MODE === 'mock') return { types: [], employee_request: { roles: {}, max_hours_per_week: 36, max_duration_weeks: 52 } }
+    return request('/agency/service-catalog')
+  },
+  async sendAgencyRequest({ type, message, files = [], details = null }) {
     if (AUTH_MODE === 'mock') return { message: 'Your request was sent.', notified: 0 }
     if (files.length > 0) {
       const form = new FormData()
       form.append('type', type)
       if (message) form.append('message', message)
+      if (details) Object.entries(details).forEach(([key, value]) => form.append(`details[${key}]`, String(value)))
       files.forEach((file) => form.append('files[]', file, file.name))
       return request('/agency/requests', { method: 'POST', body: form })
     }
-    return request('/agency/requests', { method: 'POST', body: JSON.stringify({ type, ...(message ? { message } : {}) }) })
+    return request('/agency/requests', { method: 'POST', body: JSON.stringify({ type, ...(message ? { message } : {}), ...(details ? { details } : {}) }) })
   },
   async listAgencyRequests({ type } = {}) {
     if (AUTH_MODE === 'mock') return { requests: [] }
@@ -656,7 +663,24 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { agency: { id, status } }
     return request(`/admin/agencies/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) })
   },
-  async getAdminDashboard({ status, week, employeeFilter } = {}) {
+  // Admin edit of an agency's name and company details. A blank tax number keeps the stored one.
+  async updateAdminAgencyDetails(id, data) {
+    if (AUTH_MODE === 'mock') return { agency: { id, ...data } }
+    return request(`/admin/agencies/${encodeURIComponent(id)}/details`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  // Admin edit of an agency's contract (created on first save) and its held employees.
+  async updateAdminAgencyContract(id, data) {
+    if (AUTH_MODE === 'mock') return { contract: null, contract_form: data }
+    return request(`/admin/agencies/${encodeURIComponent(id)}/contract`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+  async assignAdminAgencyEmployee(id, employeeId) {
+    if (AUTH_MODE === 'mock') return { assignment: { id: Date.now(), employee_id: employeeId } }
+    return request(`/admin/agencies/${encodeURIComponent(id)}/employees`, { method: 'POST', body: JSON.stringify({ employee_id: employeeId }) })
+  },
+  async updateAdminAgencyBranding(id, data) {
+    if (AUTH_MODE === 'mock') return { branding: data }
+    return request(`/admin/agencies/${encodeURIComponent(id)}/branding`, { method: 'PATCH', body: JSON.stringify(data) })
+  },  async getAdminDashboard({ status, week, employeeFilter } = {}) {
     if (AUTH_MODE === 'mock') {
       return {
         today: '',

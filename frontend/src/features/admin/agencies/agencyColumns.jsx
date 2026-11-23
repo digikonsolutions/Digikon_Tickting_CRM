@@ -20,12 +20,13 @@ function hoursCell(row) {
   )
 }
 
-export function agencyMenuItems(row, onToggle) {
+export function agencyMenuItems(row, onToggle, onEdit) {
   const base = `/admin/agencies/${row.id}`
   const suspending = row.status === 'active'
   const draft = row.status === 'draft'
   return [
     { label: 'View details', to: base },
+    ...(onEdit ? [{ label: 'Edit agency', onClick: () => onEdit(row) }] : []),
     { label: 'Contract & plan', to: `${base}?tab=contract` },
     { label: 'Hours & usage', to: `${base}?tab=usage` },
     { label: 'Employees held', to: `${base}?tab=employees` },
@@ -41,7 +42,7 @@ export function agencyMenuItems(row, onToggle) {
 }
 
 /** Columns for the agencies table on the dashboard and on the Agencies page. */
-export function agencyColumns({ onToggle }) {
+export function agencyColumns({ onToggle, onEdit }) {
   return [
     {
       key: 'name',
@@ -65,7 +66,7 @@ export function agencyColumns({ onToggle }) {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_value, row) => <DropdownMenu label={`Actions for ${row.name}`} items={agencyMenuItems(row, onToggle)} />,
+      render: (_value, row) => <DropdownMenu label={`Actions for ${row.name}`} items={agencyMenuItems(row, onToggle, onEdit)} />,
     },
   ]
 }

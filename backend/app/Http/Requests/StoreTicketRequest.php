@@ -3,12 +3,14 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\BriefRules;
+use App\Http\Requests\Concerns\ServiceDetailsRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreTicketRequest extends FormRequest
 {
     use BriefRules;
+    use ServiceDetailsRules;
 
     public function authorize(): bool
     {
@@ -21,6 +23,7 @@ class StoreTicketRequest extends FormRequest
 
         return [
             ...$this->ticketBriefRules($project?->id),
+            ...$this->serviceDetailsRules('ticket'),
             'title' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string'],
             'estimated_hours' => ['required', 'numeric', 'decimal:0,2', 'min:0.01'],

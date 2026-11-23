@@ -12,6 +12,7 @@
 .tl-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); font-weight: 600; }
 .tl-summary .is-ok { color: var(--color-success-700); }
 .tl-summary .is-bad { color: var(--color-danger-700); }
+.tl-hours-note { margin-bottom: var(--space-3); }
 .tl-due { display: inline-flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .9rem; }
 .tl-due input { padding: .4rem .5rem; border: 1px solid var(--color-border-strong, var(--color-border)); border-radius: var(--radius-control); font: inherit; }
 

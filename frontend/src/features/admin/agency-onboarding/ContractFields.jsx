@@ -11,7 +11,7 @@ import {
 // Picking a plan fills the limits (all still editable). The end date follows start date and billing cycle for as
 // long as it still equals the calculated value, and stops following once the admin types their own.
 export function ContractFields({
-  value, onChange, errors, plans, plansLoading, plansError, document: contractDocument, onDocument, documentNotice, prefix = 'contract.',
+  value, onChange, errors, plans, plansLoading, plansError, document: contractDocument, onDocument, documentNotice, prefix = 'contract.', statuses = CONTRACT_STATUSES, hideDocument = false,
 }) {
   const fileRef = useRef(null)
   const field = (name, extra = {}) => ({
@@ -45,7 +45,7 @@ export function ContractFields({
           <PlanCards plans={plans} value={value.plan_id} onSelect={(plan) => onChange(applyPlan(value, plan))} error={firstError(errors, `${prefix}plan_id`)} />
         )}        <FieldRow>
           <Select id="contract-status" label="Contract status" {...field('status')}>
-            {CONTRACT_STATUSES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+            {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
           </Select>
           {value.status === 'trial' && <Input id="contract-trial-end" label="Trial ends" type="date" required {...field('trial_end_date')} />}
         </FieldRow>
@@ -100,7 +100,7 @@ export function ContractFields({
         </FieldRow>
       </FormSection>
 
-      <FormSection title="Signed contract" description="Optional PDF, JPG or PNG up to 10 MB. It uploads right after the agency is created.">
+      {!hideDocument && <FormSection title="Signed contract" description="Optional PDF, JPG or PNG up to 10 MB. It uploads right after the agency is created.">
         <div className="onb-file">
           <input
             ref={fileRef}
@@ -119,7 +119,7 @@ export function ContractFields({
           )}
         </div>
         {documentNotice && <p className="ui-field-error" role="alert">{documentNotice}</p>}
-      </FormSection>
+      </FormSection>}
     </>
   )
 }

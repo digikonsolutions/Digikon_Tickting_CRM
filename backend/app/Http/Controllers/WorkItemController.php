@@ -39,6 +39,7 @@ class WorkItemController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'status' => ['sometimes', 'in:open,scheduled,in_progress,completed,cancelled'],
             'assignment_id' => ['sometimes', 'integer'],
+            'mine' => ['sometimes', 'boolean'],
             'search' => ['sometimes', 'string', 'max:120'],
         ]);
 
@@ -46,6 +47,7 @@ class WorkItemController extends Controller
             ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
             ->withTicketProgress()
             ->where('agency_id', $agency->id)
+            ->when($request->boolean('mine'), fn ($query) => $query->where('client_id', $viewer->id))
             ->when($filters['status'] ?? null, function ($query, string $status): void {
                 $status === 'open'
                     ? $query->whereIn('status', ['scheduled', 'in_progress'])
@@ -137,7 +139,7 @@ class WorkItemController extends Controller
         abort_unless($workItem->agency_id === $agency->id, 404);
 
         return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true),
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: $workItem->canShowAccessDetailsTo($request->user())),
         ]);
     }
 
@@ -157,12 +159,19 @@ class WorkItemController extends Controller
                 'assignment_id' => 'Choose an active employee assignment held by your account.',
             ]);
         }
-        $start = CarbonImmutable::parse($data['start_date'], config('app.timezone'));
-        $due = CarbonImmutable::parse($data['due_date'], config('app.timezone'));
-        $this->validateDateRange($start, $due);
-        $requestedUnits = (int) round((float) $data['estimated_hours'] * 100);
+        $adminOnly = (bool) config('scheduling.admin_only_scheduling', true);
+        if ($adminOnly) {
+            // No dates from the agency: a placeholder window, until an admin plans the days.
+            $start = CarbonImmutable::now(config('app.timezone'))->startOfDay();
+            $due = $start->addDays((int) config('scheduling.provisional_window_days', 14));
+        } else {
+            $start = CarbonImmutable::parse($data['start_date'], config('app.timezone'));
+            $due = CarbonImmutable::parse($data['due_date'], config('app.timezone'));
+            $this->validateDateRange($start, $due);
+        }
+        $requestedUnits = (int) round((float) ($data['estimated_hours'] ?? 0) * 100);
 
-        $item = DB::transaction(function () use ($creator, $agency, $data, $assignment, $start, $due, $requestedUnits, $queue): WorkItem {
+        $item = DB::transaction(function () use ($creator, $agency, $data, $assignment, $start, $due, $requestedUnits, $queue, $adminOnly): WorkItem {
             User::query()->lockForUpdate()->findOrFail($creator->id);
 
             if (
@@ -205,17 +214,21 @@ class WorkItemController extends Controller
                 'start_date' => $start->toDateString(),
                 'due_date' => $due->toDateString(),
                 'status' => 'scheduled',
+                'awaiting_schedule' => $adminOnly,
                 // New projects join the end of the employee's queue; the planner then allocates the hours.
                 'queue_position' => $queue->nextPosition($lockedEmployee),
-                ...Arr::only($data, WorkItem::BRIEF_FIELDS),
+                ...Arr::only($data, [...WorkItem::BRIEF_FIELDS, 'service_type', 'details']),
             ]);
 
-            try {
-                $queue->replan($lockedEmployee, null, $creator, 'added', ['work_item_id' => $item->id]);
-            } catch (QueueConflict) {
-                throw ValidationException::withMessages([
-                    'assignment_id' => 'This employee assignment does not have enough capacity in the selected date range. Extend the dates.',
-                ]);
+            // With admin-only scheduling nothing is allocated here: the request waits for an admin to plan its days.
+            if (! $adminOnly) {
+                try {
+                    $queue->replan($lockedEmployee, null, $creator, 'added', ['work_item_id' => $item->id]);
+                } catch (QueueConflict) {
+                    throw ValidationException::withMessages([
+                        'assignment_id' => 'This employee assignment does not have enough capacity in the selected date range. Extend the dates.',
+                    ]);
+                }
             }
 
             return $item;
@@ -229,7 +242,7 @@ class WorkItemController extends Controller
         }
 
         return response()->json([
-            'project' => $this->payload($item->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
+            'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
         ], 201);
     }
 
@@ -253,6 +266,17 @@ class WorkItemController extends Controller
         $schedulingFields = ['estimated_hours', 'start_date', 'due_date', 'assignment_id'];
         $wantsReschedule = (bool) array_intersect($schedulingFields, array_keys($data));
 
+        // The service and its answers describe the work to be done, so like the schedule they belong to open projects only.
+        if ((array_key_exists('service_type', $data) || array_key_exists('details', $data)) && ! in_array($workItem->status, ['scheduled', 'in_progress'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'The service and its details can only be changed on an open (scheduled or in progress) project.',
+            ]);
+        }
+        // Another service makes the old answers meaningless: they go unless new ones are sent with it.
+        if (array_key_exists('service_type', $data) && $data['service_type'] !== $workItem->service_type && ! array_key_exists('details', $data)) {
+            $data['details'] = null;
+        }
+
         if ($wantsReschedule && ! in_array($workItem->status, ['scheduled', 'in_progress'], true)) {
             throw ValidationException::withMessages([
                 'status' => 'Hours, dates and the assigned employee can only be changed on an open (scheduled or in progress) project.',
@@ -268,7 +292,11 @@ class WorkItemController extends Controller
             }
 
             if ($wantsReschedule) {
-                $this->rescheduleProject($lockedItem, $agency, $user, $data, $scheduler, $planner);
+                if (config('scheduling.admin_only_scheduling', true)) {
+                    $this->applyRequestChanges($lockedItem, $user, $data);
+                } else {
+                    $this->rescheduleProject($lockedItem, $agency, $user, $data, $scheduler, $planner);
+                }
             }
 
             return $lockedItem;
@@ -277,6 +305,44 @@ class WorkItemController extends Controller
         return response()->json([
             'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true),
         ]);
+    }
+
+    /**
+     * Admin-only scheduling: the agency may change its estimate and its preferred employee, never the days. The
+     * confirmed schedule is not touched; a new estimate on a planned project sends it back to the admin for review.
+     * The employee can only be switched while nothing is planned yet.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function applyRequestChanges(WorkItem $item, User $user, array $data): void
+    {
+        if (array_key_exists('estimated_hours', $data) && abs((float) $data['estimated_hours'] - (float) $item->estimated_hours) >= 0.005) {
+            $item->update(['estimated_hours' => WorkItemScheduler::unitsToHours((int) round((float) $data['estimated_hours'] * 100))]);
+            if (! $item->isAwaitingSchedule()) {
+                app(TimelineReview::class)->reopen($item->fresh(), $user, 'The agency changed the estimated hours.');
+            }
+        }
+
+        if (array_key_exists('assignment_id', $data) && (int) $data['assignment_id'] !== (int) $item->assignment_id) {
+            if (! $item->isAwaitingSchedule()) {
+                throw ValidationException::withMessages([
+                    'assignment_id' => 'The days are already planned. Ask our team if the employee needs to change.',
+                ]);
+            }
+            $assignment = EmployeeAssignment::query()->lockForUpdate()->find($data['assignment_id']);
+            if ($assignment === null || $assignment->agency_id !== $item->agency_id || ! $assignment->usableBy($user) || $assignment->status !== 'active') {
+                throw ValidationException::withMessages(['assignment_id' => 'Choose an active employee assignment held by your account.']);
+            }
+            $employee = User::query()->lockForUpdate()->findOrFail($assignment->employee_id);
+            if (! $employee->is_active || $employee->role !== Role::Employee) {
+                throw ValidationException::withMessages(['assignment_id' => 'The assigned employee is no longer active.']);
+            }
+            $item->update([
+                'assignment_id' => $assignment->id,
+                'employee_id' => $employee->id,
+                'queue_position' => app(EmployeeQueuePlanner::class)->nextPosition($employee),
+            ]);
+        }
     }
 
     /**
@@ -340,6 +406,9 @@ class WorkItemController extends Controller
             'assignment_id' => $assignment->id,
             'employee_id' => $employee->id,
             'estimated_hours' => WorkItemScheduler::unitsToHours($totalUnits),
+            // A new estimate from the agency replaces any earlier admin plan; the schedule above was built on it.
+            'planned_hours' => null,
+            'planned_note' => null,
             'start_date' => $start->toDateString(),
             'due_date' => $due->toDateString(),
         ]);
@@ -627,6 +696,8 @@ class WorkItemController extends Controller
             'agency_id' => $item->agency_id,
             'assignment_id' => $item->assignment_id,
             'timeline_status' => $item->timeline_status,
+            'schedule_state' => $item->scheduleState(),
+            'planned_hours' => $item->scheduledHours(),
             'assignment_status' => $item->assignment?->status,
             'agency_name' => $item->agency && auth()->user()?->role->isAgencyRole() ? \App\Services\AgencyBrandingPresenter::displayName($item->agency) : $item->agency?->name,
             'client' => $item->client ? [
@@ -638,6 +709,8 @@ class WorkItemController extends Controller
                 'name' => $item->employee->name,
                 'role' => $item->employee->role->value,
             ] : null,
+            'service_type' => $item->service_type,
+            'details' => $item->details,
             'brief' => $this->briefPayload($item, $withAccess),
             'estimated_hours' => $item->estimated_hours,
             'start_date' => $item->start_date->toDateString(),

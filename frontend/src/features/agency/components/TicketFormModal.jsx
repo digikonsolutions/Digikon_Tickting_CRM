@@ -5,6 +5,9 @@ import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, FieldRow, FormActions, FormSection, Input, Modal, Select, Textarea } from '../../../components/ui'
 import { FilePicker } from '../../briefs/components/FilePicker'
 import { PRIORITIES, uploadErrorMessage } from '../../briefs/briefData'
+import { ServiceFields } from '../../services/ServiceFields'
+import { buildFromAnswers, cleanDetails, typeOf } from '../../services/serviceCatalog'
+import '../../services/services.css'
 
 const FORM_ID = 'ticket-form'
 const hours = (value) => `${Number(value).toFixed(Number(value) % 1 === 0 ? 0 : 2)} h`
@@ -15,12 +18,18 @@ export function TicketFormModal({ ticket, projectId: initialProject, onClose, on
   const editing = Boolean(ticket)
   const [projectId, setProjectId] = useState(String(ticket?.work_item_id ?? initialProject ?? ''))
   const [values, setValues] = useState({ title: ticket?.title ?? '', description: ticket?.description ?? '', estimated_hours: ticket?.estimated_hours ?? '', priority: ticket?.priority ?? 'normal' })
+  // Same idea as a project, with fewer questions: the answers write the title and description until they are edited.
+  const [serviceType, setServiceType] = useState(ticket?.service_type ?? null)
+  const [details, setDetails] = useState(ticket?.details ?? {})
+  const [touched, setTouched] = useState({ title: editing, description: editing })
   const [files, setFiles] = useState([])
   const [notice, setNotice] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
   const first = useRef(null)
 
+  const loadCatalog = useCallback(() => authService.getServiceCatalog(), [])
+  const catalog = useAsync(loadCatalog).data
   const loadProjects = useCallback(() => authService.listAgencyProjects({ status: 'open', perPage: 100 }), [])
   const projects = useAsync(loadProjects)
   const loadTickets = useCallback(() => (projectId ? authService.listProjectTickets(projectId) : Promise.resolve({ tickets: [] })), [projectId])
@@ -39,7 +48,24 @@ export function TicketFormModal({ ticket, projectId: initialProject, onClose, on
   const remaining = project ? Number(project.estimated_hours) - used : null
   const typed = Number(values.estimated_hours)
   const over = remaining !== null && typed > remaining + 1e-9
-  const set = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }))
+  const set = (field) => (event) => {
+    setValues((current) => ({ ...current, [field]: event.target.value }))
+    if (field === 'title' || field === 'description') setTouched((current) => ({ ...current, [field]: true }))
+  }
+  const type = typeOf(catalog, serviceType)
+  function changeService(next) {
+    setServiceType(next.serviceType)
+    setDetails(next.details)
+    setError(null)
+    if (!next.serviceType) return
+    const written = buildFromAnswers(typeOf(catalog, next.serviceType), next.details, 'ticket')
+    setValues((current) => ({ ...current, ...(touched.title ? {} : { title: written.title }), ...(touched.description ? {} : { description: written.description }) }))
+  }
+  const serviceError = (key) => {
+    const errors = error?.errors ?? {}
+    const name = key === 'service_type' ? key : `details.${key}`
+    return errors[name]?.[0] ?? Object.entries(errors).find(([field]) => field.startsWith(`.`))?.[1]?.[0]
+  }
   const fieldError = (field) => error?.errors?.[field]?.[0]
 
   async function submit(event) {
@@ -48,6 +74,9 @@ export function TicketFormModal({ ticket, projectId: initialProject, onClose, on
     setSaving(true)
     setError(null)
     const payload = { title: values.title.trim(), description: values.description.trim(), estimated_hours: values.estimated_hours === '' ? '' : Number(values.estimated_hours), priority: values.priority }
+    const cleaned = cleanDetails(type, details, 'ticket')
+    if (!editing || serviceType !== (ticket.service_type ?? null)) payload.service_type = serviceType
+    if (!editing || JSON.stringify(cleaned) !== JSON.stringify(ticket.details ?? null)) payload.details = cleaned
     try {
       const { ticket: saved } = editing ? await authService.updateTicket(ticket.id, payload) : await authService.createProjectTicket(projectId, payload)
       let uploadNotice = null
@@ -68,6 +97,9 @@ export function TicketFormModal({ ticket, projectId: initialProject, onClose, on
     <Modal open onClose={() => !saving && onClose()} title={editing ? 'Edit ticket' : 'Create ticket'} className="client-modal">
       <form id={FORM_ID} className="ui-form" onSubmit={submit} noValidate>
         {noProjects && <Alert variant="info">You need an open project before you can create a ticket.</Alert>}
+        <FormSection title="What is this about?" description="Optional. Pick a service to get a few quick questions; the title and description are written for you.">
+          <ServiceFields catalog={catalog} scope="ticket" serviceType={serviceType} details={details} onChange={changeService} errors={serviceError} />
+        </FormSection>
         <FormSection title="Ticket">
           <Select id="ticket-project" label="Project" required value={projectId} disabled={editing || projects.isLoading} onChange={(event) => setProjectId(event.target.value)} error={fieldError('work_item_id')}>
             <option value="">{projects.isLoading ? 'Loading projects…' : 'Choose a project'}</option>

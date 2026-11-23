@@ -338,7 +338,8 @@ class EmployeeQueuePlanner
             $item = $byId[$id];
             $through = $this->freezeThrough($context, in_array($id, $pinned, true));
             $frozenUnits = array_sum($frozen[$id] ?? []);
-            $remaining = max(0, (int) round((float) $item->estimated_hours * 100) - $frozenUnits);
+            // A request still waiting for an admin to plan its days holds no hours and is never auto-scheduled.
+            $remaining = $item->isAwaitingSchedule() ? 0 : max(0, (int) round($item->scheduledHours() * 100) - $frozenUnits);
             $due = CarbonImmutable::parse($item->due_date->toDateString(), $timezone);
 
             $from = CarbonImmutable::parse(max($item->start_date->toDateString(), $context['today']), $timezone);

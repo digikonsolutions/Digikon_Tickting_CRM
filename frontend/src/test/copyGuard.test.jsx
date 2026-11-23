@@ -86,9 +86,8 @@ const PAGES = [
   ['directory', async () => (await import('../features/agency/pages/AgencyDirectoryPage')).AgencyDirectoryPage, 'agency_owner'],
   ['clients', async () => (await import('../features/agency/pages/AgencyClientsPage')).AgencyClientsPage, 'agency_owner'],
   ['tickets', async () => (await import('../features/agency/pages/AgencyTicketsPage')).AgencyTicketsPage, 'agency_owner'],
-  ['projects', async () => (await import('../features/agency/pages/AgencyProjectsPage')).AgencyOwnerProjectsPage, 'agency_owner'],
-  ['team queue (owner)', async () => (await import('../features/queue')).TeamQueuePage, 'agency_owner'],
-  ['team queue (client)', async () => (await import('../features/queue')).TeamQueuePage, 'agency_client'],
+  ['projects', async () => (await import('../features/agency/pages/AgencyProjectsPage')).AgencyProjectsPage, 'agency_owner'],
+  ['projects (client)', async () => (await import('../features/agency/pages/AgencyProjectsPage')).AgencyProjectsPage, 'agency_client'],
   ['rush requests (owner)', async () => { const { RushRequestsPanel } = await import('../features/queue/components/RushRequestsPanel'); return () => <RushRequestsPanel requests={mocks.rushFixture} isOwner onChanged={() => {}} /> }, 'agency_owner'],
   ['rush requests (client)', async () => { const { RushRequestsPanel } = await import('../features/queue/components/RushRequestsPanel'); return () => <RushRequestsPanel requests={mocks.rushFixture.map((r) => ({ ...r, quote: null }))} isOwner={false} onChanged={() => {}} /> }, 'agency_client'],
   ['urgent help dialog', async () => { const { RushRequestModal } = await import('../features/queue/components/RushRequestModal'); return () => <RushRequestModal assignments={[{ id: 3, employee: { id: 5, name: 'Sam Team' } }]} onClose={() => {}} /> }, 'agency_owner'],
@@ -125,15 +124,15 @@ describe('agency-facing copy', () => {
     expect(screen.queryByText(/Northwind Support commented/)).toBeInTheDocument()
   })
 
-  it('the team queue really renders the employee card, so its copy check is not passing on an empty page', async () => {
+  it('the employees page really renders the team queue and the employee card, so its copy check is not passing on an empty page', async () => {
     mocks.current.user = mocks.user
-    const { TeamQueuePage } = await import('../features/queue')
+    const { AgencyEmployeesPage } = await import('../features/agency/pages/AgencyEmployeesPage')
 
-    const text = await visible(<TeamQueuePage />)
+    const text = await visible(<AgencyEmployeesPage />)
 
     expect(text).toMatch(/Sam Team/)
     expect(text).toMatch(/Now working on/)
-    expect(text).toMatch(/Free from/)
+    expect(text).toMatch(/Up next/)
     expect(text).toMatch(/Brochure/)
     expect(text).toMatch(/Request urgent help/)
   })

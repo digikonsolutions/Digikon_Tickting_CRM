@@ -52,6 +52,8 @@ class RushRequestService
             'estimated_hours' => $data['estimated_hours'],
             'needed_by' => $data['needed_by'],
             'reason' => $data['reason'] ?? null,
+            'service_type' => $data['service_type'] ?? null,
+            'details' => ! empty($data['service_type']) ? ($data['details'] ?? null) : null,
             'status' => 'pending',
         ]);
         $this->announce($request, 'submitted', $user);
@@ -315,6 +317,8 @@ class RushRequestService
             'status' => 'scheduled',
             'queue_position' => $this->planner->nextPosition($employee),
             'brief_priority' => 'urgent',
+            'service_type' => $request->service_type,
+            'details' => $request->details,
         ]);
 
         try {
@@ -349,6 +353,8 @@ class RushRequestService
             'status' => 'scheduled',
             'queue_position' => $position,
             'brief_priority' => 'urgent',
+            'service_type' => $request->service_type,
+            'details' => $request->details,
         ]);
 
         $order = $this->planner->openItems($employee)->pluck('id')->all();

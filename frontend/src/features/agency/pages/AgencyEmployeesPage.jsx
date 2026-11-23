@@ -5,8 +5,15 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import {
   Alert, Avatar, Badge, Button, CapacityBar, Card, Drawer,
-  EmptyState, Input, Modal, PageHeader, Skeleton, useToast,
+  EmptyState, Input, Modal, PageHeader, Skeleton, Tabs, useToast,
 } from '../../../components/ui'
+import { QueueCard } from '../../queue/components/QueueCard'
+import { RushRequestModal } from '../../queue/components/RushRequestModal'
+import { RushRequestsPanel } from '../../queue/components/RushRequestsPanel'
+import { TeamMemberCard } from '../../queue/components/TeamMemberCard'
+import { RUSH_CHANGED_EVENT } from '../../queue/useOpenRushCount'
+import { ProjectFormModal } from '../components/ProjectFormModal'
+import '../../queue/queue.css'
 import { AVAILABILITY, AVAILABILITY_VARIANT, labelOf } from '../../admin/employee/employeeForm'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 import { RequestModal } from '../components/RequestModal'
@@ -36,7 +43,11 @@ export function AgencyEmployeesPage() {
   const [actionError, setActionError] = useState(null)
   const { showToast } = useToast()
   // The dashboard's "Hold employee" opens this page with the list already showing (?hold=1).
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = ['rush', 'week'].includes(searchParams.get('tab')) ? searchParams.get('tab') : 'team'
+  const [taskForm, setTaskForm] = useState(null)
+  const [rush, setRush] = useState(null)
+  const [queueView, setQueueView] = useState(null)
   const [drawerOpen, setDrawerOpen] = useState(() => searchParams.get('hold') === '1')
   const [drawerSearch, setDrawerSearch] = useState('')
   const [impactData, setImpactData] = useState(null)
@@ -60,7 +71,22 @@ export function AgencyEmployeesPage() {
     return { available, mine: mine.assignments, summary }
   }, [week])
 
-  const { data, error, isLoading, reload } = useAsync(loadData)
+  // The team tab and the rush tab share one load: each employee's queue and the agency's urgent requests.
+  const loadQueues = useCallback(async () => {
+    const [{ assignments: list }, { rush_requests: requestList }] = await Promise.all([authService.listMyAssignments(), authService.listRushRequests()])
+    const queues = await Promise.all(list.map(async (assignment) => [assignment.id, await authService.getAssignmentQueue(assignment.id)]))
+    return { assignments: list, queues: Object.fromEntries(queues), requests: requestList }
+  }, [])
+  const { data: queueData, error: queueError, isLoading: queuesLoading, reload: reloadQueues } = useAsync(loadQueues)
+  const assignments = queueData?.assignments ?? []
+  const requests = queueData?.requests ?? []
+  const openRequests = requests.filter((request) => request.status === 'pending' || request.status === 'quoted')
+  // Keep the sidebar badge in step with what this page just changed.
+  useEffect(() => { if (queueData) window.dispatchEvent(new Event(RUSH_CHANGED_EVENT)) }, [queueData])
+
+  const { data, error: weekError, isLoading, reload: reloadWeek } = useAsync(loadData)
+  const error = weekError ?? queueError
+  const reload = useCallback(() => { reloadWeek(); reloadQueues() }, [reloadWeek, reloadQueues])
   const available = data?.available ?? []
   const mine = data?.mine ?? []
   const summary = data?.summary
@@ -139,23 +165,63 @@ export function AgencyEmployeesPage() {
 
   /* ── render ────────────────────────────────────────────────── */
   const hasTeam = mine.length > 0
+  const emptyTeam = (
+    <EmptyState
+      title="No employees yet"
+      action={isOwner && (ownerManaged
+        ? canAdd && <Button type="button" onClick={() => setDrawerOpen(true)}>Add employee</Button>
+        : <Button type="button" onClick={() => setRequesting(true)}>Request an employee</Button>)}
+    >
+      {isOwner ? (ownerManaged ? 'Add an employee to start assigning them to your projects.' : 'Employees are assigned by your account manager. Request one and tell us what you need.') : 'Your agency owner manages employees.'}
+    </EmptyState>
+  )
+  const tabs = [
+    { id: 'team', label: 'Team', count: assignments.length },
+    { id: 'rush', label: 'Rush requests', count: openRequests.length },
+    { id: 'week', label: 'Week view' },
+  ]
+  const setTab = (id) => setSearchParams(id === 'team' ? {} : { tab: id }, { replace: true })
+
+  function openRush(assignmentId, defaults) {
+    setTaskForm(null)
+    setRush({ assignmentId, defaults })
+  }
+
+  async function cancelRush(request) {
+    setActionError(null)
+    try {
+      await authService.cancelRushRequest(request.id)
+      showToast('Request cancelled.')
+      reloadQueues()
+    } catch (reason) {
+      setActionError(reason)
+    }
+  }
 
   return (
     <section className="page ae-page">
       <PageHeader
         eyebrow="Agency workspace"
         title="Employees"
-        subtitle={ownerManaged ? 'Employees working for your agency, with their weekly capacity.' : 'Employees are assigned by your account manager. Their weekly capacity is shown below.'}
-        action={isOwner && (ownerManaged
-          ? <Button type="button" disabled={!canAdd} title={addBlockedReason ?? undefined} onClick={() => setDrawerOpen(true)}>+ Add employee</Button>
-          : <Button type="button" onClick={() => setRequesting(true)}>Request an employee</Button>)}
+        subtitle={ownerManaged ? 'Your team: what each employee is doing now and next, and their capacity.' : 'Employees are assigned by your account manager. See what each is doing now and next.'}
+        action={(
+          <div className="tm-meta">
+            <Button type="button" variant="secondary" onClick={() => openRush('')}>Request urgent help</Button>
+            {isOwner && (ownerManaged
+              ? <Button type="button" disabled={!canAdd} title={addBlockedReason ?? undefined} onClick={() => setDrawerOpen(true)}>+ Add employee</Button>
+              : <Button type="button" onClick={() => setRequesting(true)}>Request an employee</Button>)}
+          </div>
+        )}
       />
       {seats && (
-        <p className="ae-seats" aria-live="polite">
-          {seats.seats != null ? `${seats.used} of ${seats.seats} employee ${pluralize(seats.seats, 'seat')} used` : `${seats.used} ${pluralize(seats.used, 'employee')} assigned`}
-          {addBlockedReason ? ` · ${addBlockedReason}` : ''}
-          {isOwner && !ownerManaged ? ' · Employees are assigned by your account manager.' : ''}
-        </p>
+        <div className="tm-meta" aria-live="polite">
+          <span className="tm-seat-pill">
+            {seats.seats != null ? `${seats.used} of ${seats.seats} ${pluralize(seats.seats, 'seat')} used` : `${seats.used} ${pluralize(seats.used, 'employee')} assigned`}
+          </span>
+          {(addBlockedReason || (isOwner && !ownerManaged)) && (
+            <span className="ae-seats">{addBlockedReason ?? 'Employees are assigned by your account manager.'}</span>
+          )}
+        </div>
       )}
 
       {/* Alerts */}
@@ -180,107 +246,88 @@ export function AgencyEmployeesPage() {
         )}
       </div>
 
-      {/* Week picker */}
-      <div className="ae-week-picker">
-        <button
-          type="button"
-          className="ae-week-arrow"
-          aria-label="Previous week"
-          onClick={() => setWeek((w) => shiftWeek(w, -1))}
-        >
-          ‹
-        </button>
-        <label htmlFor="ae-week-input" className="ae-week-label">
-          Week of <strong>{formatDateRange(week, addDays(week, WORKING_WEEKDAYS.length - 1))}</strong>
-        </label>
-        <input
-          id="ae-week-input"
-          type="date"
-          className="ae-week-date"
-          value={week}
-          onChange={(event) => setWeek(toDateStr(mondayOf(event.target.value)))}
-        />
-        <button
-          type="button"
-          className="ae-week-arrow"
-          aria-label="Next week"
-          onClick={() => setWeek((w) => shiftWeek(w, 1))}
-        >
-          ›
-        </button>
-      </div>
+      <Tabs tabs={tabs} activeTab={tab} onChange={setTab} label="Employees sections" />
 
-      {/* My Team */}
-      {isLoading ? (
-        <div className="ae-team-grid">
-          <Skeleton variant="card" />
-          <Skeleton variant="card" />
-          <Skeleton variant="card" />
-        </div>
-      ) : hasTeam ? (
-        <div className="ae-team-grid">
-          {mine.map((assignment) => {
-            const usage = assignment.weekly_usage
-            const usedNum = Number(usage?.used ?? 0)
-            const capacity = assignment.capacity ?? DEFAULT_CAPACITY
-            return (
-              <Card key={assignment.id} className="ae-team-card">
-                <div className="ae-team-card-header">
-                  <Avatar name={assignment.employee.name} size="lg" />
-                  <div className="ae-team-card-info">
-                    <h3>{assignment.employee.name}</h3>
-                    <p>{assignment.employee.email}</p>
-                  </div>
-                  <Badge variant="success">Active</Badge>
-                </div>
-
-                <div className="ae-team-capacity">
-                  <CapacityBar used={usedNum} budget={capacity.weekly_hours} />
-                </div>
-
-                <div className="ae-day-bars" aria-label="Hours used Monday through Saturday">
-                  {(usage?.days ?? []).map((day, index) => {
-                    const hours = Number(day.used)
-                    const pct = Math.min(100, (hours / capacity.daily_hours) * 100)
-                    return (
-                      <div className="ae-day-col" key={day.date} title={`${day.date}: ${hours} of ${capacity.daily_hours} hours`}>
-                        <div className="ae-day-track">
-                          <span className="ae-day-fill" style={{ height: `${pct}%` }} />
-                        </div>
-                        <span className="ae-day-label">{WORKING_WEEKDAYS[index]}</span>
-                        <span className="ae-day-hours">{hours.toFixed(1)}h</span>
+      <div role="tabpanel" aria-label={tabs.find((item) => item.id === tab)?.label}>
+        {tab === 'rush' ? (
+          queuesLoading && !queueData ? (
+            <div className="queue-grid"><Skeleton variant="card" /></div>
+          ) : (
+            <RushRequestsPanel
+              requests={requests}
+              isOwner={isOwner}
+              onCancel={cancelRush}
+              onChanged={(updated, kind) => { showToast(kind === 'accept' ? 'Quote accepted and the work was scheduled.' : 'Quote declined.'); reloadQueues() }}
+            />
+          )
+        ) : tab === 'week' ? (
+          <>
+            <div className="ae-week-picker">
+              <button type="button" className="ae-week-arrow" aria-label="Previous week" onClick={() => setWeek((w) => shiftWeek(w, -1))}>‹</button>
+              <label htmlFor="ae-week-input" className="ae-week-label">
+                Week of <strong>{formatDateRange(week, addDays(week, WORKING_WEEKDAYS.length - 1))}</strong>
+              </label>
+              <input id="ae-week-input" type="date" className="ae-week-date" value={week} onChange={(event) => setWeek(toDateStr(mondayOf(event.target.value)))} />
+              <button type="button" className="ae-week-arrow" aria-label="Next week" onClick={() => setWeek((w) => shiftWeek(w, 1))}>›</button>
+            </div>
+            {isLoading ? (
+              <div className="tm-week-list"><Skeleton variant="card" /><Skeleton variant="card" /></div>
+            ) : hasTeam ? (
+              <div className="tm-week-list">
+                {mine.map((assignment) => {
+                  const usage = assignment.weekly_usage
+                  const usedNum = Number(usage?.used ?? 0)
+                  const capacity = assignment.capacity ?? DEFAULT_CAPACITY
+                  return (
+                    <Card key={assignment.id} className="ae-team-card">
+                      <div className="tm-week-head">
+                        <Avatar name={assignment.employee.name} src={assignment.employee.photo_url} size="md" />
+                        <h3 className="tm-name">{assignment.employee.name}</h3>
                       </div>
-                    )
-                  })}
-                </div>
-
-                <Button type="button" variant="secondary" size="sm" onClick={() => setProfileId(assignment.employee.id)}>
-                  View profile
-                </Button>
-                {isOwner && (
-                  <Link className="ui-button ui-button-secondary ui-button-sm" to={`/agency/employees/${assignment.employee.id}/activity`}>
-                    Work activity
-                  </Link>
-                )}
-                {ownerManaged && (
-                  <Button type="button" variant="ghost" size="sm" className="ae-danger-outline" onClick={() => openEndConfirm(assignment)}>
-                    Release employee
-                  </Button>
-                )}
-              </Card>
-            )
-          })}
-        </div>
-      ) : (
-        <EmptyState
-          title="No employees yet"
-          action={isOwner && (ownerManaged
-            ? canAdd && <Button type="button" onClick={() => setDrawerOpen(true)}>Add employee</Button>
-            : <Button type="button" onClick={() => setRequesting(true)}>Request an employee</Button>)}
-        >
-          {isOwner ? (ownerManaged ? 'Add an employee to start assigning them to your projects.' : 'Employees are assigned by your account manager. Request one and tell us what you need.') : 'Your agency owner manages employees.'}
-        </EmptyState>
-      )}
+                      <div className="ae-team-capacity">
+                        <CapacityBar used={usedNum} budget={capacity.weekly_hours} />
+                      </div>
+                      <div className="ae-day-bars" aria-label={`Hours used Monday through Saturday, ${assignment.employee.name}`}>
+                        {(usage?.days ?? []).map((day, index) => {
+                          const hours = Number(day.used)
+                          const pct = Math.min(100, (hours / capacity.daily_hours) * 100)
+                          return (
+                            <div className="ae-day-col" key={day.date} title={`${day.date}: ${hours} of ${capacity.daily_hours} hours`}>
+                              <div className="ae-day-track"><span className="ae-day-fill" style={{ height: `${pct}%` }} /></div>
+                              <span className="ae-day-label">{WORKING_WEEKDAYS[index]}</span>
+                              <span className="ae-day-hours">{hours.toFixed(1)}h</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            ) : emptyTeam}
+          </>
+        ) : queuesLoading && !queueData ? (
+          <div className="queue-grid"><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /></div>
+        ) : assignments.length > 0 ? (
+          <div className="queue-grid">
+            {assignments.map((assignment) => queueData.queues[assignment.id] && (
+              <TeamMemberCard
+                key={assignment.id}
+                queue={queueData.queues[assignment.id]}
+                showReorder={isOwner}
+                onAddTask={() => setTaskForm({ assignmentId: assignment.id })}
+                onOpenQueue={() => setQueueView(assignment.id)}
+                menuItems={[
+                  { label: 'View profile', onClick: () => setProfileId(assignment.employee.id) },
+                  ...(isOwner ? [{ label: 'Work activity', to: `/agency/employees/${assignment.employee.id}/activity` }] : []),
+                  { label: 'Request urgent help', onClick: () => openRush(assignment.id) },
+                  ...(ownerManaged ? [{ label: 'Release employee', danger: true, separator: true, onClick: () => openEndConfirm(assignment) }] : []),
+                ]}
+              />
+            ))}
+          </div>
+        ) : (!queuesLoading && emptyTeam)}
+      </div>
 
       {isOwner && summary?.requests?.length > 0 && (
         <Card title="Your employee requests" description="What you asked your account manager for.">
@@ -301,6 +348,43 @@ export function AgencyEmployeesPage() {
         </p>
       )}
       {requesting && <RequestModal type="employee" onClose={() => setRequesting(false)} onSent={reload} />}
+      {taskForm && (
+        <ProjectFormModal
+          assignments={assignments}
+          assignmentsLoading={false}
+          defaultAssignmentId={taskForm.assignmentId}
+          onClose={() => setTaskForm(null)}
+          onRequestUrgent={(values) => openRush(values.assignmentId, values.defaults)}
+          onSaved={(project, { created, uploadNotice }) => {
+            setTaskForm(null)
+            showToast(uploadNotice ? `Project created, but the files were not uploaded: ${uploadNotice}` : (created ? 'Task added to the end of the queue.' : 'Project updated.'), uploadNotice ? 'error' : undefined)
+            reload()
+          }}
+        />
+      )}
+      {rush && (
+        <RushRequestModal
+          assignments={assignments}
+          defaultAssignmentId={rush.assignmentId}
+          defaults={rush.defaults}
+          onClose={() => setRush(null)}
+          onSubmitted={() => { setRush(null); showToast('Request sent. You will get a quote before anything is charged.'); setTab('rush'); reloadQueues() }}
+        />
+      )}
+      <Modal open={Boolean(queueView && queueData?.queues[queueView])} onClose={() => setQueueView(null)} title="Queue order">
+        {queueView && queueData?.queues[queueView] && (
+          <QueueCard
+            assignmentId={queueView}
+            queue={queueData.queues[queueView]}
+            isOwner={isOwner}
+            userId={user.id}
+            onAddTask={(id) => { setQueueView(null); setTaskForm({ assignmentId: id }) }}
+            onRequestHelp={(id) => { setQueueView(null); openRush(id) }}
+            onChanged={reloadQueues}
+            onMessage={showToast}
+          />
+        )}
+      </Modal>
 
       {/* Hold employee drawer */}
       {/* The profile drawer replaces the hold drawer while it is open (two stacked drawers would both

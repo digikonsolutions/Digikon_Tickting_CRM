@@ -21,16 +21,14 @@ import {
 } from '../features/admin'
 import {
   AgencyBrandingPage,
-  AgencyClientProjectsPage,
+  AgencyProjectsPage,
   AgencyDirectoryPage,
   AgencyEmployeesPage,
-  AgencyOwnerProjectsPage,
   AgencyClientsPage,
   AgencyTicketsPage,
   ProjectDetailPage,
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
-import { TeamQueuePage } from '../features/queue'
 import { AdminEmployeePage } from '../features/activity'
 import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeline'
 import { AdminHistoryPage } from '../features/history'
@@ -122,20 +120,21 @@ export function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER]} />}>
             <Route path="/agency/employees/:id/activity" element={<AdminEmployeePage scope="agency" />} />
-            <Route path="/agency/projects" element={<AgencyOwnerProjectsPage />} />
             <Route path="/agency/time" element={<TimeSummaryPage scope="agency" />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/reports" element={<AgencyReportsPage />} />
+            <Route path="/agency/projects" element={<AgencyProjectsPage />} />
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/agency/tickets" element={<AgencyTicketsPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />
-            <Route path="/agency/queue" element={<TeamQueuePage />} />
+            <Route path="/agency/queue" element={<Navigate to="/agency/employees?tab=rush" replace />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_CLIENT]} />}>
-            <Route path="/agency/my-projects" element={<AgencyClientProjectsPage />} />
+            {/* The client's old address for the project list: same page as the owner's. */}
+            <Route path="/agency/my-projects" element={<Navigate to="/agency/projects" replace />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/directory" element={<AgencyDirectoryPage />} />

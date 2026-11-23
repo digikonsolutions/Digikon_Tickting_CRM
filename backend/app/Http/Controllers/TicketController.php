@@ -122,6 +122,10 @@ class TicketController extends Controller
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         abort_unless(! in_array($ticket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
         $data = $request->validated();
+        // Another service makes the old answers meaningless: they go unless new ones are sent with it.
+        if (array_key_exists('service_type', $data) && $data['service_type'] !== $ticket->service_type && ! array_key_exists('details', $data)) {
+            $data['details'] = null;
+        }
 
         $rescheduled = [];
         DB::transaction(function () use ($ticket, $workItem, $data, $planner, $user, $recorder, &$rescheduled): void {
@@ -945,6 +949,8 @@ class TicketController extends Controller
             'description' => $ticket->description,
             'estimated_hours' => $ticket->estimated_hours,
             'priority' => $ticket->priority,
+            'service_type' => $ticket->service_type,
+            'details' => $ticket->details,
             'brief' => [
                 'steps_to_reproduce' => $ticket->steps_to_reproduce,
                 'expected_result' => $ticket->expected_result,

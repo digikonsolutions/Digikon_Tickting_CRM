@@ -4,6 +4,10 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { Alert, Avatar, Badge, Button, CapacityBar, Card, EmptyState, Icon, PageHeader, Skeleton, StatusBadge, Table, Tabs } from '../../../components/ui'
 import { formatDate, formatHours } from '../../../lib/format'
+import { AgencyBrandingModal } from '../agencies/AgencyBrandingModal'
+import { AgencyContractModal } from '../agencies/AgencyContractModal'
+import { AgencyEditModal } from '../agencies/AgencyEditModal'
+import { AssignEmployeeModal, ReleaseEmployeeModal } from '../agencies/AgencyEmployeesModals'
 import { AgencyStatusModal } from '../agencies/AgencyStatusModal'
 import { UsageChart } from '../agencies/UsageChart'
 import { AVAILABILITY, AVAILABILITY_VARIANT, labelOf } from '../employee/employeeForm'
@@ -26,6 +30,9 @@ export function AdminAgencyDetailPage() {
   const requested = searchParams.get('tab')
   const tab = TAB_IDS.includes(requested) ? requested : 'overview'
   const [statusTarget, setStatusTarget] = useState(null)
+  const [editing, setEditing] = useState(null)
+  const [dialog, setDialog] = useState(null) // 'contract' | 'branding' | 'assign'
+  const [releasing, setReleasing] = useState(null)
   const load = useCallback(() => authService.getAdminAgency(id), [id])
   const { data, error, isLoading, reload } = useAsync(load)
   const agency = data?.agency
@@ -78,6 +85,8 @@ export function AdminAgencyDetailPage() {
             {agency.slug && (suspending
               ? <a className="ui-button ui-button-secondary" href={`/a/${agency.slug}/login`} target="_blank" rel="noreferrer noopener" title="Opens the agency's own sign-in page. Use a private window if you are signed in here.">Open portal</a>
               : <Button type="button" variant="secondary" disabled title="The portal is available once the agency is active.">Open portal</Button>)}
+            <Button type="button" variant="secondary" onClick={() => setEditing({ id: agency.id, name: agency.name })}>Edit agency</Button>
+            <Button type="button" variant="secondary" onClick={() => setDialog('branding')}>Portal & branding</Button>
             <Button type="button" variant={suspending ? 'danger' : 'primary'} onClick={() => setStatusTarget({ id: agency.id, name: agency.name, status: agency.status })}>
               {draft ? 'Activate & send invite' : suspending ? 'Suspend agency' : 'Activate agency'}
             </Button>
@@ -98,6 +107,7 @@ export function AdminAgencyDetailPage() {
             <dl className="agency-facts">
               <Fact label="Status">{statusLabel}</Fact>
               <Fact label="Owner">{agency.owner ? <><Link to={`/admin/agency-owners?search=${encodeURIComponent(agency.owner.email)}`}>{agency.owner.name}</Link> · {agency.owner.email}{agency.owner.is_active ? '' : ' (deactivated)'}</> : null}</Fact>
+              <Fact label="Portal address">{agency.slug ? `/a/${agency.slug}` : null}</Fact>
               <Fact label="Ticket prefix">{agency.ticket_prefix}</Fact>
               <Fact label="Created">{agency.created_at ? formatDate(agency.created_at) : null}</Fact>
               <Fact label="Plan">{agency.contract?.plan_name ?? 'No contract'}</Fact>
@@ -123,6 +133,7 @@ export function AdminAgencyDetailPage() {
 
       {tab === 'contract' && (
         <div className="agency-tab">
+          <div className="adm-header-actions"><Button type="button" variant="secondary" onClick={() => setDialog('contract')}>{agency.contract ? 'Edit contract' : 'Add contract'}</Button></div>
           {agency.contract ? (
             <Card title={agency.contract.plan_name ?? 'Contract'} description={agency.contract.status ? `Status: ${agency.contract.status}` : undefined}>
               <dl className="agency-facts">
@@ -177,6 +188,7 @@ export function AdminAgencyDetailPage() {
 
       {tab === 'employees' && (
         <div className="agency-tab">
+          <div className="adm-header-actions"><Button type="button" onClick={() => setDialog('assign')}>Add employee</Button></div>
           {agency.employees.length === 0 ? (
             <Card><EmptyState title="No employees held">This agency is not holding any employee right now.</EmptyState></Card>
           ) : (
@@ -197,6 +209,7 @@ export function AdminAgencyDetailPage() {
                       <div className="agency-employee-load">
                         <CapacityBar used={employee.used_hours} budget={employee.budget_hours} showRemaining={false} ariaLabel={`${employee.name}: ${employee.utilization_percent}% of weekly capacity used for this agency`} />
                         <small>Since {employee.since ? formatDate(employee.since) : '—'}</small>
+                        <Button type="button" size="sm" variant="ghost" aria-label={`Release ${employee.name}`} onClick={() => setReleasing(employee)}>Release</Button>
                       </div>
                     </div>
                   </Card>
@@ -215,6 +228,11 @@ export function AdminAgencyDetailPage() {
         </div>
       )}
 
+      {dialog === 'contract' && <AgencyContractModal agency={agency} open onClose={() => setDialog(null)} onDone={reload} />}
+      {dialog === 'branding' && <AgencyBrandingModal agency={agency} open onClose={() => setDialog(null)} onDone={reload} />}
+      {dialog === 'assign' && <AssignEmployeeModal agency={agency} open onClose={() => setDialog(null)} onDone={reload} />}
+      <ReleaseEmployeeModal agency={agency} employee={releasing} onClose={() => setReleasing(null)} onDone={reload} />
+      <AgencyEditModal agency={editing} onClose={() => setEditing(null)} onDone={reload} />
       <AgencyStatusModal key={statusTarget?.id ?? 'none'} agency={statusTarget} onClose={() => setStatusTarget(null)} onDone={reload} />
     </section>
   )

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Role;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,10 +27,15 @@ class WorkItem extends Model
         'title',
         'description',
         'estimated_hours',
+        'planned_hours',
+        'planned_note',
+        'awaiting_schedule',
         'start_date',
         'due_date',
         'status',
         'queue_position',
+        'service_type',
+        'details',
         'objective',
         'deliverables',
         'target_url',
@@ -47,15 +53,48 @@ class WorkItem extends Model
         'contact_email',
     ];
 
+    /** Saved access details (logins) are for the agency owner and the client who created the project, not for other clients. */
+    public function canShowAccessDetailsTo(User $user): bool
+    {
+        return $user->agency_id !== null
+            && $user->agency_id === $this->agency_id
+            && ($user->role === Role::AgencyOwner || $this->client_id === $user->id);
+    }
+
+    /** Submitted by an agency and not yet planned by an admin: it holds no hours and has no real dates. */
+    public function isAwaitingSchedule(): bool
+    {
+        return (bool) $this->awaiting_schedule;
+    }
+
+    /** What an agency user is shown: awaiting (nothing planned), in_review (planned or proposed, not confirmed), or confirmed. */
+    public function scheduleState(): string
+    {
+        if ($this->isAwaitingSchedule()) {
+            return 'awaiting';
+        }
+
+        return $this->timeline_status === 'confirmed' || $this->timeline_status === null ? 'confirmed' : 'in_review';
+    }
+
+    /** The hours the schedule is built on: what the admin planned, or what was requested when nothing differs. */
+    public function scheduledHours(): float
+    {
+        return (float) ($this->planned_hours ?? $this->estimated_hours);
+    }
+
     protected function casts(): array
     {
         return [
             'estimated_hours' => 'decimal:2',
+            'planned_hours' => 'decimal:2',
+            'awaiting_schedule' => 'boolean',
             'start_date' => 'date',
             'due_date' => 'date',
             'timeline_proposed_at' => 'datetime',
             'timeline_confirmed_at' => 'datetime',
             'timeline_review_due_at' => 'datetime',
+            'details' => 'array',
             'deliverables' => 'array',
             'reference_links' => 'array',
             // Access details are encrypted at rest with the application key.

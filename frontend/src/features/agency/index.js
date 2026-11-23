@@ -3,8 +3,7 @@ export { AgencyBrandingPage } from './pages/AgencyBrandingPage'
 export { AgencyDirectoryPage } from './pages/AgencyDirectoryPage'
 export { AgencyEmployeesPage } from './pages/AgencyEmployeesPage'
 export {
-  AgencyClientProjectsPage,
-  AgencyOwnerProjectsPage,
+  AgencyProjectsPage,
 } from './pages/AgencyProjectsPage'
 export { AgencyClientsPage } from './pages/AgencyClientsPage'
 export { AgencyTicketsPage } from './pages/AgencyTicketsPage'

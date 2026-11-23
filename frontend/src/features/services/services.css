@@ -1,0 +1,14 @@
+/* The GHL service picker and its answers. Brand tokens only. */
+.service-fields { display: grid; gap: var(--space-3); }
+.service-checks { margin: 0; padding: 0; border: 0; min-width: 0; }
+.service-check-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
+.service-check { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-input-border); border-radius: var(--radius-control); cursor: pointer; font-size: var(--text-base); color: var(--color-text); }
+.service-check:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.service-check input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.service-generated { margin: 0; color: var(--color-muted); font-size: var(--text-sm); }
+.dash-work-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.dash-work-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); }
+.dash-work-main { display: grid; gap: .15rem; min-width: 0; }
+.dash-work-main small { color: var(--color-muted); }
+.dash-work-actions { display: flex; align-items: center; gap: var(--space-2); }
+.dash-work-heading { margin: var(--space-3) 0 var(--space-2); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .04em; color: var(--color-muted); }

@@ -39,7 +39,24 @@ class AgencyRushRequestController extends Controller
     public function store(Request $request, RushRequestService $service, RushPresenter $presenter): JsonResponse
     {
         $user = $request->user();
+        $serviceType = is_string($request->input('service_type')) ? $request->input('service_type') : null;
         $data = $request->validate([
+            'service_type' => ['nullable', 'string', Rule::in(\App\Support\ServiceCatalog::keys())],
+            'details' => ['nullable', 'array', function (string $attribute, mixed $value, \Closure $fail) use ($serviceType): void {
+                if (! is_array($value) || $value === []) {
+                    return;
+                }
+                if (! \App\Support\ServiceCatalog::has($serviceType)) {
+                    $fail('Choose a service before adding details.');
+
+                    return;
+                }
+                $unknown = array_diff(array_keys($value), \App\Support\ServiceCatalog::allowedKeys($serviceType, 'project'));
+                if ($unknown !== []) {
+                    $fail('These details do not belong to this service: '.implode(', ', array_map('strval', $unknown)).'.');
+                }
+            }],
+            ...(\App\Support\ServiceCatalog::has($serviceType) ? \App\Support\ServiceCatalog::detailRules($serviceType, 'project', true) : []),
             'type' => ['required', Rule::in(RushRequest::TYPES)],
             'assignment_id' => ['required_if:type,priority_insert', 'nullable', 'integer'],
             'title' => ['required', 'string', 'max:160'],

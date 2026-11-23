@@ -12,6 +12,7 @@ import { TimerPill } from '../features/time'
 import { MonitoringConsent, useHeartbeat } from '../features/activity'
 import { AssistantWidget } from '../features/assistant'
 import { useUrgentCounts } from '../features/admin/pages/useUrgentCounts'
+import { useOpenRushCount } from '../features/queue/useOpenRushCount'
 
 export function ProtectedRoute() {
   const { user, isLoading, authError, refreshSession } = useAuth()
@@ -42,9 +43,25 @@ export function HomeRedirect() {
 
 export function RoleRoute({ allowedRoles }) {
   const { user } = useAuth()
-  return allowedRoles.includes(user?.role) ? <Outlet /> : <Navigate to="/unauthorized" replace />
+  // Agency users who open a page that is not theirs land on their dashboard; everyone else sees the unauthorized page.
+  return allowedRoles.includes(user?.role) ? <Outlet /> : <Navigate to={isAgencyRole(user?.role) ? '/agency/dashboard' : '/unauthorized'} replace />
 }
 
+// One navigation for the agency workspace. Each item lists the roles that may see it, so the owner and the client
+// share the same sections, order, icons and labels and only the visible items differ. Hidden items are also blocked
+// at the route level (see AppRoutes) and by the API. `also` keeps the item highlighted on pages that belong to it.
+const AGENCY_NAV = Object.freeze([
+  { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
+  { to: '/agency/clients', label: 'Clients', icon: 'user', section: 'Workspace', roles: [ROLES.AGENCY_OWNER] },
+  { to: '/agency/projects', label: 'Projects', icon: 'briefcase', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
+  { to: '/agency/tickets', label: 'Tickets', icon: 'ticket', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], also: ['/tickets/'] },
+  { to: '/agency/employees', label: 'Employees', icon: 'users', section: 'Manage', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], badgeKey: 'rush' },
+  { to: '/agency/reports', label: 'Reports', icon: 'chart', section: 'Manage', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
+  { to: '/agency/directory', label: 'Agency directory', icon: 'users', section: 'Manage', roles: [ROLES.AGENCY_CLIENT] },
+  { to: '/agency/time', label: 'Time summary', icon: 'clock', section: 'Manage', roles: [ROLES.AGENCY_OWNER] },
+  { to: '/agency/branding', label: 'Branding', icon: 'palette', section: 'Manage', roles: [ROLES.AGENCY_OWNER] },
+])
+const agencyNav = (role) => AGENCY_NAV.filter((item) => item.roles.includes(role)).map(({ roles: _roles, ...item }) => item)
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Work' },
@@ -64,30 +81,12 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.TEAM_LEAD]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   [ROLES.QA]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   [ROLES.EMPLOYEE]: [{ to: '/my-work', label: 'My work', icon: 'ticket' }],
-  [ROLES.AGENCY_OWNER]: [
-    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Workspace' },
-    { to: '/agency/clients', label: 'Clients', icon: 'user', section: 'Workspace' },
-    { to: '/agency/projects', label: 'Projects', icon: 'briefcase', section: 'Workspace' },
-    { to: '/agency/tickets', label: 'Tickets', icon: 'ticket', section: 'Workspace' },
-    { to: '/agency/employees', label: 'Employees', icon: 'users', section: 'Manage' },
-    { to: '/agency/queue', label: 'Team queue', icon: 'queue', section: 'Manage' },
-    { to: '/agency/reports', label: 'Reports', icon: 'chart', section: 'Manage' },
-    { to: '/agency/time', label: 'Time summary', icon: 'clock', section: 'Manage' },
-    { to: '/agency/branding', label: 'Branding', icon: 'palette', section: 'Manage' },
-  ],
+  [ROLES.AGENCY_OWNER]: agencyNav(ROLES.AGENCY_OWNER),
   [ROLES.AGENCY_MEMBER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
   ],
-  [ROLES.AGENCY_CLIENT]: [
-    { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { to: '/agency/my-projects', label: 'Agency projects', icon: 'briefcase' },
-    { to: '/agency/tickets', label: 'Tickets', icon: 'ticket' },
-    { to: '/agency/reports', label: 'Reports', icon: 'chart' },
-    { to: '/agency/employees', label: 'Employees', icon: 'users' },
-    { to: '/agency/queue', label: 'Team queue', icon: 'queue' },
-    { to: '/agency/directory', label: 'Agency directory', icon: 'users' },
-  ],
+  [ROLES.AGENCY_CLIENT]: agencyNav(ROLES.AGENCY_CLIENT),
 })
 
 // Detail pages show "Parent / Page" in the header; the parent is a link back to the list.
@@ -117,7 +116,9 @@ export function AppLayout() {
   useHeartbeat(user.role === ROLES.EMPLOYEE)
   // Admins see how many urgent requests are waiting for a quote next to the menu entry.
   const urgentCounts = useUrgentCounts(user.role === ROLES.ADMIN)
-  const badges = { urgent: urgentCounts.pending }
+  // Agency owners and clients see how many of their urgent requests are still open next to Employees.
+  const openRush = useOpenRushCount(user.role === ROLES.AGENCY_OWNER || user.role === ROLES.AGENCY_CLIENT)
+  const badges = { urgent: urgentCounts.pending, rush: openRush }
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
       return window.localStorage.getItem('ui:sidebar-collapsed') === 'true'
@@ -164,12 +165,10 @@ export function AppLayout() {
       '/admin/reports': 'Reports',
       '/admin/assignments': 'Assignments',
       '/admin/rush-requests': 'Urgent requests',
-      '/agency/queue': 'Team queue',
       '/admin/time': 'Time report',
       '/agency/time': 'Time summary',
       '/agency/dashboard': 'Dashboard',
       '/agency/projects': 'Projects',
-      '/agency/my-projects': 'Agency projects',
       '/agency/reports': 'Reports',
       '/agency/employees': 'Employees',
       '/agency/clients': 'Clients',
@@ -282,6 +281,7 @@ export function AppLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  className={({ isActive }) => (isActive || item.also?.some((prefix) => location.pathname.startsWith(prefix)) ? 'active' : undefined)}
                   aria-label={badges[item.badgeKey] ? `${item.label}, ${badges[item.badgeKey]} waiting` : item.label}
                   title={item.label}
                   onClick={() => setIsNavOpen(false)}

@@ -114,4 +114,63 @@ class AdminAgenciesTest extends TestCase
         $this->assertStringNotContainsString('Secret other project', $response->getContent());
         $this->assertStringNotContainsString('Zed', $response->getContent());
     }
+
+    public function test_admin_edits_agency_name_and_details_and_others_cannot(): void
+    {
+        $agency = $this->makeAgency('Northwind');
+        $url = "/api/admin/agencies/{$agency->id}/details";
+
+        $this->actingAs($this->makeOwner($agency))->patchJson($url, ['name' => 'Hacked'])->assertForbidden();
+
+        $this->actingAs($this->admin)->patchJson($url, ['name' => '  northwind  media ', 'city' => 'Lahore', 'website' => 'https://nw.test', 'tax_number' => 'TAX-12345678'])
+            ->assertOk()->assertJsonPath('agency.name', 'Northwind Media')->assertJsonPath('agency.profile.city', 'Lahore');
+        $this->assertSame('TAX-12345678', $agency->fresh('profile')->profile->tax_number);
+
+        // A blank tax number keeps the stored one; an empty optional field clears it.
+        $this->actingAs($this->admin)->patchJson($url, ['tax_number' => '', 'city' => ''])->assertOk()->assertJsonPath('agency.profile.city', null);
+        $this->assertSame('TAX-12345678', $agency->fresh('profile')->profile->tax_number);
+
+        $this->actingAs($this->admin)->patchJson($url, ['name' => '', 'website' => 'not a url'])->assertJsonValidationErrors(['name', 'website']);
+        $this->assertSame('Northwind Media', $agency->fresh()->name);
+    }
+
+    public function test_admin_creates_and_edits_the_contract_and_seats_cannot_drop_below_held_employees(): void
+    {
+        $agency = $this->makeAgency('Northwind');
+        $this->makeOwner($agency);
+        $url = "/api/admin/agencies/{$agency->id}/contract";
+
+        $this->actingAs($this->makeOwner($agency, 'Other'))->putJson($url, ['employees' => 9])->assertForbidden();
+
+        $this->actingAs($this->admin)->putJson($url, ['status' => 'active', 'employees' => 2, 'hours_per_month' => 100, 'price' => 500, 'currency' => 'usd', 'billing_cycle' => 'monthly', 'start_date' => '2026-01-01', 'features' => ['Support', ' ']])
+            ->assertOk()->assertJsonPath('contract.seats_allowed', 2)->assertJsonPath('contract_form.currency', 'USD')->assertJsonPath('contract_form.features', ['Support']);
+
+        $this->actingAs($this->admin)->putJson($url, ['employees' => 3, 'price' => null])->assertOk()->assertJsonPath('contract.seats_allowed', 3)->assertJsonPath('contract.price', null);
+        $this->assertSame(1, \App\Models\AgencyContract::query()->where('agency_id', $agency->id)->count());
+
+        $owner = $this->makeOwner($agency, 'Holder');
+        foreach (['A', 'B'] as $name) {
+            $this->hold($this->makeEmployee($name), $agency, $owner);
+        }
+        $this->actingAs($this->admin)->putJson($url, ['employees' => 1])->assertJsonValidationErrors('employees');
+        $this->actingAs($this->admin)->putJson($url, ['status' => 'bogus'])->assertJsonValidationErrors('status');
+    }
+
+    public function test_admin_assigns_an_employee_to_an_agency_within_its_seats(): void
+    {
+        $agency = $this->makeAgency('Northwind');
+        $this->makeOwner($agency);
+        $url = "/api/admin/agencies/{$agency->id}/employees";
+        $first = $this->makeEmployee('Ann');
+        $second = $this->makeEmployee('Bea');
+
+        $this->actingAs($this->admin)->putJson("/api/admin/agencies/{$agency->id}/contract", ['employees' => 1, 'start_date' => '2026-01-01'])->assertOk();
+        $this->actingAs($this->admin)->postJson($url, ['employee_id' => $first->id])->assertCreated();
+        $this->actingAs($this->admin)->postJson($url, ['employee_id' => $first->id])->assertJsonValidationErrors('employee_id');
+        $this->actingAs($this->admin)->postJson($url, ['employee_id' => $second->id])->assertJsonValidationErrors('employee_id');
+
+        $this->actingAs($this->admin)->putJson("/api/admin/agencies/{$agency->id}/contract", ['employees' => 2])->assertOk();
+        $this->actingAs($this->admin)->postJson($url, ['employee_id' => $second->id])->assertCreated();
+        $this->assertSame(2, \App\Models\EmployeeAssignment::query()->where('agency_id', $agency->id)->where('status', 'active')->count());
+    }
 }

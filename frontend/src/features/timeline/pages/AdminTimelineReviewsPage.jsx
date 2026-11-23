@@ -4,7 +4,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { formatShortDate } from '../../../lib/format'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, EmptyState, Input, PageHeader, Pagination, Select, Table } from '../../../components/ui'
+import { Badge, Button, EmptyState, Input, PageHeader, Pagination, Select, Table } from '../../../components/ui'
 import { TimelineChip } from '../TimelineChip'
 import '../timeline.css'
 
@@ -38,11 +38,11 @@ export function AdminTimelineReviewsPage() {
   const hasFilters = Boolean(status || search)
 
   const columns = [
-    { key: 'title', label: 'Project', render: (title, row) => <Link to={`/admin/timeline-reviews/${row.id}`}>{title}</Link> },
+    { key: 'title', label: 'Project', render: (title, row) => <><Link to={`/admin/timeline-reviews/${row.id}`}>{title}</Link>{row.priority_urgent && <> <Badge variant="danger">Urgent</Badge></>}{row.awaiting_schedule && <small className="ui-muted"> No days planned yet</small>}</> },
     { key: 'agency_name', label: 'Agency' },
     { key: 'requester', label: 'Requested by', render: (requester) => requester ? <span className="tl-requester"><strong>{requester.name}</strong><small>{requester.is_reply ? `${requesterLabel(requester)} reply` : requesterLabel(requester)}</small></span> : <span className="ui-muted">System update</span> },
     { key: 'employee_name', label: 'Employee', render: (value) => value ?? '—' },
-    { key: 'estimated_hours', label: 'Hours', render: (value) => hrs(value) },
+    { key: 'estimated_hours', label: 'Proposed hours', render: (value) => hrs(value) },
     { key: 'start_date', label: 'Dates', render: (_value, row) => `${formatShortDate(row.start_date)} – ${formatShortDate(row.due_date)}` },
     { key: 'timeline_status', label: 'Status', render: (value, row) => <><TimelineChip status={value} overdue={row.overdue} urgent={row.urgent} />{row.pending_tickets > 0 && <small className="ui-muted"> {row.pending_tickets} new {row.pending_tickets === 1 ? 'ticket' : 'tickets'}</small>}</> },
     { key: 'age_hours', label: 'Waiting', render: (value) => `${value} h` },

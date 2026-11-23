@@ -69,6 +69,10 @@ export function TimelineReviewPage() {
   const weeks = useMemo(() => weeksOf(data?.days ?? []), [data])
   const entries = useMemo(() => Object.entries(hours).filter(([, value]) => value !== '' && Number(value) > 0).map(([date, value]) => ({ date, hours: Number(value) })).sort((a, b) => a.date.localeCompare(b.date)), [hours])
   const planned = entries.reduce((sum, entry) => sum + entry.hours, 0)
+  const requested = Number(project?.estimated_hours ?? 0)
+  // The requested hours are only an estimate: the plan may be more or less. This is information, never an error.
+  const plannedTotal = data && !data.timeline.can_edit ? Number(project.planned_hours ?? requested) : planned
+  const hoursDiffer = plannedTotal > 0 && Math.abs(plannedTotal - requested) >= 0.005
   const errors = saveError?.errors ?? {}
   const dayError = (date) => {
     const index = entries.findIndex((entry) => entry.date === date)
@@ -145,13 +149,19 @@ export function TimelineReviewPage() {
       <Card>
         <div className="tl-facts">
           <div><small>Status</small><TimelineChip status={timeline.status} overdue={timeline.overdue} urgent={timeline.urgent} /></div>
-          <div><small>Hours</small><strong>{hrs(project.estimated_hours)}</strong></div>
+          <div><small>Proposed hours</small><strong>{hrs(project.estimated_hours)}</strong></div>
+          <div><small>{timeline.status === 'confirmed' ? 'Confirmed hours' : 'Planned hours'}</small><strong>{hrs(plannedTotal)}</strong></div>
           <div><small>Dates</small><strong>{formatShortDate(project.start_date)} – {formatShortDate(project.due_date)}</strong></div>
           <div><small>Waiting</small><strong>{timeline.status === 'confirmed' ? '—' : `${timeline.age_hours} h`}</strong></div>
           <div><small>Project manager</small><strong>{timeline.project_manager?.name ?? 'Not assigned yet'}</strong></div>
           {timeline.confirmed_at && <div><small>Confirmed</small><strong>{formatShortDate(timeline.confirmed_at)} by {timeline.confirmed_by}</strong></div>}
         </div>
         <p className="tl-explain">{TIMELINE[timeline.status].explain}</p>
+        {project.awaiting_schedule && scope === 'admin' && (
+          <Alert variant="info" className="tl-hours-note" title="Waiting for you to plan the days">
+            The agency sent this request with details and an estimate{project.priority === 'urgent' ? ' and marked it urgent' : ''}. Nothing is planned yet: choose the days below (Sunday is not available), then confirm.
+          </Alert>
+        )}
       </Card>
 
       {scope === 'admin' && timeline.requester && (
@@ -165,14 +175,19 @@ export function TimelineReviewPage() {
         <Alert variant="warning" title="Changes were requested">The owner has been asked to reply. {scope === 'employee' ? 'You can confirm again once they have replied.' : 'You can still confirm directly if you prefer.'}</Alert>
       )}
       {saveError && !saveError.errors && <ApiErrorMessage error={saveError} />}
-      {errors.days && <Alert variant="error" title="The days do not work yet">{errors.days[0]}</Alert>}
+      {errors.days && <Alert variant="error" title="A limit would be exceeded">{errors.days[0]}</Alert>}
       {errors.due_date && <Alert variant="error">{errors.due_date[0]}</Alert>}
 
       <Card title="Day by day" description={`Up to ${hrs(capacity.daily_hours)} a day and ${hrs(capacity.weekly_hours)} a week. Other bookings of ${project.employee?.name ?? 'the employee'} are shown so you can see what is free.`}>
         <div className="tl-summary" aria-live="polite">
-          <span className={Math.abs(planned - project.estimated_hours) < 0.005 ? 'is-ok' : 'is-bad'}>Planned {hrs(planned)} of {hrs(project.estimated_hours)}</span>
+          <span className="is-ok">Planned {hrs(planned)} · proposed {hrs(project.estimated_hours)}</span>
           <label className="tl-due">Due date <input type="date" value={dueDate} disabled={locked} onChange={(event) => { setDueDate(event.target.value); setDirty(true); setSaveError(null) }} aria-label="Due date" /></label>
         </div>
+        {hoursDiffer && !locked && (
+          <Alert variant="info" className="tl-hours-note" title="Planned hours differ from the proposal">
+            The agency proposed {hrs(requested)}; you are planning {hrs(plannedTotal)}. The proposal is only an estimate: the final hours are yours to set. The agency sees both numbers{note.trim() ? ' and your note' : ', so add a note saying why'}.
+          </Alert>
+        )}
         {weeks.map((week) => (
           <div key={week.key} className="tl-week" role="group" aria-label={`Week of ${formatDate(week.key)}`}>
             <div className="tl-week-head">Week of {formatDate(week.key)}{overCap(week) && <span className="tl-warn"> · over {hrs(capacity.weekly_hours)}</span>}</div>
@@ -203,7 +218,7 @@ export function TimelineReviewPage() {
         ))}
         {!locked && (
           <>
-            <Textarea id="tl-note" label="Note or reason (optional)" rows={2} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} helperText="Shown in the activity thread." />
+            <Textarea id="tl-note" label="Note or reason (optional)" rows={2} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} helperText={hoursDiffer ? 'Shown in the activity thread and to the agency as the reason for the different hours.' : 'Shown in the activity thread.'} />
             <div className="tl-actions">
               <Button type="button" variant="secondary" loading={busy === 'save'} loadingText="Saving…" disabled={!dirty || busy !== null} onClick={save}>Save draft</Button>
               {timeline.can_request_changes && <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => setChanges({ message: '' })}>Request changes</Button>}

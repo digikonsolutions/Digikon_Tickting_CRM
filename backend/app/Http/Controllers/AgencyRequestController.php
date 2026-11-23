@@ -39,6 +39,11 @@ class AgencyRequestController extends Controller
         return response()->json(['requests' => $requests->map(fn (AgencyRequest $r): array => $this->payload($r))->values()]);
     }
 
+    public function catalog(): JsonResponse
+    {
+        return response()->json(\App\Support\ServiceCatalog::payload());
+    }
+
     public function store(Request $request, WorkflowNotificationService $notifications): JsonResponse
     {
         $user = $request->user()->loadMissing('agency');
@@ -47,6 +52,11 @@ class AgencyRequestController extends Controller
             'message' => ['nullable', 'string', 'max:1000'],
             'files' => ['sometimes', 'array', 'max:'.(int) config('attachments.max_files_per_upload')],
             'files.*' => ['file'],
+            // Only "request an employee" has structured answers: a role, hours per week and how long.
+            'details' => ['sometimes', 'nullable', 'array:role,hours_per_week,duration_weeks', Rule::prohibitedIf(fn () => $request->input('type') !== 'employee')],
+            'details.role' => ['required_with:details', Rule::in(array_keys(config('service_catalog.employee_request.roles')))],
+            'details.hours_per_week' => ['required_with:details', 'integer', 'min:1', 'max:'.(int) config('service_catalog.employee_request.max_hours_per_week')],
+            'details.duration_weeks' => ['required_with:details', 'integer', 'min:1', 'max:'.(int) config('service_catalog.employee_request.max_duration_weeks')],
         ]);
         // Employees are requested by owners; clients ask their owner.
         if ($data['type'] === 'employee' && $user->role !== Role::AgencyOwner) {
@@ -67,7 +77,7 @@ class AgencyRequestController extends Controller
         $stored = [];
         try {
             $agencyRequest = DB::transaction(function () use ($user, $data, $files, &$stored): AgencyRequest {
-                $row = AgencyRequest::create(['agency_id' => $user->agency_id, 'user_id' => $user->id, 'type' => $data['type'], 'message' => $data['message'] ?? null]);
+                $row = AgencyRequest::create(['agency_id' => $user->agency_id, 'user_id' => $user->id, 'type' => $data['type'], 'message' => $data['message'] ?? null, 'details' => $data['details'] ?? null]);
                 foreach ($files as $file) {
                     $stored[] = $this->files->storeForRequest($row, $user, $file);
                 }
@@ -81,7 +91,7 @@ class AgencyRequestController extends Controller
             throw $exception;
         }
 
-        $notified = $notifications->agencyRequest($user->agency, $user, $data['type'], $data['message'] ?? null);
+        $notified = $notifications->agencyRequest($user->agency, $user, $data['type'], $this->withDetails($data));
 
         return response()->json([
             'message' => 'Your request was sent. We will get back to you.',
@@ -132,12 +142,26 @@ class AgencyRequestController extends Controller
     }
 
     /** @return array<string, mixed> */
+    /** The note the admins read: the structured answers first, then the person's own words. */
+    private function withDetails(array $data): ?string
+    {
+        $details = $data['details'] ?? null;
+        if (empty($details)) {
+            return $data['message'] ?? null;
+        }
+        $roles = config('service_catalog.employee_request.roles');
+        $line = ($roles[$details['role']] ?? $details['role']).', '.$details['hours_per_week'].' h per week for '.$details['duration_weeks'].' week(s).';
+
+        return trim($line.' '.($data['message'] ?? ''));
+    }
+
     private function payload(AgencyRequest $r): array
     {
         return [
             'id' => $r->id,
             'type' => $r->type,
             'message' => $r->message,
+            'details' => $r->details,
             'status' => $r->status,
             'requested_by' => $r->user?->name,
             'created_at' => $r->created_at?->toISOString(),

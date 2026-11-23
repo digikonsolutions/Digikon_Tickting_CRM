@@ -183,10 +183,19 @@ class TimelineReview
             foreach ($rows as $row) {
                 DB::table('work_item_allocations')->insert(['work_item_id' => $locked->id, 'employee_id' => $employee->id, 'work_date' => $row['date'], 'hours' => WorkItemScheduler::unitsToHours($row['units'])]);
             }
-            $locked->forceFill(['start_date' => $rows[0]['date'], 'due_date' => $due])->save();
+            $plannedUnits = array_sum(array_column($rows, 'units'));
+            $differs = $plannedUnits !== (int) round((float) $locked->estimated_hours * 100);
+            $cleanNote = $note !== null && trim($note) !== '' ? trim($note) : null;
+            // estimated_hours is never touched: the agency's request stays as asked, the plan is stored next to it.
+            $locked->forceFill([
+                'start_date' => $rows[0]['date'], 'due_date' => $due,
+                'planned_hours' => $differs ? WorkItemScheduler::unitsToHours($plannedUnits) : null,
+                'planned_note' => $differs ? ($cleanNote ?? $locked->planned_note) : null,
+                'awaiting_schedule' => false,
+            ])->save();
             $this->planner->plan($locked, null, ['type' => 'timeline_edit', 'actor' => $actor, 'actor_name' => $actor->name]);
 
-            $after = ['days' => $this->days($locked), 'start' => $rows[0]['date'], 'due' => $due];
+            $after = ['days' => $this->days($locked), 'start' => $rows[0]['date'], 'due' => $due, 'planned_hours' => $plannedUnits / 100, 'requested_hours' => (float) $locked->estimated_hours];
             $wasConfirmed = $locked->timeline_status === 'confirmed';
             if ($wasConfirmed) {
                 $locked->forceFill(['timeline_status' => 'proposed', 'timeline_proposed_at' => now(), 'timeline_review_due_at' => $this->reviewDue(), 'timeline_confirmed_at' => null, 'timeline_confirmed_by' => null])->save();
@@ -304,11 +313,7 @@ class TimelineReview
             }
         }
 
-        $total = array_sum(array_column($rows, 'units'));
-        $target = (int) round((float) $project->estimated_hours * 100);
-        if ($errors === [] && $total !== $target) {
-            $errors['days'] = 'The days add up to '.WorkItemScheduler::unitsToHours($total).' h but the project is '.WorkItemScheduler::unitsToHours($target).' h. They must match.';
-        }
+        // The requested hours are an estimate: the days may add up to more or less. Only per-day, per-week and availability limits apply.
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }

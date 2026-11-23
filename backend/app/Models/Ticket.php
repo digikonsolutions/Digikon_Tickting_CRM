@@ -31,6 +31,8 @@ class Ticket extends Model
         'severity',
         'due_preference',
         'related_ticket_ids',
+        'service_type',
+        'details',
     ];
 
     protected $appends = [
@@ -60,6 +62,7 @@ class Ticket extends Model
             'timeline_proposed_at' => 'datetime',
             'timeline_confirmed_at' => 'datetime',
             'related_ticket_ids' => 'array',
+            'details' => 'array',
         ];
     }
 

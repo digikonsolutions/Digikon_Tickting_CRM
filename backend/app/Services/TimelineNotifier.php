@@ -64,24 +64,34 @@ class TimelineNotifier
         return $users;
     }
 
-    private function facts(WorkItem $project, bool $withSchedule = false): string
+    private function hoursText(WorkItem $project, bool $forAgency): string
+    {
+        $fmt = fn (float $hours): string => rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').' h';
+        $proposed = (float) $project->estimated_hours;
+        $final = $project->scheduledHours();
+        if (abs($final - $proposed) < 0.005) {
+            return $fmt($final);
+        }
+
+        return $fmt($final).($forAgency ? ' (you proposed ' : ' (proposed ').$fmt($proposed).')';
+    }
+
+    /** The one line of facts a message carries. Agency recipients never get the agency's own name back or any staff name. */
+    private function facts(WorkItem $project, bool $withSchedule = false, bool $forAgency = false): string
     {
         $project->loadMissing(['agency', 'client', 'employee']);
-        $parts = [
-            "Agency: {$project->agency?->name}",
-            'Client: '.($project->client?->name ?? 'n/a'),
-            'Employee: '.($project->employee?->name ?? 'n/a'),
-            'Hours: '.rtrim(rtrim(number_format((float) $project->estimated_hours, 2, '.', ''), '0'), '.').' h',
-            'Dates: '.$project->start_date?->format('D j M Y').' to '.$project->due_date?->format('D j M Y'),
-        ];
+        $parts = $forAgency ? [] : ["Agency: {$project->agency?->name}"];
+        $parts[] = 'Client: '.($project->client?->name ?? 'n/a');
+        $parts[] = 'Employee: '.($project->employee?->name ?? 'n/a');
+        $parts[] = 'Hours: '.$this->hoursText($project, $forAgency);
+        $parts[] = 'Dates: '.$project->start_date?->format('D j M Y').' to '.$project->due_date?->format('D j M Y');
         if ($withSchedule) {
             $days = $project->allocations()->orderBy('work_date')->get()->map(fn ($a): string => CarbonImmutable::parse($a->work_date)->format('D j M').' '.rtrim(rtrim(number_format((float) $a->hours, 2, '.', ''), '0'), '.').' h')->implode(', ');
-            $parts[] = "Proposed days: {$days}";
+            $parts[] = ($forAgency ? 'Days' : 'Proposed days').": {$days}";
         }
 
         return implode(' · ', $parts);
     }
-
     private function send(User $user, array $payload): void
     {
         try {
@@ -107,7 +117,7 @@ class TimelineNotifier
             $this->send($admin, [
                 'project_id' => $project->id,
                 'title' => 'Timeline review needed: '.($ticketTitle ?? $project->title),
-                'body' => "{$what} needs a timeline review. ".$this->facts($project, true).'.'.$this->notes($project),
+                'body' => "{$creator->name} proposed {$what}. Set the final hours and days, then confirm. ".$this->facts($project, true).'.'.$this->notes($project),
                 'url_path' => $this->frontendPath('admin', $project),
                 'actor_name' => $creator->name,
                 'action_text' => 'Review timeline',
@@ -123,25 +133,28 @@ class TimelineNotifier
                 'action_text' => 'Open timeline',
             ]);
         }
-        $this->send($creator, [
-            'project_id' => $project->id,
-            'title' => 'Received: '.($ticketTitle ?? $project->title),
-            'body' => "We received {$what}. The timeline is being reviewed and you will be told as soon as it is confirmed.",
-            'url_path' => $this->frontendPath('agency', $project),
-            'action_text' => 'View project',
-        ]);
+        // Agency side: "sent for review" and nothing about who reviews it. The creator is told directly, the rest of the account is kept in the loop.
+        foreach ($this->unique($this->owners($project), [$project->client, $creator]) as $user) {
+            $mine = $user->id === $creator->id;
+            $this->send($user, [
+                'project_id' => $project->id,
+                'title' => 'Request sent for review: '.($ticketTitle ?? $project->title),
+                'body' => ($mine ? "Your request has been sent for review. ({$what})" : "A request has been sent for review by {$creator->name}: {$what}.")
+                    .' Our team will plan the schedule and tell you as soon as it is confirmed. Any hours you entered are only an estimate.',
+                'url_path' => $this->frontendPath('agency', $project),
+                'action_text' => 'View project',
+            ]);
+        }
     }
-
     public function changesRequested(WorkItem $project, User $admin, string $message): void
     {
         foreach ($this->unique($this->owners($project), [$project->client]) as $user) {
             $this->send($user, [
                 'project_id' => $project->id,
-                'title' => "Changes requested: {$project->title}",
-                'body' => "{$admin->name} asked for changes to the timeline of “{$project->title}”: ".str($message)->limit(400),
+                'title' => "A few changes are needed: {$project->title}",
+                'body' => "Our team needs a few changes before “{$project->title}” can be confirmed: ".str($message)->limit(400).' Please reply with your update.',
                 'url_path' => $this->frontendPath('agency', $project),
-                'actor_name' => $admin->name,
-                'action_text' => 'Reply to your project manager',
+                'action_text' => 'Reply to our team',
             ]);
         }
     }
@@ -167,6 +180,21 @@ class TimelineNotifier
         $recipients = $this->unique($this->owners($project), [$project->client, $project->employee, $manager]);
         foreach ($recipients as $user) {
             $kind = $user->role === Role::Employee ? 'employee' : ($user->role === Role::Admin ? 'admin' : 'agency');
+            if ($kind === 'agency') {
+                // Owner and client: the outcome and the final numbers, never who confirmed it.
+                $differs = abs($project->scheduledHours() - (float) $project->estimated_hours) >= 0.005;
+                $this->send($user, [
+                    'project_id' => $project->id,
+                    'title' => "Confirmed: {$project->title}",
+                    'body' => "Your timeline has been confirmed. “{$project->title}”: ".$this->facts($project, true, forAgency: true).'.'
+                        .($differs ? ' The final hours differ from your proposal based on the work needed.' : '')
+                        .($differs && filled($project->planned_note) ? ' Note: '.str($project->planned_note)->limit(300) : ''),
+                    'url_path' => $this->frontendPath($kind, $project),
+                    'action_text' => 'View timeline',
+                ]);
+
+                continue;
+            }
             $this->send($user, [
                 'project_id' => $project->id,
                 'title' => "Timeline confirmed: {$project->title}",

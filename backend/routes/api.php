@@ -59,6 +59,9 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/requests', [AgencyRequestController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:agency-requests']);
+    // The GHL service types and their fields, for the create-project, create-ticket and request forms.
+    Route::get('/service-catalog', [AgencyRequestController::class, 'catalog'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/employees/summary', [AgencyRequestController::class, 'employees'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::get('/request-attachments/{attachment}/download', [AgencyRequestController::class, 'download'])
@@ -223,6 +226,9 @@ Route::middleware(['web', 'auth', 'role:admin'])->group(function () {
     Route::post('/admin/plans', [AdminPlanController::class, 'store']);
     Route::patch('/admin/plans/{plan}', [AdminPlanController::class, 'update'])->whereNumber('plan');
     Route::post('/admin/agencies/{agency}/activate', [AdminAgencyController::class, 'activate'])->whereNumber('agency');
+    Route::put('/admin/agencies/{agency}/contract', [AdminAgencyController::class, 'updateContract'])->whereNumber('agency');
+    Route::post('/admin/agencies/{agency}/employees', [AdminAgencyController::class, 'assignEmployee'])->whereNumber('agency');
+    Route::patch('/admin/agencies/{agency}/details', [AdminAgencyController::class, 'updateDetails'])->whereNumber('agency');
     Route::patch('/admin/agencies/{agency}/branding', [AdminAgencyController::class, 'updateBranding'])->whereNumber('agency');
     Route::post('/admin/agencies/{agency}/logo', [AdminAgencyController::class, 'uploadLogo'])->whereNumber('agency')->middleware('throttle:attachments');
     Route::post('/admin/agencies/{agency}/contract-documents', [ContractDocumentController::class, 'store'])->whereNumber('agency')->middleware('throttle:attachments');

@@ -8,6 +8,7 @@ import { formatDate, formatDateRange, pluralize } from '../../../../../lib/forma
 import { Alert, Avatar, Button, CapacityBar, Card, EmptyState, Icon, RelativeTime, StatusBadge } from '../../../../../components/ui'
 import { EmployeeProfileDrawer } from '../../../../agency/components/EmployeeProfileDrawer'
 import { RequestModal } from '../../../../agency/components/RequestModal'
+import { EditWorkCard } from '../../../../agency/components/EditWorkCard'
 import { AgencyDashboardSkeleton } from './AgencyDashboardCards'
 import './agencyDashboard.css'
 import './ownerDashboard.css'
@@ -254,6 +255,7 @@ export function OwnerDashboard() {
       <div className="od-cols">
         <div className="od-col">
           <ActiveProjects projects={dashboard.active_projects} />
+          <EditWorkCard isOwner onChanged={reload} />
           <Activity items={dashboard.activity} />
         </div>
         <div className="od-col">

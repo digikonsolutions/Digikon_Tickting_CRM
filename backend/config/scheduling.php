@@ -15,6 +15,12 @@ return [
     // Timeline review: new projects and tickets are scheduled provisionally and an admin (or the assigned employee)
     // confirms the dates before work can start. Turn off for local setups and tests.
     'require_timeline_review' => env('SCHEDULING_REQUIRE_TIMELINE_REVIEW', true),
+    // Only admins (and the assigned employee, in their own review) set days. Agency owners and clients submit a request
+    // with its details and an optional estimate; nothing is scheduled for them. Off = the older behaviour where an
+    // agency's own start and due dates are auto-scheduled on save.
+    'admin_only_scheduling' => env('SCHEDULING_ADMIN_ONLY', true),
+    // Placeholder window (days) given to a request that is waiting for its schedule; the admin sets the real due date.
+    'provisional_window_days' => 14,
     // Hours before an unconfirmed timeline is reminded about (each reminder is sent once), and before it counts as overdue.
     'review_reminder_hours' => [24, 48],
     'review_overdue_hours' => 24,

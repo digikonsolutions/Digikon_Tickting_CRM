@@ -14,12 +14,13 @@ class RushRequest extends Model
 
     protected $fillable = [
         'agency_id', 'requested_by', 'type', 'assignment_id', 'title', 'description', 'skills_notes',
-        'estimated_hours', 'needed_by', 'reason', 'status',
+        'estimated_hours', 'needed_by', 'reason', 'status', 'service_type', 'details',
     ];
 
     protected function casts(): array
     {
         return [
+            'details' => 'array',
             'estimated_hours' => 'decimal:2',
             'needed_by' => 'date',
             'quoted_amount_minor' => 'integer',

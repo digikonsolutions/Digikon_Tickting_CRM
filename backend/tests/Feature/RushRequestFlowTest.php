@@ -412,4 +412,23 @@ class RushRequestFlowTest extends TestCase
         }
         $this->postJson('/api/agency/rush-requests', $this->insertPayload())->assertStatus(429);
     }
+
+    public function test_a_service_and_its_answers_travel_from_the_request_to_the_rush_project(): void
+    {
+        $bad = $this->insertPayload(['service_type' => 'workflow', 'details' => ['trigger' => 'nope']]);
+        $this->actingAs($this->client)->postJson('/api/agency/rush-requests', $bad)->assertStatus(422)->assertJsonValidationErrors(['details.trigger', 'details.actions']);
+        $this->postJson('/api/agency/rush-requests', $this->insertPayload(['details' => ['goal' => 'x']]))->assertStatus(422)->assertJsonValidationErrors('details');
+
+        $catalog = \App\Support\ServiceCatalog::types()['workflow']['fields'];
+        $trigger = array_key_first(collect($catalog)->firstWhere('key', 'trigger')['options']);
+        $action = array_key_first(collect($catalog)->firstWhere('key', 'actions')['options']);
+        $id = $this->submitAndQuote($this->insertPayload(['service_type' => 'workflow', 'details' => ['trigger' => $trigger, 'actions' => [$action], 'goal' => 'Follow up leads']]));
+
+        $this->actingAs($this->owner)->getJson("/api/agency/rush-requests/$id")->assertOk()->assertJsonPath('rush_request.service_type', 'workflow')->assertJsonPath('rush_request.details.goal', 'Follow up leads');
+        $this->postJson("/api/agency/rush-requests/$id/accept")->assertOk();
+
+        $rush = WorkItem::query()->where('title', 'Urgent fix')->firstOrFail();
+        $this->assertSame('workflow', $rush->service_type);
+        $this->assertSame('Follow up leads', $rush->details['goal']);
+    }
 }

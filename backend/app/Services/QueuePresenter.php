@@ -48,7 +48,8 @@ class QueuePresenter
                 'due_date' => $item->due_date->toDateString(),
                 'status' => $item->status,
                 'position' => $item->queue_position,
-                'fits' => $scheduled >= (int) round((float) $item->estimated_hours * 100) && ($end === null || $end <= $item->due_date->toDateString()),
+                'awaiting_schedule' => $item->isAwaitingSchedule(),
+                'fits' => $item->isAwaitingSchedule() || $scheduled >= (int) round($item->scheduledHours() * 100) && ($end === null || $end <= $item->due_date->toDateString()),
             ];
         }
 

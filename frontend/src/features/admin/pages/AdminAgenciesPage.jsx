@@ -3,6 +3,7 @@ import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Input, PageHeader, Pagination, Table } from '../../../components/ui'
+import { AgencyEditModal } from '../agencies/AgencyEditModal'
 import { AgencyStatusModal } from '../agencies/AgencyStatusModal'
 import { agencyColumns } from '../agencies/agencyColumns'
 
@@ -11,6 +12,7 @@ export function AdminAgenciesPage() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [agencyAction, setAgencyAction] = useState(null)
+  const [editing, setEditing] = useState(null)
   const load = useCallback(() => authService.listAdminAgencies({ page, search }), [page, search])
   const { data, error, isLoading, reload } = useAsync(load)
   const agencies = data?.agencies ?? []
@@ -33,7 +35,7 @@ export function AdminAgenciesPage() {
         <ApiErrorMessage error={error} />
         {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
         <Table
-          columns={agencyColumns({ onToggle: setAgencyAction })}
+          columns={agencyColumns({ onToggle: setAgencyAction, onEdit: setEditing })}
           rows={agencies}
           loading={isLoading && !data}
           emptyTitle="No agencies found"
@@ -41,6 +43,7 @@ export function AdminAgenciesPage() {
         />
         <Pagination page={pagination.current_page} lastPage={pagination.last_page} total={pagination.total} noun="agency" loading={isLoading} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />
       </Card>
+      <AgencyEditModal agency={editing} onClose={() => setEditing(null)} onDone={reload} />
       <AgencyStatusModal key={agencyAction?.id ?? 'none'} agency={agencyAction} onClose={() => setAgencyAction(null)} onDone={reload} />
     </section>
   )

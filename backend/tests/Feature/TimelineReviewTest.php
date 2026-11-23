@@ -37,6 +37,8 @@ class TimelineReviewTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // These tests cover the engine behind the older flow where an agency's own dates are auto-scheduled.
+        config(['scheduling.admin_only_scheduling' => false]);
         config(['scheduling.require_timeline_review' => true]);
         $this->setUpWeek();
         $this->agency = $this->makeAgency('Northwind');
@@ -92,8 +94,8 @@ class TimelineReviewTest extends TestCase
                 && $n->payload['url_path'] === "/admin/timeline-reviews/{$project->id}";
         });
         Notification::assertSentTo($this->employee, TimelineNotice::class, fn ($n) => str_contains($n->payload['title'], "You've been assigned") && str_contains($n->payload['body'], 'pending review'));
-        Notification::assertSentTo($this->owner, TimelineNotice::class, fn ($n) => str_contains($n->payload['title'], 'Received') && $n->payload['url_path'] === "/agency/projects/{$project->id}");
-        Notification::assertNotSentTo($this->client, TimelineNotice::class);        // the creator is told, bystanders are not
+        Notification::assertSentTo($this->owner, TimelineNotice::class, fn ($n) => str_contains($n->payload['title'], 'Request sent for review') && str_contains($n->payload['body'], 'for review') && ! str_contains($n->payload['body'], 'Ada Admin') && $n->payload['url_path'] === "/agency/projects/{$project->id}");
+        Notification::assertNotSentTo($this->client, TimelineNotice::class);        // the project's owner (its creator and client) is told, bystanders are not
     }
 
     public function test_proposed_hours_reserve_the_employees_capacity(): void
@@ -135,9 +137,6 @@ class TimelineReviewTest extends TestCase
         // in the past
         $r = $this->patchJson($url, ['days' => [$day($mon->subDays(30), 6), $day($mon, 6)]])->assertUnprocessable();
         $this->assertSame('This date is in the past.', $r->json('errors')['days.0.date'][0]);
-        // total must equal the project hours
-        $r = $this->patchJson($url, ['days' => [$day($mon, 6), $day($mon->addDay(), 5)]])->assertUnprocessable();
-        $this->assertStringContainsString('They must match', $r->json('errors.days.0'));
         // duplicate date, bad hours
         $this->patchJson($url, ['days' => [$day($mon, 6), $day($mon, 6)]])->assertUnprocessable()->assertJsonValidationErrors('days.1.date');
         $this->patchJson($url, ['days' => [$day($mon, 0), $day($mon->addDay(), 12)]])->assertUnprocessable()->assertJsonValidationErrors(['days.0.hours']);
@@ -150,6 +149,49 @@ class TimelineReviewTest extends TestCase
         $this->assertSame([$mon->toDateString(), $mon->addDay()->toDateString()], array_column($event->before['days'], 'date'));
     }
 
+    public function test_planned_hours_may_differ_from_the_requested_estimate(): void
+    {
+        $project = $this->create(['estimated_hours' => 5]);
+        $mon = $this->monday();
+        $url = "/api/admin/projects/{$project->id}/timeline";
+        $day = fn (CarbonImmutable $d, $h) => ['date' => $d->toDateString(), 'hours' => $h];
+
+        // 5 h requested, 8 h planned (5 + 1 + 2): accepted, the request is untouched, the plan is stored beside it.
+        $this->actingAs($this->admin)->patchJson($url, ['days' => [$day($mon, 5), $day($mon->addDay(), 1), $day($mon->addDays(2), 2)], 'note' => 'The work needs more time.'])
+            ->assertOk()->assertJsonPath('project.estimated_hours', 5)->assertJsonPath('project.planned_hours', 8)->assertJsonPath('project.hours_differ', true)
+            ->assertJsonPath('project.planned_note', 'The work needs more time.');
+        $this->assertSame('5.00', $project->fresh()->estimated_hours);
+        $this->assertSame('8.00', $project->fresh()->planned_hours);
+        $this->postJson("/api/admin/projects/{$project->id}/timeline/confirm")->assertOk()->assertJsonPath('timeline.status', 'confirmed');
+
+        // The agency sees both numbers and the admin's reason.
+        $this->actingAs($this->owner)->getJson("/api/agency/projects/{$project->id}/timeline")->assertOk()
+            ->assertJsonPath('project.estimated_hours', 5)->assertJsonPath('project.planned_hours', 8)->assertJsonPath('project.planned_note', 'The work needs more time.');
+
+        // Fewer hours than requested is fine too.
+        $this->actingAs($this->admin)->patchJson($url, ['days' => [$day($mon, 3)]])->assertOk()->assertJsonPath('project.planned_hours', 3)->assertJsonPath('project.estimated_hours', 5);
+
+        // Planning exactly what was requested clears the difference.
+        $this->patchJson($url, ['days' => [$day($mon, 5)]])->assertOk()->assertJsonPath('project.hours_differ', false)->assertJsonPath('project.planned_note', null);
+        $this->assertNull($project->fresh()->planned_hours);
+    }
+
+    public function test_day_and_week_limits_still_block_when_the_total_is_free(): void
+    {
+        $project = $this->create(['estimated_hours' => 5]);
+        $mon = $this->monday();
+        $url = "/api/admin/projects/{$project->id}/timeline";
+
+        $this->actingAs($this->admin)->patchJson($url, ['days' => [['date' => $mon->toDateString(), 'hours' => 7]]])->assertUnprocessable()->assertJsonValidationErrors('days.0.hours');
+        $days = [];
+        foreach (range(0, 6) as $i) {
+            $days[] = ['date' => $mon->addDays($i)->toDateString(), 'hours' => 6];
+        }
+        $this->patchJson($url, ['days' => array_slice($days, 0, 7)])->assertUnprocessable();
+        $this->patchJson($url, ['days' => [['date' => $mon->toDateString(), 'hours' => -1]]])->assertUnprocessable()->assertJsonValidationErrors('days.0.hours');
+        $this->patchJson($url, ['days' => [['date' => $mon->toDateString(), 'hours' => 'abc']]])->assertUnprocessable()->assertJsonValidationErrors('days.0.hours');
+        $this->assertSame('5.00', $project->fresh()->estimated_hours);
+    }
     public function test_the_weekly_limit_and_other_bookings_are_enforced(): void
     {
         $project = $this->create(['estimated_hours' => 12]);
@@ -185,7 +227,7 @@ class TimelineReviewTest extends TestCase
 
         $this->postJson("/api/admin/projects/{$project->id}/timeline/request-changes", ['message' => ''])->assertUnprocessable();
         $this->postJson("/api/admin/projects/{$project->id}/timeline/request-changes", ['message' => 'Please split this into two phases.'])->assertOk()->assertJsonPath('timeline.status', 'changes_requested');
-        Notification::assertSentTo($this->owner, TimelineNotice::class, fn ($n) => str_contains($n->payload['body'], 'split this into two phases') && $n->payload['action_text'] === 'Reply to your project manager');
+        Notification::assertSentTo($this->owner, TimelineNotice::class, fn ($n) => str_contains($n->payload['body'], 'split this into two phases') && $n->payload['action_text'] === 'Reply to our team' && ! str_contains($n->payload['body'], 'Ada Admin') && ! isset($n->payload['actor_name']));
         $this->assertTrue($this->actingAs($this->owner)->getJson("/api/agency/projects/{$project->id}/timeline")->assertOk()->json('timeline.can_respond'));
         $this->assertSame('changes_requested', collect($this->getJson("/api/agency/projects/{$project->id}/timeline")->json('events'))->first()['type']);
 
@@ -214,7 +256,8 @@ class TimelineReviewTest extends TestCase
         $this->actingAs($this->admin)->postJson("/api/admin/projects/{$project->id}/timeline/confirm")->assertOk()
             ->assertJsonPath('timeline.status', 'confirmed')->assertJsonPath('timeline.confirmed_by', 'Ada Admin')->assertJsonPath('timeline.project_manager.name', 'Ada Admin');
         $this->assertSame('confirmed', $ticket->fresh()->timeline_status);
-        Notification::assertSentTo([$this->owner, $this->employee, $this->admin], TimelineNotice::class, fn ($n) => str_contains($n->payload['title'], 'Timeline confirmed') && str_contains($n->payload['body'], 'Proposed days'));
+        Notification::assertSentTo([$this->employee, $this->admin], TimelineNotice::class, fn ($n) => str_contains($n->payload['title'], 'Timeline confirmed') && str_contains($n->payload['body'], 'Proposed days'));
+        Notification::assertSentTo($this->owner, TimelineNotice::class, fn ($n) => str_starts_with($n->payload['title'], 'Confirmed:') && str_contains($n->payload['body'], 'Your timeline has been confirmed') && ! str_contains($n->payload['body'], 'confirmed by') && ! str_contains($n->payload['body'], 'Ada Admin') && ! isset($n->payload['actor_name']));
 
         $this->actingAs($this->employee)->postJson("/api/tickets/{$ticket->id}/transitions", ['action' => 'start'])->assertOk();
         $this->actingAs($this->admin)->postJson("/api/admin/projects/{$project->id}/timeline/confirm")->assertUnprocessable();    // nothing left to confirm
@@ -410,5 +453,24 @@ class TimelineReviewTest extends TestCase
         $this->assertSame('confirmed', $project->timeline_status);
         $this->actingAs($this->employee)->postJson("/api/tickets/{$ticket->id}/transitions", ['action' => 'start'])->assertOk();
         $this->assertSame(0, TimelineEvent::count());
+    }
+
+    public function test_a_client_request_tells_the_client_and_the_owner_it_was_sent_and_the_confirmation_hides_who_confirmed(): void
+    {
+        Notification::fake();
+        $project = $this->create(['estimated_hours' => 6], $this->client);
+
+        foreach ([$this->client, $this->owner] as $user) {
+            Notification::assertSentTo($user, TimelineNotice::class, fn ($n) => str_starts_with($n->payload['title'], 'Request sent for review') && ! str_contains($n->payload['body'], 'Ada Admin') && ! str_contains($n->payload['body'], 'review needed'));
+        }
+
+        $mon = $this->monday();
+        $this->actingAs($this->admin)->patchJson("/api/admin/projects/{$project->id}/timeline", ['days' => [['date' => $mon->toDateString(), 'hours' => 6], ['date' => $mon->addDay()->toDateString(), 'hours' => 2]], 'note' => 'More time is needed.'])->assertOk();
+        $this->postJson("/api/admin/projects/{$project->id}/timeline/confirm")->assertOk();
+
+        foreach ([$this->client, $this->owner] as $user) {
+            Notification::assertSentTo($user, TimelineNotice::class, fn ($n) => str_starts_with($n->payload['title'], 'Confirmed:') && str_contains($n->payload['body'], '8 h (you proposed 6 h)')
+                && str_contains($n->payload['body'], 'More time is needed.') && ! str_contains($n->payload['body'], 'Ada Admin') && ! isset($n->payload['actor_name']));
+        }
     }
 }

@@ -21,6 +21,8 @@ class ProjectEditAndTimelineTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // These tests cover the engine behind the older flow where an agency's own dates are auto-scheduled.
+        config(['scheduling.admin_only_scheduling' => false]);
         $this->buildFixture();
         app(MonitoringPolicy::class)->accept($this->u['employee'], null);
     }

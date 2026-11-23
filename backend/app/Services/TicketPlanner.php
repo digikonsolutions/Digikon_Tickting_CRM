@@ -56,12 +56,12 @@ class TicketPlanner
                 return [];
             }
 
-            $projectUnits = (int) round((float) $lockedWorkItem->estimated_hours * 100);
+            $projectUnits = (int) round($lockedWorkItem->scheduledHours() * 100);
             $ticketUnits = $tickets->where('status', '!=', 'cancelled')->sum(
                 fn (Ticket $ticket): int => (int) round((float) $ticket->estimated_hours * 100)
             );
 
-            if ($ticketUnits > $projectUnits) {
+            if ($projectUnits > 0 && $ticketUnits > $projectUnits) {
                 $changedTicket = $changedTicketId === null
                     ? null
                     : $activeTickets->firstWhere('id', $changedTicketId);
@@ -71,6 +71,11 @@ class TicketPlanner
                 throw ValidationException::withMessages([
                     'estimated_hours' => "Ticket hours exceed the project's hours. Remaining: ".number_format($remainingUnits / 100, 2, '.', '').' h.',
                 ]);
+            }
+
+            // A request waiting for its schedule has no days yet: its tickets get dates once an admin plans the project.
+            if ($lockedWorkItem->isAwaitingSchedule()) {
+                return [];
             }
 
             $pool = $lockedWorkItem->allocations()

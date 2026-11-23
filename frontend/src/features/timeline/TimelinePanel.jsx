@@ -54,9 +54,17 @@ export function TimelinePanel({ projectId, onChanged }) {
       <p className="tl-explain">{TIMELINE[timeline.status].explain}</p>
       <dl className="tl-facts">
         <div><small>Project manager</small><strong>{timeline.project_manager?.name ?? 'Not assigned yet'}</strong></div>
+        <div><small>Hours you proposed</small><strong>{hrs(project.estimated_hours)}</strong></div>
+        {timeline.status === 'confirmed' && <div><small>Confirmed hours</small><strong>{hrs(project.planned_hours ?? project.estimated_hours)}</strong></div>}
         <div><small>Dates</small><strong>{formatShortDate(project.start_date)} – {formatShortDate(project.due_date)}</strong></div>
         {timeline.confirmed_at && <div><small>Confirmed</small><strong>{formatShortDate(timeline.confirmed_at)} by {timeline.confirmed_by}</strong></div>}
       </dl>
+      {timeline.status === 'confirmed' && project.hours_differ && (
+        <Alert variant="info" className="ui-form-callout" title="Final hours differ from your proposal">
+          You proposed {hrs(project.estimated_hours)}. Our team confirmed {hrs(project.planned_hours)} based on the actual work needed.
+          {project.planned_note && <> Their note: “{project.planned_note}”</>}
+        </Alert>
+      )}
       {planned.length > 0 && (
         <>
           <h3>Planned days</h3>

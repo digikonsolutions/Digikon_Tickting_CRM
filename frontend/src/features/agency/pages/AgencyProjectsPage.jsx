@@ -27,6 +27,7 @@ export function AgencyProjectsPage({ viewAs }) {
   const [params, setParams] = useSearchParams()
   const statusFilter = params.get('status') ?? ''
   const search = params.get('q') ?? ''
+  const mine = isClient && params.get('mine') === '1'
   const page = Math.max(1, Number(params.get('page')) || 1)
   const [searchInput, setSearchInput] = useState(search)
   const [form, setForm] = useState({ open: params.get('new') === '1', project: null })
@@ -50,8 +51,8 @@ export function AgencyProjectsPage({ viewAs }) {
 
   const loadAssignments = useCallback(() => authService.listMyAssignments(), [])
   const loadProjects = useCallback(
-    () => authService.listAgencyProjects({ page, perPage: PROJECTS_PER_PAGE, status: statusFilter || undefined, search: search || undefined }),
-    [page, statusFilter, search],
+    () => authService.listAgencyProjects({ page, perPage: PROJECTS_PER_PAGE, status: statusFilter || undefined, search: search || undefined, mine: mine || undefined }),
+    [page, statusFilter, search, mine],
   )
   const assignmentsState = useAsync(loadAssignments)
   const projectsState = useAsync(loadProjects)
@@ -60,7 +61,7 @@ export function AgencyProjectsPage({ viewAs }) {
   const pagination = projectsState.data?.pagination ?? { current_page: page, last_page: 1, total: 0 }
   const assignments = assignmentsState.data?.assignments ?? []
   const loading = projectsState.isLoading && !projectsState.data
-  const hasFilters = Boolean(statusFilter || search)
+  const hasFilters = Boolean(statusFilter || search || mine)
 
   async function openEdit(summary) {
     setOpening(true)
@@ -92,8 +93,8 @@ export function AgencyProjectsPage({ viewAs }) {
     <section className="page agency-projects-page">
       <PageHeader
         eyebrow="Agency workspace"
-        title={isClient ? 'My projects' : 'Projects'}
-        subtitle="Select a project to see its tickets, hours and files."
+        title="Projects"
+        subtitle={isClient ? 'Everything your agency is working on. Switch to "Created by me" to see only your own requests.' : 'Select a project to see its tickets, hours and files.'}
         action={<Button type="button" onClick={() => setForm({ open: true, project: null })}>Create project</Button>}
       />
       <ApiErrorMessage error={openError} />
@@ -101,6 +102,9 @@ export function AgencyProjectsPage({ viewAs }) {
         <Input id="project-search" label="Search projects" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, client or employee" />
         {hasFilters && <Button type="button" variant="secondary" size="sm" onClick={() => { setSearchInput(''); setParams({}, { replace: true }) }}>Clear filters</Button>}
       </div>
+      {isClient && (
+        <FilterChips label="Whose projects" options={[{ value: '', label: 'All agency projects' }, { value: '1', label: 'Created by me' }]} value={mine ? '1' : ''} disabled={projectsState.isLoading} onChange={(value) => update({ mine: value, page: '' })} />
+      )}
       <FilterChips label="Filter by status" options={STATUS_FILTERS} value={statusFilter} disabled={projectsState.isLoading} onChange={(value) => update({ status: value, page: '' })} />
 
       {error ? (
@@ -143,12 +147,4 @@ export function AgencyProjectsPage({ viewAs }) {
       )}
     </section>
   )
-}
-
-export function AgencyClientProjectsPage() {
-  return <AgencyProjectsPage viewAs="agency_client" />
-}
-
-export function AgencyOwnerProjectsPage() {
-  return <AgencyProjectsPage viewAs="agency_owner" />
 }

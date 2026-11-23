@@ -10,7 +10,12 @@ class AgencyRequest extends Model
 {
     public const TYPES = ['more_hours', 'employee', 'upgrade', 'renewal'];
 
-    protected $fillable = ['agency_id', 'user_id', 'type', 'message', 'status'];
+    protected $fillable = ['agency_id', 'user_id', 'type', 'message', 'status', 'details'];
+
+    protected function casts(): array
+    {
+        return ['details' => 'array'];
+    }
 
     public function user(): BelongsTo
     {

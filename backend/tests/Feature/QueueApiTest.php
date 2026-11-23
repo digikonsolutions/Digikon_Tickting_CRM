@@ -35,6 +35,8 @@ class QueueApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // These tests cover the engine behind the older flow where an agency's own dates are auto-scheduled.
+        config(['scheduling.admin_only_scheduling' => false]);
         config(['scheduling.require_timeline_review' => false]);
         $this->travelTo(CarbonImmutable::parse('2026-12-07 08:00', config('app.timezone')));
         $this->setUpWeek();

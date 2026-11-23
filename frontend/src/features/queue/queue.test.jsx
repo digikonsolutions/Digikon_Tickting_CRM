@@ -18,6 +18,7 @@ const { QueueCard } = await import('./components/QueueCard')
 const { RushRequestModal } = await import('./components/RushRequestModal')
 const { RushRequestsPanel } = await import('./components/RushRequestsPanel')
 const { MyQueueSection } = await import('./components/MyQueueSection')
+const { TeamMemberCard } = await import('./components/TeamMemberCard')
 
 const queue = {
   employee: { id: 5, name: 'Emma Alpha', photo_url: null },
@@ -239,5 +240,31 @@ describe('MyQueueSection (employee)', () => {
     expect(screen.getByText('Brochure')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/USD|\$|quote|charge/i)
+  })
+})
+
+describe('TeamMemberCard', () => {
+  it('shows now, up next, compact bars and a keyboard-reachable menu', async () => {
+    const user = userEvent.setup()
+    const onAddTask = vi.fn()
+    const onProfile = vi.fn()
+    wrap(<TeamMemberCard queue={queue} onAddTask={onAddTask} menuItems={[{ label: 'View profile', onClick: onProfile }, { label: 'Request urgent help' }]} />)
+
+    expect(screen.getByText(/NW-4 · Build header/)).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: /projects waiting for emma alpha/i })).getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByRole('progressbar', { name: /booked this week/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+    expect(onAddTask).toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: /more actions for emma alpha/i }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['View profile', 'Request urgent help'])
+    await user.click(screen.getByRole('menuitem', { name: 'View profile' }))
+    expect(onProfile).toHaveBeenCalled()
+  })
+
+  it('shows when the employee is free and an empty up next', () => {
+    wrap(<TeamMemberCard queue={{ ...queue, now: null, up_next: [] }} onAddTask={() => {}} />)
+    expect(screen.getByText(/Free from/)).toHaveTextContent('Dec 14')
+    expect(screen.getByText(/Nothing waiting/)).toBeInTheDocument()
   })
 })

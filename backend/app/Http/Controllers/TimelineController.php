@@ -59,13 +59,16 @@ class TimelineController extends Controller
                     ->orWhereHas('agency', fn ($a) => $a->where('name', 'like', $like))
                     ->orWhereHas('client', fn ($c) => $c->where('name', 'like', $like)));
             })
+            // Urgent requests (a project or a waiting ticket marked urgent) lead the queue, then the longest waiting first.
+            ->orderByRaw("CASE WHEN brief_priority = 'urgent' OR EXISTS (SELECT 1 FROM tickets WHERE tickets.work_item_id = work_items.id AND tickets.priority = 'urgent' AND tickets.timeline_status IN ('proposed','in_review','changes_requested')) THEN 0 ELSE 1 END")
             ->orderByRaw('COALESCE(timeline_proposed_at, created_at) ASC')->orderBy('id')
             ->paginate($filters['per_page'] ?? 25);
 
         return response()->json([
             'reviews' => collect($rows->items())->map(fn (WorkItem $p): array => [
                 'id' => $p->id, 'title' => $p->title, 'agency_name' => $p->agency?->name, 'client_name' => $p->client?->name,
-                'employee_name' => $p->employee?->name, 'estimated_hours' => (float) $p->estimated_hours,
+                'employee_name' => $p->employee?->name, 'estimated_hours' => (float) $p->estimated_hours, 'awaiting_schedule' => $p->isAwaitingSchedule(),
+                'priority_urgent' => $p->brief_priority === 'urgent' || $p->tickets()->where('priority', 'urgent')->whereIn('timeline_status', TimelineReview::PENDING)->exists(),
                 'start_date' => $p->start_date?->toDateString(), 'due_date' => $p->due_date?->toDateString(),
                 'timeline_status' => $p->timeline_status, 'pending_tickets' => (int) $p->pending_tickets,
                 'project_manager_id' => $p->project_manager_id, ...$this->age($p),
@@ -294,7 +297,8 @@ class TimelineController extends Controller
         return [
             'project' => [
                 'id' => $project->id, 'title' => $project->title, 'description' => $project->description, 'status' => $project->status,
-                'estimated_hours' => (float) $project->estimated_hours, 'start_date' => $project->start_date?->toDateString(), 'due_date' => $project->due_date?->toDateString(),
+                'estimated_hours' => (float) $project->estimated_hours, 'awaiting_schedule' => $project->isAwaitingSchedule(), 'schedule_state' => $project->scheduleState(), 'priority' => $project->brief_priority, 'planned_hours' => $project->scheduledHours(), 'hours_differ' => abs($project->scheduledHours() - (float) $project->estimated_hours) >= 0.005, 'planned_note' => $project->planned_note,
+                'start_date' => $project->start_date?->toDateString(), 'due_date' => $project->due_date?->toDateString(),
                 'agency' => ['id' => $project->agency_id, 'name' => $support && $project->agency ? \App\Services\AgencyBrandingPresenter::displayName($project->agency) : $project->agency?->name], 'client' => $project->client ? ['id' => $project->client->id, 'name' => $project->client->name] : null,
                 'employee' => $employee ? ['id' => $employee->id, 'name' => $employee->name] : null,
             ],

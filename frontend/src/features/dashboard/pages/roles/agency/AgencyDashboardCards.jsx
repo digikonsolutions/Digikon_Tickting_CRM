@@ -207,8 +207,8 @@ export function RecentProjectsCard({ dashboard }) {
     <Card>
       <div className="adm-card-body">
         <div className="adm-card-head">
-          <div><h2>{isOwner ? 'Recent projects' : 'My recent projects'}</h2><p>Latest work</p></div>
-          <Link className="adm-link" to={isOwner ? '/agency/projects' : '/agency/my-projects'}>All projects</Link>
+          <div><h2>Recent projects</h2><p>Latest work</p></div>
+          <Link className="adm-link" to="/agency/projects">All projects</Link>
         </div>
         {rows.length === 0 ? (
           <EmptyState title="No projects yet">Projects you create appear here.</EmptyState>
@@ -231,7 +231,7 @@ export function RecentProjectsCard({ dashboard }) {
 
 export function AgencyQuickActions({ dashboard }) {
   const state = limitState(dashboard)
-  const projectsTo = state.isOwner ? '/agency/projects' : '/agency/my-projects'
+  const projectsTo = '/agency/projects'
   const actions = [
     { icon: 'plus', label: 'Create project', hint: 'Schedule work with a held employee', to: projectsTo, disabled: state.createDisabled, reason: state.createReason },
     { icon: 'userPlus', label: 'Hold employee', hint: 'Browse and add employees', to: '/agency/employees?hold=1', disabled: state.holdDisabled, reason: state.holdReason },
