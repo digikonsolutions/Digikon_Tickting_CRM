@@ -49,6 +49,7 @@ class AgencyOnboardingService
 
                 $agency = Agency::create([
                     'name' => $data['agency']['name'],
+                    'slug' => filled($setup['slug'] ?? null) ? $setup['slug'] : null,
                     'ticket_prefix' => Agency::generatePrefix($data['agency']['name']),
                     'status' => $draft ? 'draft' : 'active',
                 ]);
@@ -67,8 +68,12 @@ class AgencyOnboardingService
                 ]);
                 $owner->ownerProfile()->create(array_intersect_key($data['owner'], array_flip(self::OWNER_PROFILE_FIELDS)));
 
-                if (! empty($setup['brand_color'])) {
-                    $this->branding->update($agency, ['primary_color' => $setup['brand_color']]);
+                $brand = array_filter([
+                    'primary_color' => $setup['brand_color'] ?? null, 'display_name' => $setup['display_name'] ?? null,
+                    'tagline' => $setup['tagline'] ?? null, 'support_email' => $setup['support_email'] ?? null,
+                ], fn ($value) => filled($value));
+                if ($brand !== []) {
+                    $this->branding->update($agency, $brand);
                 }
 
                 $contract = null;

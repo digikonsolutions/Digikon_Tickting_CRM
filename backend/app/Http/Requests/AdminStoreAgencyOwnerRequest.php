@@ -64,6 +64,10 @@ class AdminStoreAgencyOwnerRequest extends FormRequest
             $setup['brand_color'] = strtoupper(trim($setup['brand_color']));
             $merge['setup'] = $setup;
         }
+        if (is_array($setup) && is_string($setup['slug'] ?? null)) {
+            $setup['slug'] = strtolower(trim($setup['slug']));
+            $merge['setup'] = $setup;
+        }
         $this->merge($merge);
     }
 
@@ -127,6 +131,11 @@ class AdminStoreAgencyOwnerRequest extends FormRequest
             'setup.employee_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')->where($employee)],
             'setup.logo' => [...$optional, 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'setup.brand_color' => [...$optional, 'regex:/^#[0-9A-F]{6}$/'],
+            // The agency's portal address and the brand it shows. All optional: the slug is generated from the name when absent.
+            'setup.slug' => [...$optional, 'string', 'min:3', 'max:40', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', 'not_in:'.implode(',', \App\Models\Agency::RESERVED_SLUGS), 'unique:agencies,slug'],
+            'setup.display_name' => [...$optional, 'string', 'max:120'],
+            'setup.tagline' => [...$optional, 'string', 'max:140'],
+            'setup.support_email' => [...$optional, 'email:rfc', 'max:254'],
             'setup.send_invite' => [...$optional, 'boolean'],
             'setup.welcome_message' => [...$optional, 'string', 'max:500'],
         ];
@@ -141,6 +150,9 @@ class AdminStoreAgencyOwnerRequest extends FormRequest
             'owner.whatsapp.regex' => 'Enter a valid WhatsApp number, for example +92 300 1234567.',
             'contract.trial_end_date.required_if' => 'A trial needs a trial end date.',
             'setup.brand_color.regex' => 'Brand colour must be a hex value like #0F766E.',
+            'setup.slug.regex' => 'Use lowercase letters, digits and single hyphens, for example northwind-studio.',
+            'setup.slug.unique' => 'This portal address is already taken.',
+            'setup.slug.not_in' => 'This portal address is reserved. Choose another.',
             'setup.employee_ids.*.exists' => 'Choose active employees only.',
             'agency.name.required' => 'Enter the agency name.',
             'owner.name.required' => 'Enter the owner\'s name.',

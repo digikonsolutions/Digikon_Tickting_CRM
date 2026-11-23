@@ -22,7 +22,7 @@ class AdminAgencyOwnerController extends Controller
         $owner = $result['owner'];
 
         return response()->json([
-            'agency' => ['id' => $agency->id, 'name' => $agency->name, 'status' => $agency->status, 'ticket_prefix' => $agency->ticket_prefix],
+            'agency' => ['id' => $agency->id, 'name' => $agency->name, 'status' => $agency->status, 'ticket_prefix' => $agency->ticket_prefix, 'slug' => $agency->slug, 'portal_path' => '/a/'.$agency->slug],
             'owner' => [...$accounts->userPayload($owner), 'is_active' => $owner->is_active],
             'contract' => $result['contract'] === null ? null : AgencyContracts::present($result['contract']),
             'warnings' => $result['warnings'],
