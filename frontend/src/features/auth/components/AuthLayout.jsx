@@ -1,7 +1,51 @@
 import { Link } from 'react-router-dom'
 import { DEFAULT_CAPACITY } from '../../../lib/constants'
+import { portalPath } from '../../../auth/portal'
+import { usePortal } from '../PortalContext'
+
+const YEAR = new Date().getFullYear()
+
+// An agency's own sign-in page: its name or logo, tagline and colour. No platform name, no product preview.
+function AgencyAuthLayout({ portal, eyebrow, title, description, children, footer }) {
+  const { brand, slug } = portal
+  const mark = brand.logo_url
+    ? <img className="portal-logo" src={brand.logo_url} alt={brand.display_name} />
+    : <><span className="brand-mark" aria-hidden="true">{brand.display_name.charAt(0).toUpperCase()}</span><span className="brand-name">{brand.display_name}</span></>
+  return (
+    <main className="auth-page">
+      <div className="auth-shell" aria-label={` account access`}>
+        <aside className="auth-showcase">
+          <Link className="brand" to={portalPath(slug)}>{mark}</Link>
+          <div className="showcase-content">
+            <h2 className="showcase-title">{brand.display_name}</h2>
+            {brand.tagline && <p className="showcase-subtitle">{brand.tagline}</p>}
+          </div>
+          {brand.support_email && <p className="showcase-caption">Need help? <a href={`mailto:${brand.support_email}`}>{brand.support_email}</a></p>}
+        </aside>
+        <div className="auth-main">
+          <section className="auth-card">
+            <Link className="brand brand-mobile" to={portalPath(slug)}>{mark}</Link>
+            <div className="auth-heading">
+              {eyebrow && <span className="auth-eyebrow"><span className="auth-status-dot" aria-hidden="true" />{eyebrow}</span>}
+              <h1>{title}</h1>
+              {description && <p>{description}</p>}
+            </div>
+            {children}
+            {footer && <p className="auth-footer">{footer}</p>}
+            <div className="auth-form-footer">
+              <p className="auth-copyright">&copy; {YEAR} {brand.display_name}</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
 
 export function AuthLayout({ eyebrow, title, description, children, footer }) {
+  const portal = usePortal()
+  if (portal) return <AgencyAuthLayout portal={portal} eyebrow={eyebrow} title={title} description={description} footer={footer}>{children}</AgencyAuthLayout>
+
   return (
     <main className="auth-page">
       <div className="auth-shell" aria-label="ClientHub account access">

@@ -3,7 +3,8 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react
 import { useAuth } from './useAuth'
 import { BrandMark } from '../branding/BrandMark'
 import { useBranding } from '../branding/useBranding'
-import { postLoginPath, ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
+import { isAgencyRole, postLoginPath, ROLE_HOME, ROLE_LABELS, ROLES } from './roles'
+import { getStoredPortal, portalPath } from './portal'
 import { ApiErrorMessage } from '../features/auth/components/ApiErrorMessage'
 import { Badge, Button, Icon, Loader } from '../components/ui'
 import { NotificationBell } from '../features/notifications'
@@ -16,7 +17,8 @@ export function ProtectedRoute() {
   const location = useLocation()
   if (isLoading) return <Loader label="Checking your session…" />
   if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
-  if (!user) return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />
+  // Agency users who were signed in go back to their own portal, not the platform login.
+  if (!user) return <Navigate to={portalPath(getStoredPortal())} replace state={{ from: `${location.pathname}${location.search}` }} />
   // Employees see nothing else until they accept the monitoring notice.
   if (user.role === ROLES.EMPLOYEE && user.monitoring_consent_required) return <MonitoringConsent />
   return <Outlet />
@@ -34,7 +36,7 @@ export function HomeRedirect() {
   const { user, isLoading, authError, refreshSession } = useAuth()
   if (isLoading) return <Loader label="Checking your session…" />
   if (authError) return <div className="ui-loader-page" role="alert"><p>{authError}</p><Button type="button" variant="secondary" onClick={refreshSession}>Retry</Button></div>
-  return <Navigate to={user ? ROLE_HOME[user.role] : '/login'} replace />
+  return <Navigate to={user ? ROLE_HOME[user.role] : portalPath(getStoredPortal())} replace />
 }
 
 export function RoleRoute({ allowedRoles }) {
@@ -111,7 +113,7 @@ export function AppLayout() {
   useHeartbeat(user.role === ROLES.EMPLOYEE)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
-      return window.localStorage.getItem('clienthub:sidebar-collapsed') === 'true'
+      return window.localStorage.getItem('ui:sidebar-collapsed') === 'true'
     } catch {
       return false
     }
@@ -187,7 +189,7 @@ export function AppLayout() {
       setSignOutError(reason)
     } finally {
       setIsSigningOut(false)
-      navigate('/login', {
+      navigate(isAgencyRole(user.role) ? portalPath(user.agency?.slug ?? getStoredPortal()) : '/login', {
         replace: true,
         state: error ? { message: error.message } : undefined,
       })
@@ -237,7 +239,7 @@ export function AppLayout() {
     const next = !isSidebarCollapsed
     setIsSidebarCollapsed(next)
     try {
-      window.localStorage.setItem('clienthub:sidebar-collapsed', String(next))
+      window.localStorage.setItem('ui:sidebar-collapsed', String(next))
     } catch {
       return
     }

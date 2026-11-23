@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { postLoginPath } from '../../../auth/roles'
 import { AuthLayout } from '../components/AuthLayout'
+import { portalPath } from '../../../auth/portal'
+import { usePortal } from '../PortalContext'
 import { Alert, Button, Input } from '../../../components/ui'
 
 export function LoginPage() {
@@ -12,6 +14,7 @@ export function LoginPage() {
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const notice = location.state?.message
+  const portal = usePortal()
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.matchMedia('(min-width: 900px)').matches) {
@@ -29,6 +32,7 @@ export function LoginPage() {
       const user = await signIn({
         email: String(data.get('email')).trim(),
         password: data.get('password'),
+        agencySlug: portal?.slug,
       })
       navigate(postLoginPath(user, location.state?.from), { replace: true })
     } catch (reason) {
@@ -41,8 +45,8 @@ export function LoginPage() {
   return (
     <AuthLayout
       eyebrow="Welcome back"
-      title="Sign in to your workspace"
-      description="Keep every conversation, client, and ticket moving forward."
+      title={portal ? `Sign in to ${portal.brand.display_name}` : 'Sign in to your workspace'}
+      description={portal ? 'Use the email and password for your account.' : 'Keep every conversation, client, and ticket moving forward.'}
     >
       <form onSubmit={submit}>
         <Input
@@ -68,7 +72,7 @@ export function LoginPage() {
           disabled={isSubmitting}
         />
         <div className="auth-form-meta">
-          <Link className="inline-link" to="/forgot-password">Forgot password?</Link>
+          <Link className="inline-link" to={portalPath(portal?.slug, '/forgot-password')}>Forgot password?</Link>
         </div>
         <div className="auth-alert-area" aria-live="polite">
           {notice && <Alert variant="success">{notice}</Alert>}

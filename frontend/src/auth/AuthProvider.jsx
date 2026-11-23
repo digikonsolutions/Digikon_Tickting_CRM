@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthContext } from './AuthContext.js'
 import { authService, isKnownRole } from './authService'
+import { storePortal } from './portal'
 
 function sessionUser(user) {
   return {
@@ -12,6 +13,7 @@ function sessionUser(user) {
     agency_name: user.agency_name ?? null,
     photo_url: user.photo_url ?? null,
     branding: user.branding ?? null,
+    agency: user.agency ?? null,
     monitoring_consent_required: Boolean(user.monitoring_consent_required),
   }
 }
@@ -72,8 +74,8 @@ export function AuthProvider({ children }) {
       setIsLoading(false)
     }
 
-    window.addEventListener('clienthub:unauthorized', clearSession)
-    return () => window.removeEventListener('clienthub:unauthorized', clearSession)
+    window.addEventListener('session:expired', clearSession)
+    return () => window.removeEventListener('session:expired', clearSession)
   }, [])
 
   const establishSession = (nextUser) => {
@@ -93,6 +95,7 @@ export function AuthProvider({ children }) {
       const response = await authService.signIn(credentials)
       const nextUser = response?.user ?? response
       establishSession(nextUser)
+      storePortal(nextUser?.agency?.slug)
       return nextUser
     },
     signOut: async () => {

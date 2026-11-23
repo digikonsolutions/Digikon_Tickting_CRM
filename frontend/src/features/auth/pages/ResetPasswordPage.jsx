@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { portalPath } from '../../../auth/portal'
+import { usePortal } from '../PortalContext'
 import { authService } from '../../../auth/authService'
 import { ROLE_HOME } from '../../../auth/roles'
 import { useAuth } from '../../../auth/useAuth'
@@ -11,6 +13,7 @@ import { isStrongPassword, PASSWORD_HINT } from '../../../lib/password'
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
+  const portal = usePortal()
   const { user } = useAuth()
   const token = params.get('token')
   const email = params.get('email') ?? ''
@@ -49,7 +52,7 @@ export function ResetPasswordPage() {
       if (user) {
         setIsComplete(true)
       } else {
-        navigate('/login', { replace: true, state: { message: 'Your password has been reset. Sign in with your new password.' } })
+        navigate(portalPath(portal?.slug), { replace: true, state: { message: 'Your password has been reset. Sign in with your new password.' } })
       }
     } catch (reason) {
       setError(reason)
@@ -66,7 +69,7 @@ export function ResetPasswordPage() {
         : PASSWORD_HINT}
       footer={isComplete && user
         ? <Link to={ROLE_HOME[user.role]}>Return to your workspace</Link>
-        : <Link to="/login">Back to sign in</Link>}
+        : <Link to={portalPath(portal?.slug)}>Back to sign in</Link>}
     >
       {isComplete
         ? <Alert variant="success">The invited user can now sign in with their new password.</Alert>

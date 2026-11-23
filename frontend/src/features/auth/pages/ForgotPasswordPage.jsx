@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { AuthLayout } from '../components/AuthLayout'
+import { portalPath } from '../../../auth/portal'
+import { usePortal } from '../PortalContext'
 import { ApiErrorMessage } from '../components/ApiErrorMessage'
 import { Alert, Button, Input } from '../../../components/ui'
 
 export function ForgotPasswordPage() {
+  const portal = usePortal()
   const [state, setState] = useState({ isLoading: false, message: '', error: null })
   async function submit(event) {
     event.preventDefault()
@@ -24,7 +27,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Reset your password" description="Enter your email and we’ll send reset instructions." footer={<Link to="/login">Back to sign in</Link>}>
+    <AuthLayout title="Reset your password" description="Enter your email and we’ll send reset instructions." footer={<Link to={portalPath(portal?.slug)}>Back to sign in</Link>}>
       <form onSubmit={submit}>
         <Input id="email" label="Email address" name="email" type="email" autoComplete="email" maxLength="254" required />
         <ApiErrorMessage error={state.error} />

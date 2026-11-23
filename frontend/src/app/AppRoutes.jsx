@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout, HomeRedirect, ProtectedRoute, PublicOnlyRoute, RoleRoute } from '../auth/RouteGuards'
 import { ROLES } from '../auth/roles'
 import { useAuth } from '../auth/useAuth'
+import { PortalRoute } from '../features/auth/PortalRoute'
 import { Loader } from '../components/ui'
 import {
   AdminAgenciesPage,
@@ -58,6 +59,14 @@ export function AppRoutes() {
       {import.meta.env.DEV && (
         <Route path="/dev/ui" element={<Suspense fallback={<Loader />}><DevUiPage /></Suspense>} />
       )}
+      <Route path="/a/:slug" element={<PortalRoute />}>
+        <Route element={<PublicOnlyRoute />}>
+          <Route index element={<LoginPage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        </Route>
+        <Route path="reset-password" element={<ResetPasswordPage />} />
+      </Route>
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

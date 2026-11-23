@@ -38,7 +38,7 @@ async function establishCsrfCookie() {
 
 function notifyUnauthorized(path) {
   if (path !== '/auth/me' && path !== '/auth/login') {
-    window.dispatchEvent(new Event('clienthub:unauthorized'))
+    window.dispatchEvent(new Event('session:expired'))
   }
 }
 
@@ -210,12 +210,16 @@ export const authService = {
       body: JSON.stringify({ current_password: currentPassword, password, password_confirmation: passwordConfirmation }),
     })
   },
-  async signIn({ email, password }) {
+  async getPublicBranding(slug) {
+    if (AUTH_MODE === 'mock') return { branding: { slug, display_name: 'Portal', tagline: null, logo_url: null, favicon_url: null, primary_color: null, support_email: null } }
+    return request(`/public/agencies/${encodeURIComponent(slug)}/branding`)
+  },
+  async signIn({ email, password, agencySlug }) {
     if (AUTH_MODE === 'mock') {
       if (!password) throw new Error('Enter your password to continue.')
       return { user: mockUser(email) }
     }
-    return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+    return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, ...(agencySlug ? { agency_slug: agencySlug } : {}) }) })
   },
   async requestPasswordReset(email) {
     if (AUTH_MODE === 'mock') return { message: 'If an account exists, we sent password reset instructions.' }
