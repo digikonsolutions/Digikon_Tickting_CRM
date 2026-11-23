@@ -251,6 +251,7 @@ class AuthTest extends TestCase
         $this->postJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'GoodPassword123!',
+            'agency_slug' => $agency->slug,
         ])->assertOk()->assertJsonPath('user.role', Role::AgencyOwner->value);
 
         $this->assertAuthenticatedAs($user);

@@ -29,9 +29,14 @@ class AppServiceProvider extends ServiceProvider
             $email = $request->input('email');
             $email = is_string($email) ? Str::lower($email) : '';
 
-            return Limit::perMinute(5)->by(Str::lower(trim($email)).'|'.$request->ip());
+            $slug = $request->input('agency_slug');
+            $slug = is_string($slug) ? Str::lower($slug) : '';
+
+            return Limit::perMinute(5)->by(Str::lower(trim($email)).'|'.$slug.'|'.$request->ip());
         });
 
+        // The anonymous portal brand lookup: 30 a minute per IP.
+        RateLimiter::for('public-branding', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
         RateLimiter::for('auth-admin-signup', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('project-create', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));

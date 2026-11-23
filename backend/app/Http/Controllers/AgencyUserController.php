@@ -43,7 +43,7 @@ class AgencyUserController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn (User $user): array => [
-                ...$accounts->userPayload($user),
+                ...$this->forViewer($accounts->userPayload($user), $viewer),
                 'is_active' => $user->is_active,
                 'can_manage' => $user->agency_id === $viewer->agency_id
                     && in_array($user->role->value, $accounts->agencyManagedRoles(), true),
@@ -79,6 +79,24 @@ class AgencyUserController extends Controller
         return response()->json(['message' => 'The account was permanently deleted.']);
     }
 
+    /**
+     * What an agency user may learn about another account: employees appear only as "team members" of their own agency,
+     * with nothing that says whether they are dedicated or shared with other agencies.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function forViewer(array $payload, User $viewer): array
+    {
+        if (($payload['role'] ?? null) === 'employee') {
+            $payload['role'] = 'team_member';
+            $payload['agency_id'] = null;
+            $payload['agency_name'] = $viewer->agency ? \App\Services\AgencyBrandingPresenter::displayName($viewer->agency) : null;
+        }
+
+        return $payload;
+    }
+
     public function agencyDirectory(Request $request, UserAccountService $accounts): JsonResponse
     {
         $member = $request->user();
@@ -99,7 +117,7 @@ class AgencyUserController extends Controller
             ->orderBy('id')
             ->get()
             ->map(fn (User $user): array => [
-                ...$accounts->userPayload($user),
+                ...$this->forViewer($accounts->userPayload($user), $member),
                 'is_active' => $user->is_active,
             ]);
 
@@ -120,8 +138,8 @@ class AgencyUserController extends Controller
                 'id' => $employee->id,
                 'name' => $employee->name,
                 'email' => $employee->email,
-                'role' => $employee->role->value,
-                'agency_name' => 'Shared employee',
+                'role' => 'team_member',
+                'agency_name' => \App\Services\AgencyBrandingPresenter::displayName($viewer->agency),
                 'is_active' => $employee->is_active,
             ]);
 

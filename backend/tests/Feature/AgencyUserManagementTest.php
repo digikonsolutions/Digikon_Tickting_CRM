@@ -30,7 +30,7 @@ class AgencyUserManagementTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'users')
             ->assertJsonPath('users.0.id', $employee->id)
-            ->assertJsonPath('users.0.role', Role::Employee->value)
+            ->assertJsonPath('users.0.role', 'team_member')
             ->assertJsonPath('users.0.is_active', true);
     }
 
@@ -199,7 +199,7 @@ class AgencyUserManagementTest extends TestCase
             ->assertOk()
             ->assertJsonFragment([
                 'id' => $globalEmployee->id,
-                'role' => Role::Employee->value,
+                'role' => 'team_member',
                 'can_manage' => false,
             ]);
 
@@ -556,15 +556,15 @@ class AgencyUserManagementTest extends TestCase
             ->getJson('/api/agency/team')
             ->assertOk()
             ->assertJsonCount(2, 'employees')
-            ->assertJsonFragment(['id' => $sharedEmployee->id, 'role' => Role::Employee->value])
-            ->assertJsonFragment(['id' => $anotherSharedEmployee->id, 'role' => Role::Employee->value])
+            ->assertJsonFragment(['id' => $sharedEmployee->id, 'role' => 'team_member'])
+            ->assertJsonFragment(['id' => $anotherSharedEmployee->id, 'role' => 'team_member'])
             ->assertJsonMissing(['id' => $owner->id]);
 
         $this->actingAs($owner)
             ->getJson('/api/agency/team')
             ->assertOk()
             ->assertJsonCount(2, 'employees')
-            ->assertJsonFragment(['id' => $sharedEmployee->id, 'role' => Role::Employee->value]);
+            ->assertJsonFragment(['id' => $sharedEmployee->id, 'role' => 'team_member']);
 
         $employee = User::factory()->create(['role' => Role::Employee]);
         $this->actingAs($employee)->getJson('/api/agency/team')->assertForbidden();

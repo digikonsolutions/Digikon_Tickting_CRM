@@ -41,8 +41,7 @@ class EmployeeAssignmentController extends Controller
             'id' => $employee->id,
             'name' => $employee->name,
             'email' => $employee->email,
-            'role' => $employee->role->value,
-            'agency_id' => $employee->agency_id,
+            'role' => 'team_member',
             ...$profiles->publicSummary($employee),
         ])->values()]);
     }
@@ -67,13 +66,13 @@ class EmployeeAssignmentController extends Controller
                     || ! in_array($employee->agency_id, [null, $agency->id], true)
                 ) {
                     throw ValidationException::withMessages([
-                        'employee_id' => 'Choose an active employee assigned to your agency or a shared employee.',
+                        'employee_id' => 'Choose an available team member.',
                     ]);
                 }
 
                 if (EmployeeAssignment::query()->where('active_employee_id', $employee->id)->exists()) {
                     throw ValidationException::withMessages([
-                        'employee_id' => 'This employee is already held by another agency client or owner.',
+                        'employee_id' => 'This team member is not available.',
                     ]);
                 }
 
@@ -93,7 +92,7 @@ class EmployeeAssignmentController extends Controller
             }
 
             throw ValidationException::withMessages([
-                'employee_id' => 'This employee is already held by another agency client or owner.',
+                'employee_id' => 'This team member is not available.',
             ]);
         }
 

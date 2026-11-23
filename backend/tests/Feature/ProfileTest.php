@@ -73,6 +73,7 @@ class ProfileTest extends TestCase
             'agency_name' => $user->agency_id ? 'Northwind' : null,
             'photo_url' => null,
             // Agency-scoped roles carry their agency's branding (covered in AgencyBrandingTest); others null.
+            'agency' => $role->isAgencyRole() ? $response->json('user.agency') : null,
             'branding' => $role->isAgencyRole() ? $response->json('user.branding') : null,
             ...($role === Role::Employee ? ['monitoring_consent_required' => true] : []),
         ]]);
@@ -207,7 +208,7 @@ class ProfileTest extends TestCase
         // The real login endpoint agrees: the old password no longer works, the new one does.
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => self::OLD_PASSWORD])->assertUnprocessable();
-        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => self::NEW_PASSWORD])
+        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => self::NEW_PASSWORD, 'agency_slug' => $user->agency?->slug])
             ->assertOk()->assertJsonPath('user.role', $role->value);
     }
 

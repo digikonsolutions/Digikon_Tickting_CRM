@@ -519,7 +519,7 @@ class TicketController extends Controller
         );
         app(ActivityLogger::class)->ticketCommented($user, $ticket, $isInternal);
 
-        return response()->json(['comment' => $this->commentPayload($comment->setRelation('user', $user))], 201);
+        return response()->json(['comment' => $this->commentPayload($comment->setRelation('user', $user), $user)], 201);
     }
 
     /**
@@ -544,7 +544,7 @@ class TicketController extends Controller
             ->values();
 
         return response()->json([
-            'comments' => $comments->map(fn (TicketComment $comment): array => $this->commentPayload($comment))->values(),
+            'comments' => $comments->map(fn (TicketComment $comment): array => $this->commentPayload($comment, $request->user()))->values(),
             'total' => $commentsQuery->count(),
         ]);
     }
@@ -614,16 +614,17 @@ class TicketController extends Controller
             : collect();
 
         $attachmentsByEvent = app(AttachmentPresenter::class)->forEvents(collect($paginated->items())->pluck('id'), $canViewInternal, $user, $ticket);
-        $items = collect($paginated->items())->map(function (TicketEvent $event) use ($commentsById, $attachmentsByEvent): array {
+        $items = collect($paginated->items())->map(function (TicketEvent $event) use ($commentsById, $attachmentsByEvent, $user): array {
             $commentBody = isset($event->payload['comment_id']) ? ($commentsById[$event->payload['comment_id']] ?? null) : null;
 
             return [
                 'id' => $event->id,
                 'type' => $event->type,
-                'actor' => [
-                    'name' => $event->actor_name ?? 'System',
-                    'role' => $event->actor_role ?? 'system',
-                ],
+                'actor' => (function () use ($event, $user): array {
+                    $a = $this->presentAuthor($user, $event->actor_id, $event->actor_name ?? 'System', $event->actor_role ?? 'system');
+
+                    return ['name' => $a['name'], 'role' => $a['role']];
+                })(),
                 'visibility' => $event->visibility,
                 'created_at' => $event->created_at?->toISOString(),
                 'payload' => $event->payload ?? [],
@@ -656,16 +657,17 @@ class TicketController extends Controller
 
         $attachmentsByEvent = app(AttachmentPresenter::class)->forEvents($events->pluck('id'), $canViewInternal, $user, $ticket);
 
-        return $events->map(function (TicketEvent $event) use ($commentsById, $attachmentsByEvent): array {
+        return $events->map(function (TicketEvent $event) use ($commentsById, $attachmentsByEvent, $user): array {
             $commentBody = isset($event->payload['comment_id']) ? ($commentsById[$event->payload['comment_id']] ?? null) : null;
 
             return [
                 'id' => $event->id,
                 'type' => $event->type,
-                'actor' => [
-                    'name' => $event->actor_name ?? 'System',
-                    'role' => $event->actor_role ?? 'system',
-                ],
+                'actor' => (function () use ($event, $user): array {
+                    $a = $this->presentAuthor($user, $event->actor_id, $event->actor_name ?? 'System', $event->actor_role ?? 'system');
+
+                    return ['name' => $a['name'], 'role' => $a['role']];
+                })(),
                 'visibility' => $event->visibility,
                 'created_at' => $event->created_at?->toISOString(),
                 'payload' => $event->payload ?? [],
@@ -697,16 +699,30 @@ class TicketController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function commentPayload(TicketComment $comment): array
+    /**
+     * Agency users never see who on the platform side wrote something: admin and other internal staff are shown as
+     * "{agency display name} Support" with no id and no role.
+     *
+     * @return array{id: int|null, name: string, role: string}
+     */
+    private function presentAuthor(User $viewer, ?int $id, string $name, string $role): array
+    {
+        if ($viewer->role->isAgencyRole() && in_array($role, ['admin', 'team_lead', 'qa'], true) && $viewer->agency) {
+            return ['id' => null, 'name' => \App\Services\AgencyBrandingPresenter::displayName($viewer->agency).' Support', 'role' => 'support'];
+        }
+
+        return ['id' => $id, 'name' => $name, 'role' => $role];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function commentPayload(TicketComment $comment, User $viewer): array
     {
         return [
             'id' => $comment->id,
             'ticket_id' => $comment->ticket_id,
-            'user' => [
-                'id' => $comment->user->id,
-                'name' => $comment->user->name,
-                'role' => $comment->user->role->value,
-            ],
+            'user' => $this->presentAuthor($viewer, $comment->user->id, $comment->user->name, $comment->user->role->value),
             'body' => $comment->body,
             'is_internal' => (bool) $comment->is_internal,
             'created_at' => $comment->created_at?->toISOString(),

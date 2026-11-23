@@ -18,7 +18,7 @@ class UpdateAgencyBrandingRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $clean = [];
-        foreach (['display_name', 'tagline', 'welcome_message'] as $field) {
+        foreach (['display_name', 'tagline', 'welcome_message', 'email_from_name'] as $field) {
             $value = $this->input($field);
             if (is_string($value)) {
                 $value = trim((string) preg_replace('/[\s\p{Z}]+/u', ' ', $value));
@@ -43,6 +43,8 @@ class UpdateAgencyBrandingRequest extends FormRequest
             'display_name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'tagline' => ['sometimes', 'nullable', 'string', 'max:160'],
             'welcome_message' => ['sometimes', 'nullable', 'string', 'max:240'],
+            'support_email' => ['sometimes', 'nullable', 'email:rfc', 'max:254'],
+            'email_from_name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'primary_color' => ['sometimes', 'nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'accent_color' => ['sometimes', 'nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'theme_mode' => ['sometimes', 'in:'.implode(',', AgencyBranding::THEME_MODES)],

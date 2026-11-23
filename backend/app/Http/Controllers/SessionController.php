@@ -26,7 +26,10 @@ class SessionController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email', 'max:254'],
             'password' => ['required', 'string', 'max:128'],
+            'agency_slug' => ['sometimes', 'nullable', 'string', 'max:60'],
         ]);
+        $slug = isset($credentials['agency_slug']) ? strtolower($credentials['agency_slug']) : null;
+        unset($credentials['agency_slug']);
 
         if (! Auth::guard('web')->attempt($credentials)) {
             return response()->json(['message' => 'The provided credentials are incorrect.'], 422);
@@ -35,7 +38,10 @@ class SessionController extends Controller
         $user = $request->user();
         $user->loadMissing('agency');
 
-        if (! $user->is_active || ($user->agency && $user->agency->status !== 'active')) {
+        // Agency users sign in only through their own portal: the slug must match their agency. Every mismatch gets the
+        // same generic answer as a wrong password, so nobody learns which portal an account belongs to.
+        $wrongPortal = $user->role->isAgencyRole() && ($slug === null || $user->agency?->slug !== $slug);
+        if ($wrongPortal || ! $user->is_active || ($user->agency && $user->agency->status !== 'active')) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

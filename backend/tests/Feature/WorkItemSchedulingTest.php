@@ -526,7 +526,7 @@ class WorkItemSchedulingTest extends TestCase
         $this->actingAs($client)
             ->getJson('/api/agency/directory')
             ->assertOk()
-            ->assertJsonFragment(['id' => $employee->id, 'role' => Role::Employee->value]);
+            ->assertJsonFragment(['id' => $employee->id, 'role' => 'team_member']);
     }
 
     private function createAssignment(User $holder, User $employee): EmployeeAssignment

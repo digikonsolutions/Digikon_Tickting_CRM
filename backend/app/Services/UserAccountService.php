@@ -80,12 +80,14 @@ class UserAccountService
             'email' => $user->email,
             'role' => $user->role->value,
             'agency_id' => $user->agency_id,
-            'agency_name' => $user->agency?->name,
+            // Agency users only ever see their own brand name, never the internal agency record's name.
+            'agency_name' => $user->agency && $user->role->isAgencyRole() ? AgencyBrandingPresenter::displayName($user->agency) : $user->agency?->name,
             'photo_url' => $user->photoUrl(),
         ];
 
         // Agency-scoped users (owner, client, legacy member) get their agency's branding on every session
         // load so the app can theme itself before first paint. Everyone else keeps the default look.
+        $payload['agency'] = $user->role->isAgencyRole() && $user->agency ? AgencyBrandingPresenter::present($user->agency) : null;
         $payload['branding'] = $user->role->isAgencyRole() && $user->agency
             ? app(AgencyBrandingService::class)->payload($user->agency)
             : null;

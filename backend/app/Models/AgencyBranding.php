@@ -32,6 +32,8 @@ class AgencyBranding extends Model
         'sidebar_style',
         'corner_style',
         'welcome_message',
+        'support_email',
+        'email_from_name',
         // Cloudinary fields
         'logo_public_id',
         'logo_url',

@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminPlanController;
 use App\Http\Controllers\ContractDocumentController;
 use App\Http\Controllers\AdminEmployeeController;
 use App\Http\Controllers\AgencyClientController;
+use App\Http\Controllers\PublicBrandingController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\AgencyRequestController;
 use App\Http\Controllers\AgencyDashboardController;
@@ -182,6 +183,9 @@ Route::middleware(['web', 'auth', 'role:agency_owner,agency_client', 'agency.act
     Route::get('/{workItem}/timeline', [TimelineController::class, 'agencyShow']);
     Route::post('/{workItem}/timeline/respond', [TimelineController::class, 'respond'])->middleware('throttle:60,1');
 });
+
+Route::middleware(['web', 'throttle:public-branding'])->get('/public/agencies/{slug}/branding', [PublicBrandingController::class, 'show'])
+    ->where('slug', '[A-Za-z0-9-]{1,60}');
 
 Route::middleware(['web', 'auth', 'role:admin'])->get('/admin/reports/{type}', [ReportController::class, 'admin'])
     ->whereIn('type', ['overview', 'employees', 'agencies', 'projects', 'tickets', 'assignments']);
