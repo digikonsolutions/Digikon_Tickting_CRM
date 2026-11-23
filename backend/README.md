@@ -168,6 +168,29 @@ Every ticket event is turned into notifications by one listener (`SendTicketNoti
 
 Repeat notifications of the same type for the same ticket within 10 minutes are coalesced into one unread row with a `count`. Preferences default to in-app on for everything and email on only for "needs your input" and "rescheduled"; the in-app switch for "needs your input" cannot be turned off. Emails carry a `[KEY] Title` subject, a one-line summary, at most 200 characters of the public comment, a button to `FRONTEND_URL` + `url_path` and a footer link to `/settings/notifications`.
 
+### Team queue and urgent requests
+
+Each employee held by an agency has a **queue**: the ordered list of that assignment's open projects (`work_items.queue_position`, audit trail in `queue_events`). `EmployeeQueuePlanner` allocates the whole queue earliest-first in queue order (6 h/day, 36 h/week, Mon-Sat, `non_working_dates`, today only before `today_cutoff_hour`); hours already worked and today's hours once the cutoff has passed are frozen, and a project with a ticket in progress stays in front and keeps today's hours. A reorder (or a new project) that would push a project further past its due date than it already is fails as a whole with `422` (`errors.ordered_work_item_ids` plus a `conflicts` list) and saves nothing. Project creation appends to the end of the queue through the same planner. There is no auto-assignment: the owner assigns and orders by hand, helped by `capacity.free_from`.
+
+| Endpoint | Who |
+|---|---|
+| `GET /api/agency/assignments/{id}/queue` (`now`, `up_next`, `capacity`) | agency owner, agency client |
+| `POST .../queue/preview`, `PATCH .../queue/reorder` (`ordered_work_item_ids`, every open project once; 20/min) | agency owner |
+| `GET /api/work-items/mine/queue` | the employee (read-only, no prices) |
+| `GET /api/admin/employees/{id}/queue`, `GET /api/admin/rush-requests`, `POST .../{id}/quote`, `POST .../{id}/reject`, `GET /api/admin/charges` | admin |
+| `GET/POST /api/agency/rush-requests`, `PATCH .../{id}/cancel`, `POST .../{id}/accept`, `POST .../{id}/decline` | owner and client raise/cancel; **only the owner accepts or declines** |
+
+**Urgent ("rush") requests** come in two kinds. `priority_insert`: a project jumps the held employee's queue, right behind work already in progress (never interrupting it). `extra_employee`: the agency asks for another team member; the admin picks an available employee (never shown to the agency) and quotes; on acceptance a temporary assignment (`employee_assignments.expires_at`, `source = rush`) with the requested project is created. An admin quotes an amount in integer minor units (`config/billing.php`: currency, default validity); the owner accepts, and in one transaction the project is planned, an `agency_charges` row (`unbilled`) is written and the request becomes `fulfilled`. If the insert would push other projects past their due dates, the accept call returns `422` with `requires_confirmation` and the `impact`, and needs `confirm_impact: true`. There is no payment gateway: `AgencyCharge` is the invoice-ready ledger and the documented extension point. Rush work obeys capacity and the 180 h cap. An extra-employee rejection always reads "No team member is available for this request."
+
+**Running it locally on Windows / XAMPP.** Two extra terminals next to `php artisan serve` (or use `composer dev`, which starts the worker):
+
+```powershell
+php artisan queue:work      # sends queue and rush notifications (QUEUE_CONNECTION=database)
+php artisan schedule:work   # runs rush:expire-quotes and assignments:expire-temporary every 5 minutes
+```
+
+Both commands can also be run by hand (`php artisan rush:expire-quotes`, `php artisan assignments:expire-temporary`). Notifications are queued jobs (`NotifyRushRequest`, `NotifyQueueChange`); the replan itself always runs synchronously inside the request. In tests the queue is `sync`, and `Queue::fake()` / `Notification::fake()` make delivery assertable.
+
 ### Attachments
 
 Files are stored on a private disk (`config/attachments.php`, never `public`) under UUID names and are only reachable through `GET /api/attachments/{id}/download`, which re-checks ticket access, sends `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment` (inline only for png/jpeg/gif/webp). The file content is sniffed with `finfo` and must agree with the extension; svg, html, js, php and executables are rejected, zip only when `ATTACHMENTS_ALLOW_ARCHIVES=true`. Attachments are scanned through the `AttachmentScanner` contract (`NullScanner` by default; bind a real one such as ClamAV in `AppServiceProvider`). Adding or removing a file records an `attachment_added` / `attachment_removed` event (internal when the file is internal).

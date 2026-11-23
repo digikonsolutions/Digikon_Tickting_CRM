@@ -62,6 +62,18 @@ class NotificationPreferences
             'email_default' => true,
             'locked' => true,
         ],
+        'queue' => [
+            'label' => 'Queue changes',
+            'description' => 'Your queue of projects was reordered or changed.',
+            'email_default' => false,
+            'locked' => false,
+        ],
+        'rush' => [
+            'label' => 'Urgent requests',
+            'description' => 'Urgent requests, quotes and their outcome.',
+            'email_default' => true,
+            'locked' => false,
+        ],
         'assignment' => [
             'label' => 'Team assignments',
             'description' => 'Employee holds and assignment updates.',

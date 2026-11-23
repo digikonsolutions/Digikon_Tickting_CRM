@@ -295,6 +295,37 @@ class RushRequestFlowTest extends TestCase
         $this->assertSame($temp->id, RushRequest::query()->find($id)->temp_assignment_id);
     }
 
+    public function test_the_temporary_assignment_ends_by_itself_at_its_expiry(): void
+    {
+        $pool = $this->makeEmployee('Pool Person', ['agency_id' => null]);
+        $id = $this->submitAndQuote(
+            ['type' => 'extra_employee', 'title' => 'Sprint', 'description' => 'Build.', 'estimated_hours' => 6, 'needed_by' => $this->day(2)],
+            1000,
+            $this->owner,
+            ['employee_id' => $pool->id],
+        );
+        $this->actingAs($this->owner)->postJson("/api/agency/rush-requests/$id/accept")->assertOk();
+        $temp = EmployeeAssignment::query()->where('employee_id', $pool->id)->sole();
+        $project = WorkItem::query()->where('assignment_id', $temp->id)->sole();
+
+        // Before the end of the needed-by day nothing happens.
+        $this->travelTo($this->mon->addDays(2)->setTime(12, 0));
+        $this->artisan('assignments:expire-temporary')->expectsOutputToContain('Ended 0')->assertSuccessful();
+        $this->assertSame('active', $temp->fresh()->status);
+
+        $this->travelTo($this->mon->addDays(3)->setTime(0, 5));
+        $this->artisan('assignments:expire-temporary')->expectsOutputToContain('Ended 1')->assertSuccessful();
+
+        $this->assertSame('ended', $temp->fresh()->status);
+        $this->assertNull($temp->fresh()->active_employee_id);
+        $this->assertSame('cancelled', $project->fresh()->status);
+        $this->assertSame(0, $project->fresh()->queue_position);
+        $this->assertSame('active', $this->assignment->fresh()->status, 'the agency\'s regular team is untouched');
+        // The employee is free again for any agency.
+        $this->assertFalse(EmployeeAssignment::query()->where('active_employee_id', $pool->id)->exists());
+        $this->artisan('assignments:expire-temporary')->expectsOutputToContain('Ended 0');
+    }
+
     public function test_extra_employee_rejection_shows_only_the_generic_message(): void
     {
         $id = $this->actingAs($this->owner)->postJson('/api/agency/rush-requests', [

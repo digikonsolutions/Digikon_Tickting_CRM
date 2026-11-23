@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Http\Requests\ReorderQueueRequest;
+use App\Jobs\NotifyQueueChange;
 use App\Models\EmployeeAssignment;
 use App\Models\User;
 use App\Services\EmployeeQueuePlanner;
@@ -38,6 +39,7 @@ class QueueController extends Controller
         $employee = $this->employeeFor($user, $assignment, ownerOnly: true);
 
         $result = $planner->reorder($employee, $request->validated('ordered_work_item_ids'), $user);
+        NotifyQueueChange::dispatch($employee->id, 'reordered', $user->id);
 
         return response()->json([
             ...$presenter->present($employee),

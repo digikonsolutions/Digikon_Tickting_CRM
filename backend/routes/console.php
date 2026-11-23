@@ -16,3 +16,9 @@ Schedule::command('activity:maintain')->everyFiveMinutes();
 
 // Emails admins about timelines that have waited 24 h and 48 h for review. Needs `php artisan schedule:work` (or a cron entry).
 Schedule::command('timeline:remind')->hourly();
+
+// Urgent-request quotes past their expiry are marked expired. Needs `php artisan schedule:work` (or a cron entry).
+Schedule::command('rush:expire-quotes')->everyFiveMinutes();
+
+// Temporary employee assignments (extra team member on a rush request) end at their expiry.
+Schedule::command('assignments:expire-temporary')->everyFiveMinutes();
