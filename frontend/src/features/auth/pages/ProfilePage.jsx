@@ -46,7 +46,7 @@ function NameCard({ user, updateUser }) {
   }
 
   return (
-    <Card className="ui-form-card" title="Profile details" description="Your role and agency can only be changed by an administrator or your agency owner.">
+    <Card className="ui-form-card" title="Profile details" description="Your role and agency can only be changed by your agency owner or support.">
       <form className="ui-form" onSubmit={saveProfile} aria-label="Profile details" noValidate>
         <FormSection title="You">
           <Input
@@ -61,7 +61,7 @@ function NameCard({ user, updateUser }) {
             error={error?.errors?.name?.[0]}
             helperText="Shown to your team in the sidebar, tickets and comments."
           />
-          <Input id="profile-email" label="Email address" value={user.email} disabled helperText="Ask an administrator to change your email address." />
+          <Input id="profile-email" label="Email address" value={user.email} disabled helperText="Contact support to change your email address." />
         </FormSection>
         <FormSection title="Access">
           <div className="ui-field">

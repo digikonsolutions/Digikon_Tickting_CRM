@@ -333,8 +333,8 @@ export function AgencyEmployeesPage() {
                     {(employee.top_skills ?? []).map((skill) => <Badge key={skill} variant="slate">{skill}</Badge>)}
                   </div>
                 </div>
-                <Badge variant={employee.agency_id ? 'primary' : 'info'}>
-                  {employee.agency_id ? 'Agency' : 'Shared'}
+                <Badge variant="info">
+                  Team member
                 </Badge>
                 <div className="ae-drawer-row-actions">
                   <Button

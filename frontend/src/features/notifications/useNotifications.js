@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { authService } from '../../auth/authService'
 
 const POLL_MS = 30000
-export const NOTIFICATIONS_CHANGED = 'clienthub:notifications-changed'
+export const NOTIFICATIONS_CHANGED = 'app:notifications-changed'
 
 // Tell every mounted bell to refetch (after marking things read on the notifications page, for example).
 export function announceNotificationsChanged() {

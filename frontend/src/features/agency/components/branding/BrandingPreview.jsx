@@ -23,7 +23,7 @@ export function BrandingPreview({ draft, logoUrl, faviconUrl, agencyName, system
   const [override, setOverride] = useState(null)
   const theme = override ?? resolveTheme(draft, systemDark)
   const vars = brandingVariables(draft, { dark: theme === 'dark', complete: true })
-  const name = draft.display_name?.trim() || agencyName || 'ClientHub'
+  const name = draft.display_name?.trim() || agencyName || 'Your agency'
   const mark = name.charAt(0).toUpperCase()
   const welcome = draft.welcome_message?.trim() || 'Here is what needs your attention today.'
   const eyebrow = draft.tagline?.trim() || 'Agency client'

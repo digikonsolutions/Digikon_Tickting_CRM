@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useBlocker } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
@@ -132,7 +132,7 @@ function BrandingForm({ initial }) {
       setDraft(toDraft(branding))
       setResetKey((key) => key + 1)
       setConfirmReset(false)
-      showToast('Branding reset to the ClientHub defaults.')
+      showToast('Branding reset to the defaults.')
     } catch (reason) {
       setConfirmReset(false)
       setError(reason)
@@ -185,7 +185,7 @@ function BrandingForm({ initial }) {
                 maxLength={120}
                 onChange={(event) => set('display_name', event.target.value)}
                 error={fieldError('display_name')}
-                helperText={`Replaces "ClientHub" in the sidebar and browser tab. Leave empty to use ${agencyName ?? 'the default'}. (${draft.display_name.length}/120)`}
+                helperText={`Shown in the sidebar, sign-in page and browser tab. Leave empty to use ${agencyName ?? 'the default'}. (${draft.display_name.length}/120)`}
               />
               <Input
                 label="Tagline"

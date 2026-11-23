@@ -89,7 +89,7 @@ export function ColorField({ label, value, onChange, error, helperText, fallback
           ? contrast.passes
             ? `AA pass ${contrast.ratio.toFixed(1)}:1 with white text`
             : `Too light for white text (${contrast.ratio.toFixed(1)}:1, needs 4.5:1). Pick a darker shade.`
-          : 'Using the ClientHub default.'}
+          : 'Using the default colour.'}
       </p>
       {helperText && <p className="ui-field-help" id={`${id}-help`}>{helperText}</p>}
       {message && <p className="ui-field-error">{message}</p>}

@@ -91,7 +91,7 @@ export function ClientFormModal({ client, onClose, onSaved }) {
           <Input id="client-address" label="Address" maxLength={255} value={values.address} onChange={set('address')} error={fieldError('address')} />
         </FormSection>
         <FormSection title="Notes">
-          <Textarea id="client-notes" label="Internal notes" rows={3} maxLength={2000} helperText="Only you and administrators see these." value={values.notes} onChange={set('notes')} error={fieldError('notes')} />
+          <Textarea id="client-notes" label="Internal notes" rows={3} maxLength={2000} helperText="Only you and your support team see these." value={values.notes} onChange={set('notes')} error={fieldError('notes')} />
         </FormSection>
         {!editing && (
           <label className="ui-checkbox-row">

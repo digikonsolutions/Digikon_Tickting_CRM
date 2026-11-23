@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
 
         if (app()->environment('local')) {
             $this->call(LocalAdminSeeder::class);
+            $this->call(WhiteLabelDemoSeeder::class);
         }
     }
 }

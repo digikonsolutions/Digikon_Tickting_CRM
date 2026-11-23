@@ -84,7 +84,7 @@ export function AgencyDirectoryPage() {
           rows={users}
           loading={isLoading}
           emptyTitle="No agency members found"
-          emptyText="There are no other agency users to show."
+          emptyText="There is nobody else to show yet."
         />
       </Card>
     </section>

@@ -36,7 +36,7 @@ export function ContractStrip({ dashboard }) {
     return (
       <div className="agd-strip is-empty" role="status">
         <Icon name="file" size={18} />
-        <span><strong>No contract on file.</strong> Your administrator has not set a plan yet, so no seat or hour limits apply.</span>
+        <span><strong>No contract on file.</strong> Your plan has not been set up yet, so no seat or hour limits apply.</span>
       </div>
     )
   }
@@ -112,7 +112,7 @@ export function ContractCard({ dashboard, onRequest }) {
             {rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? <span className="adm-muted">—</span>}</dd></div>)}
           </dl>
         ) : (
-          <EmptyState icon={<Icon name="file" size={22} />} title="No contract">Plans, included hours and renewal dates appear here once your administrator sets up a contract.</EmptyState>
+          <EmptyState icon={<Icon name="file" size={22} />} title="No contract">Plans, included hours and renewal dates appear here once your contract is set up.</EmptyState>
         )}
         {contract?.features?.length > 0 && (
           <div>

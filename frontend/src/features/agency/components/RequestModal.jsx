@@ -12,7 +12,7 @@ const REQUEST_COPY = {
   renewal: { title: 'Request a renewal', hint: 'Anything we should know about your renewal?' },
 }
 
-// One request to the administrators, with notes and optional files. Mount it with a `key` so it starts empty each time.
+// One request to your support team, with notes and optional files. Mount it with a `key` so it starts empty each time.
 export function RequestModal({ type, onClose, onSent }) {
   const { showToast } = useToast()
   const [message, setMessage] = useState('')
@@ -29,7 +29,7 @@ export function RequestModal({ type, onClose, onSent }) {
     setError(null)
     try {
       await authService.sendAgencyRequest({ type, message: message.trim(), files })
-      showToast('Request sent. An administrator will get back to you.')
+      showToast('Request sent. We will get back to you.')
       onSent?.()
       onClose()
     } catch (reason) {
