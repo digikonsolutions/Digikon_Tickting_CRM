@@ -35,6 +35,12 @@ class SendTicketNotifications
             return;
         }
 
+        if ($ticket->usesLifecycle()) {
+            $this->handleSupport($event, $ticket);
+
+            return;
+        }
+
         $plan = $this->plan($event, $ticket);
         if ($plan === null) {
             return;
@@ -52,6 +58,26 @@ class SendTicketNotifications
 
         foreach ($this->eligible($plan['recipients'], $event->actor_id) as $user) {
             $this->notifier->send($user, $plan['class'], $payload);
+        }
+    }
+
+    /** Support-module tickets: the notification matrix decides who hears about it; each person gets a link to their own screen. */
+    private function handleSupport(TicketEvent $event, Ticket $ticket): void
+    {
+        $ticket->loadMissing(['submitter', 'assignee', 'reviewer', 'agency']);
+        foreach (app(\App\Services\Support\SupportNotificationPlanner::class)->plan($event, $ticket) as $plan) {
+            // The person who submits a ticket gets the confirmation of their own action; every other event skips the actor.
+            foreach ($this->eligible($plan['recipients'], $event->type === 'created' ? null : $event->actor_id) as $user) {
+                $this->notifier->send($user, $plan['class'], [
+                    'ticket_id' => $ticket->id,
+                    'ticket_key' => $ticket->ref,
+                    'title' => $plan['title'],
+                    'body' => $plan['body'],
+                    'excerpt' => $plan['excerpt'] ?? null,
+                    'url_path' => $user->role->isAgencyRole() ? '/agency/support/'.$ticket->ref : '/staff/tickets/'.$ticket->ref,
+                    'actor_name' => $event->actor_name,
+                ]);
+            }
         }
     }
 

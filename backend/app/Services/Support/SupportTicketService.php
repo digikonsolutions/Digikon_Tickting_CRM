@@ -16,6 +16,7 @@ class SupportTicketService
         private TicketNumberGenerator $numbers,
         private SecretScanner $scanner,
         private TicketEventRecorder $recorder,
+        private SlaService $sla,
     ) {}
 
     /**
@@ -81,6 +82,7 @@ class SupportTicketService
                 'secret_flagged_at' => $kinds !== [] ? now() : null,
             ]);
             $this->recorder->record($ticket, 'created', ['type' => $type], $user, 'public');
+            $this->sla->start($ticket);
             if ($kinds !== []) {
                 $this->recorder->record($ticket, 'secret_flagged', ['kinds' => $kinds], $user, 'internal');
             }
@@ -133,6 +135,7 @@ class SupportTicketService
         }
         $from = $ticket->priority;
         $ticket->forceFill(['priority' => $priority])->save();
+        $this->sla->reprioritize($ticket);
         $this->recorder->record($ticket, 'priority_changed', ['from' => $from, 'to' => $priority, 'from_label' => config("support.priorities.{$from}.label"), 'to_label' => config("support.priorities.{$priority}.label")], $actor, 'public');
         if ($reason) {
             $this->recorder->record($ticket, 'priority_reason', ['reason' => $reason], $actor, 'internal');

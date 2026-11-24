@@ -68,6 +68,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
     { to: '/staff/tickets', label: 'Support queue', icon: 'inbox', section: 'Work' },
+    { to: '/staff/reports', label: 'Support reports', icon: 'chart', section: 'Work' },
     { to: '/admin/reports', label: 'Reports', icon: 'chart', section: 'Work' },
     { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
     { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'Work' },
@@ -189,6 +190,7 @@ export function AppLayout() {
       '/agency/tickets': 'Project tickets',
       '/agency/support': 'Support',
       '/staff/tickets': 'Support queue',
+      '/staff/reports': 'Support reports',
       '/agency/branding': 'Branding',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace'))

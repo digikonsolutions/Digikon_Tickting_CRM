@@ -20,6 +20,7 @@ class WorkItem extends Model
     ];
 
     protected $fillable = [
+        'created_from_ticket_id',
         'agency_id',
         'client_id',
         'assignment_id',

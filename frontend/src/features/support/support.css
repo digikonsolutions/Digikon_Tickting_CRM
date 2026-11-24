@@ -70,3 +70,15 @@
 .sup-thread header { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm); color: var(--color-text-soft); margin-bottom: var(--space-1); }
 .sup-thread p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* SLA states: icon, words and colour together. Staff only. */
+.sup-sla { display: inline-flex; align-items: center; gap: .25rem; font-size: var(--text-sm); font-weight: 600; white-space: nowrap; }
+.sup-sla-ok { color: #15803d; }
+.sup-sla-warn { color: #b45309; }
+.sup-sla-bad { color: #b91c1c; }
+.sup-sla-paused { color: #475569; }
+.sup-sla-done { color: #475569; font-weight: 500; }
+.sup-bars { display: grid; gap: .25rem; margin-bottom: var(--space-3); }
+.sup-bar { display: grid; grid-template-columns: 9rem 1fr 2.5rem; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+.sup-bar i { display: block; height: .625rem; border-radius: 999px; background: var(--brand); min-width: 2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

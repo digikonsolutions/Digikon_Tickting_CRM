@@ -1026,6 +1026,18 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { ticket: { ref } }
     return request(`/staff/tickets/${encodeURIComponent(ref)}`, { method: 'PATCH', body: JSON.stringify(data) })
   },
+  async listTicketAssignments(ref) {
+    if (AUTH_MODE === 'mock') return { assignments: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/assignments`)
+  },
+  async convertStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref }, project: null }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/convert`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getStaffDashboard({ from, to } = {}) {
+    if (AUTH_MODE === 'mock') return { kpis: null }
+    return request(`/staff/dashboard?${new URLSearchParams(Object.entries({ from, to }).filter(([, value]) => value))}`)
+  },
   async listStaffPeople() {
     if (AUTH_MODE === 'mock') return { people: [] }
     return request('/staff/people')

@@ -71,8 +71,8 @@ class TicketPresenter
             ] : null,
             'can_confirm' => $t->usesLifecycle() && $t->status === 'resolved',
             'can_reopen' => $t->usesLifecycle() && in_array($t->status, ['resolved', 'closed'], true) && $workflow->insideReopenWindow($t),
-            // Soft target only. At-risk and breached flags never leave the staff side.
-            'respond_by' => null,
+            // Soft target only: the time we aim to respond by. At-risk and breached flags never leave the staff side.
+            'respond_by' => self::respondBy($t),
             'flagged_secret' => false,
         ];
     }
@@ -88,6 +88,7 @@ class TicketPresenter
             'reopened_count' => $t->reopened_count,
             'scope_classification' => $t->scope_classification,
             'billing_status' => $t->billing_status,
+            'sla' => $t->usesLifecycle() ? app(SlaService::class)->snapshot($t) : null,
         ];
     }
 
@@ -107,7 +108,20 @@ class TicketPresenter
             'first_response_at' => $t->first_response_at?->toISOString(),
             'resolution' => $t->resolution_summary ? ['summary' => $t->resolution_summary, 'category' => $t->resolution_category, 'root_cause' => $t->root_cause, 'resolved_at' => $t->resolved_at?->toISOString(), 'closed_at' => $t->closed_at?->toISOString()] : null,
             'allowed_transitions' => app(SupportWorkflow::class)->allowed($t, $viewer),
+            'converted_to' => $t->converted_to_type ? ['type' => $t->converted_to_type, 'id' => $t->converted_to_id] : null,
             'qa_required' => $t->usesLifecycle() && SupportWorkflow::qaRequired($t),
+            'sla' => $t->usesLifecycle() ? app(SlaService::class)->snapshot($t) : null,
         ];
+    }
+
+    /** "We aim to respond by 3:30 PM": the response due time in the support timezone, until a first reply has been sent. */
+    public static function respondBy(Ticket $t): ?string
+    {
+        if (! $t->usesLifecycle() || $t->first_response_at !== null) {
+            return null;
+        }
+        $clock = ($t->relationLoaded('slaClocks') ? $t->slaClocks : $t->slaClocks()->get())->firstWhere('kind', 'response');
+
+        return $clock && $clock->met_at === null ? $clock->due_at->setTimezone(config('support.timezone'))->format('D j M, g:i A') : null;
     }
 }

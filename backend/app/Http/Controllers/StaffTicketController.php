@@ -7,6 +7,9 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Support\StaffCapability;
 use App\Services\Support\SupportTicketService;
+use App\Services\Support\TicketConversionService;
+use App\Services\Support\TicketKpis;
+use Carbon\CarbonImmutable;
 use App\Services\Support\SupportWorkflow;
 use App\Services\Support\TicketPresenter;
 use App\Services\Support\TicketSearch;
@@ -63,15 +66,17 @@ class StaffTicketController extends Controller
             'priority' => ['sometimes', 'nullable', Rule::in(['low', 'normal', 'high', 'urgent'])], 'status' => ['sometimes', 'nullable', Rule::in(TicketStatus::LIFECYCLE)],
             'service' => ['sometimes', 'nullable', 'string', 'max:30'], 'assigned_to_id' => ['sometimes', 'nullable', 'integer'], 'team' => ['sometimes', 'nullable', 'string', 'max:40'],
             'from' => ['sometimes', 'nullable', 'date_format:Y-m-d'], 'to' => ['sometimes', 'nullable', 'date_format:Y-m-d'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'sort' => ['sometimes', Rule::in(['updated', 'created', 'priority'])],
+            'sort' => ['sometimes', Rule::in(['updated', 'created', 'priority', 'sla'])],
         ]);
         $base = $this->scope($user);
         $counts = [];
         foreach (self::VIEWS as $name) {
             $counts[$name] = $this->view(clone $base, $name, $user)->count();
         }
-        $query = $this->search->apply($this->view(clone $base, $f['view'] ?? 'all', $user), $f, true)->with(['agency', 'endClient', 'relatedProject', 'assignee']);
+        $query = $this->search->apply($this->view(clone $base, $f['view'] ?? 'all', $user), $f, true)->with(['agency', 'endClient', 'relatedProject', 'assignee', 'slaClocks']);
         $query = match ($f['sort'] ?? 'updated') {
+            // Closest running deadline first (breached ones are the oldest), tickets with no running clock last.
+            'sla' => $query->orderByRaw("coalesce((select min(due_at) from ticket_sla_clocks c where c.ticket_id = tickets.id and c.met_at is null and c.paused_at is null), '9999-12-31')")->orderByDesc('updated_at'),
             'created' => $query->orderByDesc('created_at'),
             'priority' => $query->orderByRaw("case priority when 'urgent' then 1 when 'high' then 2 when 'normal' then 3 else 4 end")->orderByDesc('updated_at'),
             default => $query->orderByDesc('updated_at'),
@@ -133,6 +138,42 @@ class StaffTicketController extends Controller
         }
 
         return response()->json(['ticket' => TicketPresenter::staff($this->load($ticket->fresh()), $request->user())]);
+    }
+
+    /** Convert to a project (needs one of the agency's active assignments) or mark as a change request. Idempotent. */
+    public function convert(Request $request, string $ref, TicketConversionService $conversion): JsonResponse
+    {
+        $data = $request->validate(['to' => ['required', Rule::in(['project', 'change_request'])], 'assignment_id' => ['required_if:to,project', 'nullable', 'integer'], 'title' => ['nullable', 'string', 'max:160']]);
+        $ticket = $this->find($request, $ref);
+        $project = null;
+        if ($data['to'] === 'project') {
+            $project = $conversion->toProject($ticket, $request->user(), $data);
+        } else {
+            $conversion->toChangeRequest($ticket, $request->user());
+        }
+
+        return response()->json(['ticket' => TicketPresenter::staff($this->load($ticket->fresh()), $request->user()), 'project' => $project ? ['id' => $project->id, 'title' => $project->title] : null]);
+    }
+
+    /** The agency's active employee assignments, for the convert-to-project dialog. */
+    public function assignments(Request $request, string $ref): JsonResponse
+    {
+        $ticket = $this->find($request, $ref);
+        abort_unless(StaffCapability::manages($request->user()), 403);
+        $rows = \App\Models\EmployeeAssignment::query()->where('agency_id', $ticket->agency_id)->where('status', 'active')->with('employee:id,name')->get();
+
+        return response()->json(['assignments' => $rows->map(fn ($a): array => ['id' => $a->id, 'employee' => $a->employee?->name])->values()]);
+    }
+
+    /** The KPIs of the spec for a date range. Managers, finance and admins. */
+    public function dashboard(Request $request, TicketKpis $kpis): JsonResponse
+    {
+        abort_unless(StaffCapability::has($request->user(), 'triage', 'delivery_manager', 'finance'), 403);
+        $f = $request->validate(['from' => ['sometimes', 'date_format:Y-m-d'], 'to' => ['sometimes', 'date_format:Y-m-d', 'after_or_equal:from']]);
+        $to = CarbonImmutable::parse($f['to'] ?? now()->toDateString());
+        $from = CarbonImmutable::parse($f['from'] ?? $to->subDays(29)->toDateString());
+
+        return response()->json(['kpis' => $kpis->summary($from, $to)]);
     }
 
     /** Staff for the assignee and reviewer pickers. */

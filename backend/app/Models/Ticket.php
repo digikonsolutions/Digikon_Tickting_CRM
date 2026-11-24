@@ -75,6 +75,7 @@ class Ticket extends Model
             'closed_at' => 'datetime',
             'scope_approved_at' => 'datetime',
             'secret_flagged_at' => 'datetime',
+            'waiting_since' => 'datetime',
             'reopened_count' => 'integer',
         ];
     }
@@ -191,5 +192,10 @@ class Ticket extends Model
     public function relatedProject(): BelongsTo
     {
         return $this->belongsTo(WorkItem::class, 'related_project_id');
+    }
+
+    public function slaClocks(): HasMany
+    {
+        return $this->hasMany(TicketSlaClock::class);
     }
 }

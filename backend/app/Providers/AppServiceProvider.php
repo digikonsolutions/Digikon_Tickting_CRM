@@ -18,6 +18,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Swap this binding for a real scanner (ClamAV, a cloud API, ...) without touching the controllers.
         $this->app->bind(\App\Services\Attachments\AttachmentScanner::class, \App\Services\Attachments\NullScanner::class);
+        // Support hours come from config/support.php; AI help is an interface with a null implementation (nothing calls out).
+        $this->app->bind(\App\Services\Support\SlaCalculator::class, fn () => \App\Services\Support\SlaCalculator::fromConfig());
+        $this->app->bind(\App\Services\Support\TicketAssistant::class, \App\Services\Support\NullTicketAssistant::class);
     }
 
     /**

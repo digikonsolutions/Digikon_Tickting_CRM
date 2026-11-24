@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, EmptyState, Icon, Input, LifecyclePriorityBadge, LifecycleStatusBadge, LIFECYCLE_STATUSES, PageHeader, Pagination, PRIORITY_OPTIONS, RelativeTime, SavedViewTabs, Select, Skeleton, TypeBadge } from '../../../components/ui'
+import { Button, EmptyState, Icon, Input, SlaIndicator, LifecyclePriorityBadge, LifecycleStatusBadge, LIFECYCLE_STATUSES, PageHeader, Pagination, PRIORITY_OPTIONS, RelativeTime, SavedViewTabs, Select, Skeleton, TypeBadge } from '../../../components/ui'
 import '../support.css'
 
 const VIEWS = [
@@ -12,6 +12,9 @@ const VIEWS = [
   { id: 'resolved', label: 'Resolved' }, { id: 'reopened', label: 'Recently reopened' }, { id: 'all', label: 'All' },
 ]
 const KPIS = [['all', 'Open and closed'], ['unassigned', 'Unassigned'], ['critical', 'Critical'], ['waiting_agency', 'Waiting for agency'], ['waiting_third_party', 'Waiting for third party'], ['qa', 'In QA'], ['reopened', 'Reopened']]
+
+// The clock that matters next: the response clock until a first reply is sent, then the resolution clock.
+const nextClock = (sla) => (sla.response && sla.response.state !== 'met' ? { clock: sla.response, kind: 'response' } : { clock: sla.resolution, kind: 'resolution' })
 
 // The staff queue: KPI cards that apply a view, saved views with live counts, filters kept in the address, sortable table
 // that turns into cards on a phone.
@@ -45,7 +48,7 @@ export function StaffQueuePage() {
         <Input label="Search" type="search" placeholder="ID, title or text (notes too)" defaultValue={query.q ?? ''} onChange={(event) => set({ q: event.target.value || undefined })} />
         <Select label="Status" value={query.status ?? ''} onChange={(event) => set({ status: event.target.value })}><option value="">Any status</option>{LIFECYCLE_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
         <Select label="Priority" value={query.priority ?? ''} onChange={(event) => set({ priority: event.target.value })}><option value="">Any priority</option>{PRIORITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
-        <Select label="Sort" value={query.sort ?? 'updated'} onChange={(event) => set({ sort: event.target.value === 'updated' ? undefined : event.target.value })}><option value="updated">Recently updated</option><option value="priority">Priority first</option><option value="created">Newest</option></Select>
+        <Select label="Sort" value={query.sort ?? 'updated'} onChange={(event) => set({ sort: event.target.value === 'updated' ? undefined : event.target.value })}><option value="updated">Recently updated</option><option value="sla">Deadline first</option><option value="priority">Priority first</option><option value="created">Newest</option></Select>
       </div>
       <ApiErrorMessage error={error} />
       {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
@@ -56,7 +59,7 @@ export function StaffQueuePage() {
           : (
             <table className="sup-queue">
               <caption className="visually-hidden">Tickets</caption>
-              <thead><tr><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Agency</th><th scope="col">Type</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Owner</th><th scope="col">Updated</th></tr></thead>
+              <thead><tr><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Agency</th><th scope="col">Type</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">SLA</th><th scope="col">Owner</th><th scope="col">Updated</th></tr></thead>
               <tbody>
                 {tickets.map((ticket) => (
                   <tr key={ticket.id} className={ticket.priority === 'urgent' ? 'is-critical' : undefined}>
@@ -66,6 +69,7 @@ export function StaffQueuePage() {
                     <td><TypeBadge label={ticket.type_label ?? 'Project work'} /></td>
                     <td><LifecyclePriorityBadge priority={ticket.priority} label={ticket.priority_label} /></td>
                     <td><LifecycleStatusBadge status={ticket.status} label={ticket.status_label} /></td>
+                    <td>{ticket.sla ? <SlaIndicator clock={nextClock(ticket.sla).clock} kind={nextClock(ticket.sla).kind} /> : null}</td>
                     <td>{ticket.assigned_to?.name ?? <span className="ui-field-help">Unassigned</span>}</td>
                     <td><RelativeTime date={ticket.updated_at} /></td>
                   </tr>

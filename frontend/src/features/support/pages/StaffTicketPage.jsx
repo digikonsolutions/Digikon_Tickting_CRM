@@ -4,11 +4,12 @@ import { authService } from '../../../auth/authService'
 import { useAuth } from '../../../auth/useAuth'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Button, Card, CopyButton, EmptyState, LifecyclePriorityBadge, LifecycleStatusBadge, PageHeader, PlainText, PRIORITY_OPTIONS, RelativeTime, Select, Skeleton, Tabs, TypeBadge, useToast } from '../../../components/ui'
+import { Alert, Button, Card, CopyButton, EmptyState, LifecyclePriorityBadge, LifecycleStatusBadge, PageHeader, PlainText, PRIORITY_OPTIONS, RelativeTime, Select, Skeleton, SlaIndicator, Tabs, TypeBadge, useToast } from '../../../components/ui'
 import { formatDate } from '../../../lib/format'
 import { FilesTab } from '../../tickets/components/FilesTab'
 import { TicketActivityTab } from '../components/TicketActivityTab'
 import { TicketConversation } from '../components/TicketConversation'
+import { ConvertModal } from '../components/ConvertModal'
 import { TransitionModal } from '../components/TransitionModal'
 import '../support.css'
 
@@ -22,6 +23,7 @@ export function StaffTicketPage() {
   const { showToast } = useToast()
   const [tab, setTab] = useState('conversation')
   const [transition, setTransition] = useState(null)
+  const [converting, setConverting] = useState(false)
   const [error, setError] = useState(null)
   const load = useCallback(async () => {
     const [ticket, people] = await Promise.all([authService.getStaffTicket(ref), authService.listStaffPeople().catch(() => ({ people: [] }))])
@@ -56,7 +58,9 @@ export function StaffTicketPage() {
         <LifecycleStatusBadge status={ticket.status} label={ticket.status_label} />
         <LifecyclePriorityBadge priority={ticket.priority} label={ticket.priority_label} />
         <TypeBadge label={ticket.type_label ?? 'Project work'} />
-        {ticket.secret_flagged && <span className="sup-secret">Possible password or key in the text. Check before replying.</span>}
+        {ticket.sla?.response && <SlaIndicator clock={ticket.sla.response} kind="response" />}
+        {ticket.sla?.resolution && <SlaIndicator clock={ticket.sla.resolution} kind="resolution" />}
+        {ticket.secret_flagged &&<span className="sup-secret">Possible password or key in the text. Check before replying.</span>}
       </div>
       <ApiErrorMessage error={error && !error.errors ? error : null} />
       {error?.errors && <Alert variant="error">{Object.values(error.errors).flat()[0]}</Alert>}
@@ -67,6 +71,7 @@ export function StaffTicketPage() {
           <div className="sup-detail-head" role="group" aria-label="Next steps" style={{ marginBottom: 'var(--space-3)' }}>
             {(ticket.allowed_transitions ?? []).map((item) => <Button key={item.to} type="button" variant={['resolved', 'closed'].includes(item.to) ? 'primary' : 'secondary'} onClick={() => setTransition(item)}>{item.label}</Button>)}
             {(ticket.allowed_transitions ?? []).length === 0 && <span className="ui-field-help">No status changes are available to you right now.</span>}
+            {canRoute && !ticket.converted_to && <Button type="button" variant="ghost" onClick={() => setConverting(true)}>Convert…</Button>}
           </div>
         )}
 
@@ -116,6 +121,7 @@ export function StaffTicketPage() {
           </Card>
         </aside>
       </div>
+      {converting && <ConvertModal ticket={ticket} onClose={() => setConverting(false)} onDone={() => { setConverting(false); reload() }} />}
       {transition && <TransitionModal ticket={ticket} transition={transition} meta={meta} onClose={() => setTransition(null)} onDone={() => { setTransition(null); showToast('Status updated.'); reload() }} />}
     </section>
   )

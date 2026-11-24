@@ -14,7 +14,7 @@ use App\Services\TicketEventRecorder;
  */
 class SupportConversation
 {
-    public function __construct(private TicketEventRecorder $recorder, private SecretScanner $scanner) {}
+    public function __construct(private TicketEventRecorder $recorder, private SecretScanner $scanner, private SlaService $sla) {}
 
     public function afterComment(Ticket $ticket, User $author, TicketComment $comment): void
     {
@@ -31,6 +31,7 @@ class SupportConversation
         if (StaffCapability::isStaff($author)) {
             if (! $comment->is_internal && $ticket->first_response_at === null) {
                 $ticket->forceFill(['first_response_at' => now()])->save();
+                $this->sla->met($ticket, 'response');
             }
 
             return;
@@ -49,12 +50,18 @@ class SupportConversation
         $from = $ticket->status;
         $changes = ['status' => $to];
         if (in_array($from, ['waiting_agency', 'waiting_third_party'], true)) {
-            $changes += ['waiting_reason' => null, 'waiting_kind' => null, 'follow_up_date' => null];
+            $changes += ['waiting_reason' => null, 'waiting_kind' => null, 'follow_up_date' => null, 'waiting_since' => null];
         }
         if ($reopen) {
             $changes += ['resolved_at' => null, 'closed_at' => null, 'reopened_count' => $ticket->reopened_count + 1];
         }
         $ticket->forceFill($changes)->save();
+        if ($from === 'waiting_agency') {
+            $this->sla->resume($ticket);
+        }
+        if ($reopen) {
+            $this->sla->restartResolution($ticket);
+        }
         $this->recorder->record($ticket, 'status_changed', ['from' => $from, 'to' => $to, 'from_label' => \App\Support\TicketStatus::label($from), 'to_label' => \App\Support\TicketStatus::label($to)] + $extra, $actor, 'public');
     }
 }

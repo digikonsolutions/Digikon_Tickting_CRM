@@ -30,7 +30,7 @@ class SupportWorkflow
         'rejected' => ['triage'],
     ];
 
-    public function __construct(private TicketEventRecorder $recorder) {}
+    public function __construct(private TicketEventRecorder $recorder, private SlaService $sla) {}
 
     /** Whether the type needs a QA pass before Resolved. */
     public static function qaRequired(Ticket $ticket): bool
@@ -162,7 +162,7 @@ class SupportWorkflow
             $public = ['from' => $from, 'to' => $to, 'from_label' => TicketStatus::label($from), 'to_label' => TicketStatus::label($to)];
 
             if (in_array($from, ['waiting_agency', 'waiting_third_party'], true)) {
-                $changes += ['waiting_reason' => null, 'waiting_kind' => null, 'follow_up_date' => null];
+                $changes += ['waiting_reason' => null, 'waiting_kind' => null, 'follow_up_date' => null, 'waiting_since' => null];
             }
 
             switch (true) {
@@ -186,7 +186,7 @@ class SupportWorkflow
                     if ($errors !== []) {
                         throw ValidationException::withMessages($errors);
                     }
-                    $changes += ['waiting_reason' => mb_substr($reason, 0, 500), 'waiting_kind' => $to === 'waiting_agency' ? 'agency' : 'third_party', 'follow_up_date' => $date];
+                    $changes += ['waiting_reason' => mb_substr($reason, 0, 500), 'waiting_kind' => $to === 'waiting_agency' ? 'agency' : 'third_party', 'follow_up_date' => $date, 'waiting_since' => now()];
                     $public['reason'] = $changes['waiting_reason'];
                     $public['follow_up_date'] = $date;
                     break;
@@ -260,12 +260,45 @@ class SupportWorkflow
             }
 
             $locked->forceFill($changes)->save();
+            $this->clocks($locked, $from, $to, $reopen);
             $this->recorder->record($locked, 'status_changed', $public, $actor, 'public');
             if ($internal !== []) {
                 $this->recorder->record($locked, 'status_detail', $internal + ['from' => $from, 'to' => $to], $actor, 'internal');
             }
 
             return $locked->fresh();
+        });
+    }
+
+    /** Keeps the SLA clocks in step with the status: pause while waiting for the agency, stop on resolve, restart on reopen. */
+    private function clocks(Ticket $ticket, string $from, string $to, bool $reopen): void
+    {
+        if ($to === 'waiting_agency') {
+            $this->sla->pause($ticket);
+        }
+        if ($from === 'waiting_agency') {
+            $this->sla->resume($ticket);
+        }
+        if ($to === 'resolved') {
+            $this->sla->met($ticket, 'resolution');
+        }
+        if ($reopen) {
+            $this->sla->restartResolution($ticket);
+        }
+    }
+
+    /** The system closes a resolved ticket the agency never answered. */
+    public function autoClose(Ticket $ticket): Ticket
+    {
+        return DB::transaction(function () use ($ticket): Ticket {
+            $locked = Ticket::query()->lockForUpdate()->findOrFail($ticket->id);
+            if ($locked->status !== 'resolved') {
+                return $locked;
+            }
+            $locked->forceFill(['status' => 'closed', 'closed_at' => now()])->save();
+            $this->recorder->record($locked, 'status_changed', ['from' => 'resolved', 'to' => 'closed', 'from_label' => 'Resolved', 'to_label' => 'Closed', 'auto' => true], null, 'public');
+
+            return $locked;
         });
     }
 

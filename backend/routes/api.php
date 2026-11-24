@@ -210,6 +210,9 @@ Route::middleware(['web', 'auth', 'role:admin,employee'])->prefix('staff')->grou
     Route::post('/tickets/{ref}/transition', [StaffTicketController::class, 'transition'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
     Route::post('/tickets/{ref}/assign', [StaffTicketController::class, 'assign'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
     Route::patch('/tickets/{ref}', [StaffTicketController::class, 'update'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::post('/tickets/{ref}/convert', [StaffTicketController::class, 'convert'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::get('/tickets/{ref}/assignments', [StaffTicketController::class, 'assignments'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::get('/dashboard', [StaffTicketController::class, 'dashboard']);
     Route::get('/people', [StaffTicketController::class, 'people']);
     Route::patch('/people/{user}/capabilities', [StaffTicketController::class, 'setCapabilities'])->whereNumber('user');
 });
