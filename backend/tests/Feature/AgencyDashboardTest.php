@@ -166,7 +166,7 @@ class AgencyDashboardTest extends TestCase
         $rivalEmployee = $this->makeEmployee('Rival Employee');
         $rivalEmployee->employeeProfile()->create(['headline' => 'Rival headline']);
         $rivalAssignment = $this->hold($rivalEmployee, $other, $rivalClient);
-        $this->book($rivalAssignment, 'in_progress', [[$this->monday, 30], [$this->today->subDay(), 30]], $this->today->subDays(3), 'Rival secret project');
+        $this->book($rivalAssignment, 'in_progress', [[$this->monday, 30], [$this->monday->subDays(2), 30]], $this->today->subDays(3), 'Rival secret project');
 
         $ours = $this->makeEmployee('Our Employee');
         $client = $this->makeClient($this->agency);
