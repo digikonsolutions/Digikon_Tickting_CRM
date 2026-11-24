@@ -166,7 +166,6 @@ Route::middleware('web')->prefix('agency')->group(function () {
     Route::prefix('support')->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active'])->group(function () {
         Route::get('/form', [SupportTicketController::class, 'form']);
         Route::post('/suggest-priority', [SupportTicketController::class, 'suggestPriority']);
-        Route::post('/scan-text', [SupportTicketController::class, 'scanText'])->middleware('throttle:work-order');
         Route::get('/tickets', [SupportTicketController::class, 'index']);
         Route::post('/tickets', [SupportTicketController::class, 'store'])->middleware('throttle:project-create');
         Route::get('/tickets/{ref}', [SupportTicketController::class, 'show'])->where('ref', '[A-Za-z]+-[0-9]+');
@@ -202,6 +201,8 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
 });
 
+// Warns while someone types: text that looks like a password or an API key. Agency users and staff both use it.
+Route::post('/support/scan-text', [SupportTicketController::class, 'scanText'])->middleware(['web', 'auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:work-order']);
 // Support module (staff console): the queue, one ticket, transitions, assignment and who is on the team.
 Route::middleware(['web', 'auth', 'role:admin,employee'])->prefix('staff')->group(function () {
     Route::get('/tickets', [StaffTicketController::class, 'index']);

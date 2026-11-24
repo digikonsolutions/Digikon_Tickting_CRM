@@ -141,7 +141,13 @@ class StaffTicketController extends Controller
         abort_unless(StaffCapability::any($request->user()), 403);
         $people = User::query()->whereIn('role', [Role::Admin, Role::Employee])->where('is_active', true)->orderBy('name')->get(['id', 'name', 'role', 'staff_capabilities']);
 
-        return response()->json(['people' => $people->map(fn (User $u): array => ['id' => $u->id, 'name' => $u->name, 'capabilities' => $u->role === Role::Admin ? StaffCapability::ALL : ($u->staff_capabilities ?? [])])->values()]);
+        return response()->json([
+            'people' => $people->map(fn (User $u): array => ['id' => $u->id, 'name' => $u->name, 'capabilities' => $u->role === Role::Admin ? StaffCapability::ALL : ($u->staff_capabilities ?? [])])->values(),
+            // What the status and assign dialogs offer, so the screens never repeat these lists.
+            'resolution_categories' => collect(config('support.resolution_categories'))->map(fn (string $label, string $key): array => ['key' => $key, 'label' => $label])->values(),
+            'teams' => collect(config('support.types'))->pluck('team')->unique()->values(),
+            'capabilities' => StaffCapability::ALL,
+        ]);
     }
 
     /** Admin only: which capabilities a person holds. */

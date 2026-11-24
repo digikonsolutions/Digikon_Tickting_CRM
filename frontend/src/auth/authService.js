@@ -969,6 +969,67 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { ticket: null, project: null, timeline: [] }
     return request(`/tickets/key/${encodeURIComponent(key)}`)
   },
+  // Support module: the agency portal (`/agency/support/*`) and the staff console (`/staff/*`). Tickets are addressed by ref (DG-1048).
+  async getSupportForm() {
+    if (AUTH_MODE === 'mock') return { types: [], services: [], priorities: [], end_clients: [], projects: [] }
+    return request('/agency/support/form')
+  },
+  async suggestSupportPriority(data) {
+    if (AUTH_MODE === 'mock') return { priority: 'normal', label: 'P3 Normal' }
+    return request('/agency/support/suggest-priority', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async scanSupportText(text) {
+    if (AUTH_MODE === 'mock') return { found: [] }
+    return request('/support/scan-text', { method: 'POST', body: JSON.stringify({ text }) })
+  },
+  async listSupportTickets(params = {}) {
+    if (AUTH_MODE === 'mock') return { tickets: [], counts: {}, pagination: { current_page: 1, last_page: 1, total: 0 } }
+    return request(`/agency/support/tickets?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value != null))}`)
+  },
+  async createSupportTicket(data) {
+    if (AUTH_MODE === 'mock') return { ticket: { id: Date.now(), ref: 'DG-0000' } }
+    return request('/agency/support/tickets', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getSupportTicket(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: null }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}`)
+  },
+  async reopenSupportTicket(ref, reason) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/reopen`, { method: 'POST', body: JSON.stringify({ reason }) })
+  },
+  async confirmSupportResolution(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/confirm`, { method: 'POST' })
+  },
+  async addTicketLink(ticketId, { url, title, isInternal = false }) {
+    if (AUTH_MODE === 'mock') return { attachment: { id: Date.now(), url, title } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/links`, { method: 'POST', body: JSON.stringify({ url, title: title || undefined, ...(isInternal ? { is_internal: true } : {}) }) })
+  },
+  async listStaffTickets(params = {}) {
+    if (AUTH_MODE === 'mock') return { tickets: [], counts: {}, pagination: { current_page: 1, last_page: 1, total: 0 } }
+    return request(`/staff/tickets?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value != null))}`)
+  },
+  async getStaffTicket(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: null }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}`)
+  },
+  async transitionStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/transition`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async assignStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/assign`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async listStaffPeople() {
+    if (AUTH_MODE === 'mock') return { people: [] }
+    return request('/staff/people')
+  },
   // GoHighLevel brief and ticket work orders. The brief replaces whole sections; the checklist and delivery calls
   // return the refreshed `work_order`.
   async updateProjectBrief(projectId, ghlBrief) {

@@ -217,7 +217,7 @@ class SupportTicketTest extends TestCase
         $this->assertNotNull($ticket->secret_flagged_at);
         $this->assertStringContainsString('hunter2hunter2', $ticket->description); // never silently changed
         $this->assertStringNotContainsString('hunter2hunter2', json_encode($this->actingAs($this->staff(['triage']))->getJson('/api/staff/tickets')->json('tickets')));
-        $scan = $this->actingAs($this->u['client'])->postJson('/api/agency/support/scan-text', ['text' => 'token: abcdefghijklmnop1234'])->assertOk();
+        $scan = $this->actingAs($this->u['client'])->postJson('/api/support/scan-text', ['text' => 'token: abcdefghijklmnop1234'])->assertOk();
         $this->assertContains('api_key', $scan->json('found'));
     }
 
