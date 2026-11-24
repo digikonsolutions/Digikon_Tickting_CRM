@@ -10,10 +10,12 @@ import { FilesTab } from '../../tickets/components/FilesTab'
 import { TicketActivityTab } from '../components/TicketActivityTab'
 import { TicketConversation } from '../components/TicketConversation'
 import { ConvertModal } from '../components/ConvertModal'
+import { ScopePanel } from '../components/ScopePanel'
+import { TimeTab } from '../components/TimeTab'
 import { TransitionModal } from '../components/TransitionModal'
 import '../support.css'
 
-const TABS = [{ id: 'conversation', label: 'Conversation' }, { id: 'internal', label: 'Internal notes' }, { id: 'activity', label: 'Activity' }, { id: 'files', label: 'Files' }]
+const TABS = [{ id: 'conversation', label: 'Conversation' }, { id: 'internal', label: 'Internal notes' }, { id: 'activity', label: 'Activity' }, { id: 'files', label: 'Files' }, { id: 'time', label: 'Time' }]
 
 // One ticket for staff: the status control lists only valid next steps, owner and reviewer are pickers, and the composer
 // switches between a public reply and an internal note (always starting on public).
@@ -50,6 +52,7 @@ export function StaffTicketPage() {
   }
   const closed = ['closed', 'rejected'].includes(ticket.status)
   const people = meta?.people ?? []
+  const myCapabilities = people.find((person) => person.id === user.id)?.capabilities ?? []
 
   return (
     <section className="page">
@@ -89,6 +92,7 @@ export function StaffTicketPage() {
           {tab === 'internal' && <TicketConversation key={`i${ticket.id}`} ticket={ticket} audience="staff" internalOnly closed={closed} />}
           {tab === 'activity' && <TicketActivityTab ticketId={ticket.id} role={user.role} />}
           {tab === 'files' && <FilesTab ticket={ticket} readOnly={closed} allowInternal />}
+          {tab === 'time' && <TimeTab key={ticket.id} ticket={ticket} closed={closed} />}
         </div>
         <aside className="sup-side" aria-label="Ticket details">
           <Card title="Routing">
@@ -105,6 +109,7 @@ export function StaffTicketPage() {
               {PRIORITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </Select>
           </Card>
+          {!ticket.is_legacy && <ScopePanel key={`${ticket.id}-${ticket.scope_classification}-${ticket.scope_proposal ? 'p' : 'n'}`} ticket={ticket} canDecide={user.role === 'admin' || myCapabilities.includes('delivery_manager')} onChanged={reload} />}
           <Card title="Details">
             <dl>
               <div><dt>Agency</dt><dd>{ticket.agency?.name}</dd></div>

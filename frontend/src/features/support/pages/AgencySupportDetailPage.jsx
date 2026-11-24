@@ -13,6 +13,41 @@ import '../support.css'
 
 const TABS = [{ id: 'conversation', label: 'Conversation' }, { id: 'files', label: 'Files' }, { id: 'activity', label: 'Activity' }]
 
+// An optional 1 to 5 answer after a resolution. A radio group, so it works with the keyboard and a screen reader.
+function FeedbackCard({ ticket, onSent }) {
+  const { showToast } = useToast()
+  const [rating, setRating] = useState('')
+  const [comment, setComment] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  async function send(event) {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await authService.submitSupportFeedback(ticket.ref, { rating: Number(rating), comment: comment.trim() || undefined })
+      showToast('Thank you for your feedback.')
+      onSent()
+    } catch (reason) {
+      setError(reason)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Card title="How did we do?">
+      <form className="ui-form" onSubmit={send} noValidate>
+        <fieldset className="ui-checkgroup"><legend className="ui-field-label">Your rating</legend>
+          <div className="ui-checkgroup-options">{[1, 2, 3, 4, 5].map((n) => <label key={n} className="ui-checkgroup-option"><input type="radio" name="rating" value={n} checked={rating === String(n)} onChange={() => setRating(String(n))} /><span>{n} {n === 1 ? '(poor)' : n === 5 ? '(great)' : ''}</span></label>)}</div>
+        </fieldset>
+        <Textarea label="Anything to add? (optional)" rows={2} maxLength={1000} value={comment} onChange={(event) => setComment(event.target.value)} />
+        <ApiErrorMessage error={error} />
+        <FormActions submitLabel="Send feedback" loadingLabel="Sending…" loading={busy} disabled={!rating} disabledReason="Choose a rating." />
+      </form>
+    </Card>
+  )
+}
+
 // One ticket as the agency sees it: status and what happens next on top, only public conversation, files and activity.
 export function AgencySupportDetailPage() {
   const { ref } = useParams()
@@ -75,6 +110,7 @@ export function AgencySupportDetailPage() {
         </div>
       )}
       <ApiErrorMessage error={error && !error.errors ? error : null} />
+      {['resolved', 'closed'].includes(ticket.status) && !ticket.feedback_given && <FeedbackCard ticket={ticket} onSent={reload} />}
 
       <div className="sup-detail">
         <div>

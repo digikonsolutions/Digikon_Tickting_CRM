@@ -1026,6 +1026,30 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { ticket: { ref } }
     return request(`/staff/tickets/${encodeURIComponent(ref)}`, { method: 'PATCH', body: JSON.stringify(data) })
   },
+  async getStaffTicketTime(ref) {
+    if (AUTH_MODE === 'mock') return { time: { entries: [], actual_minutes: 0, billable_minutes: 0, estimate_hours: null } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/time`)
+  },
+  async logStaffTicketTime(ref, data) {
+    if (AUTH_MODE === 'mock') return { time: { entries: [], actual_minutes: 0, billable_minutes: 0, estimate_hours: null } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/time`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async classifyStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/scope`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async approveStaffTicketScope(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/scope/approve`, { method: 'POST' })
+  },
+  async listCannedResponses() {
+    if (AUTH_MODE === 'mock') return { responses: [] }
+    return request('/staff/canned-responses')
+  },
+  async submitSupportFeedback(ref, data) {
+    if (AUTH_MODE === 'mock') return { message: 'ok' }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
+  },
   async listTicketAssignments(ref) {
     if (AUTH_MODE === 'mock') return { assignments: [] }
     return request(`/staff/tickets/${encodeURIComponent(ref)}/assignments`)

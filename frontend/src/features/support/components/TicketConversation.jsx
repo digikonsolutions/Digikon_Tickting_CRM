@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
-import { Alert, Button, EmptyState, Icon, PlainText, RelativeTime, Skeleton, Textarea, useToast } from '../../../components/ui'
+import { Alert, Button, EmptyState, Icon, PlainText, RelativeTime, Select, Skeleton, Textarea, useToast } from '../../../components/ui'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 
 // The conversation of one ticket and its composer. Staff get a Public reply / Internal note switch that always starts on
@@ -17,6 +17,7 @@ export function TicketConversation({ ticket, audience, recipient, onPosted, onAt
   const [error, setError] = useState(null)
   const [secret, setSecret] = useState(null)
   const [added, setAdded] = useState([])
+  const [canned, setCanned] = useState([])
   const load = useCallback(() => authService.listTicketComments(ticket.id), [ticket.id])
   const { data, error: loadError, isLoading, reload } = useAsync(load)
 
@@ -24,6 +25,13 @@ export function TicketConversation({ ticket, audience, recipient, onPosted, onAt
   const ids = new Set(loaded.map((comment) => comment.id))
   const all = [...loaded, ...added.filter((comment) => !ids.has(comment.id))]
   const shown = all.filter((comment) => filter === 'all' || (filter === 'internal') === Boolean(comment.is_internal))
+
+  useEffect(() => {
+    if (!isStaff) return undefined
+    let active = true
+    authService.listCannedResponses().then((result) => { if (active) setCanned(result.responses ?? []) }).catch(() => {})
+    return () => { active = false }
+  }, [isStaff])
 
   // A gentle warning while typing a public message that looks like it holds a password or key.
   useEffect(() => {
@@ -100,6 +108,11 @@ export function TicketConversation({ ticket, audience, recipient, onPosted, onAt
             <p className="sup-note-label">
               {internal ? <><Icon name="lock" size={15} /> Staff only. The agency cannot see this.</> : isStaff ? <>Visible to the agency{recipient ? `. Sends to ${recipient}.` : '.'}</> : 'Your reply goes to the support team.'}
             </p>
+            {isStaff && canned.length > 0 && (
+              <Select label="Saved reply" value="" onChange={(event) => { const found = canned.find((item) => String(item.id) === event.target.value); if (found) setBody((current) => (current ? `${current}\n\n${found.body}` : found.body)) }}>
+                <option value="">Insert a saved reply…</option>{canned.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </Select>
+            )}
             <Textarea id={`composer-${ticket.id}`} label={internal ? 'Internal note' : 'Message'} rows={4} maxLength={10000} value={body} onChange={(event) => setBody(event.target.value)} error={error?.errors?.body?.[0]} />
             {secret && !internal && <p className="sup-secret" role="alert">{secret}</p>}
             <ApiErrorMessage error={error && !error.errors ? error : null} />

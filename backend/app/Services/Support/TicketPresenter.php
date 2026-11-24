@@ -69,6 +69,7 @@ class TicketPresenter
                 'category_label' => config("support.resolution_categories.{$t->resolution_category}"),
                 'at' => ($t->closed_at ?? $t->resolved_at)?->toISOString(),
             ] : null,
+            'feedback_given' => \Illuminate\Support\Facades\DB::table('ticket_feedback')->where('ticket_id', $t->id)->exists(),
             'can_confirm' => $t->usesLifecycle() && $t->status === 'resolved',
             'can_reopen' => $t->usesLifecycle() && in_array($t->status, ['resolved', 'closed'], true) && $workflow->insideReopenWindow($t),
             // Soft target only: the time we aim to respond by. At-risk and breached flags never leave the staff side.

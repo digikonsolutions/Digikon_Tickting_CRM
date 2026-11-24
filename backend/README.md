@@ -166,6 +166,44 @@ Clients describe their GoHighLevel setup once per project (`work_item_briefs`, 1
 - **Completeness** (0-100) is scored against the work type's recommended fields in `config/ticket_templates.php` (the brief's list is `GhlBrief::RECOMMENDED`). It only drives a gentle "Missing: ..." hint and never blocks saving.
 - **No secrets**: briefs and tickets never store passwords or API keys. Unknown keys are dropped by validation, and the brief asks for "credentials shared via" instead. The older encrypted `access_details` is unchanged.
 - **Not built yet**: GoHighLevel API prefill (`GhlGateway`, `ghl_connections`, `/api/agency/ghl/*`), file uploads for briefs and tickets (links only), and "field changed" activity entries.
+### Support module (Digikon tickets)
+
+One ticket entity with a `kind` (`support`, `fulfillment`, `change_request`). Tickets made through the module have a `type` and use the lifecycle statuses; the older hour-slice tickets have no `type`, keep their legacy statuses and the planner, and are shown with a mapped status (`todo` as Assigned, `in_review` as QA, `blocked` as Waiting for third party, `waiting_on_client` as Waiting for agency, `done` as Closed, `cancelled` as Rejected). Support and change-request tickets have no project and never touch `TicketPlanner`. Every ticket has a `ref` such as `DG-1048` (prefix `TICKET_ID_PREFIX`, race-safe counter in `ticket_sequences`); existing tickets were given refs in id order. The old `PREFIX-n` key still works.
+
+- **Statuses**: new, triage, assigned, in_progress, waiting_agency, waiting_third_party, qa, resolved, closed, rejected. `App\Services\Support\SupportWorkflow` is the only place they change: one transaction, the transition table, the data each step needs (waiting needs a reason and a follow-up date, resolve and close need a summary and a category, rejecting and reopening need a reason, a QA fail needs a note), who may do it, the reopen window (14 days) and the rule that on a critical ticket the QA reviewer is not the builder (an admin may override with a reason).
+- **Capabilities**: `users.staff_capabilities` (`triage`, `builder`, `qa`, `delivery_manager`, `finance`). Admins hold all. An employee with none keeps seeing only their own work. Set them with `PATCH /api/staff/people/{user}/capabilities` (admin only).
+- **Visibility**: `TicketPresenter` builds the agency and staff payloads from allow-lists. Agency users never receive internal notes, internal events, internal files, SLA states, time, cost, scope or billing, QA notes or the secret flag; internal items are also filtered in SQL for comments, events, attachments, search and notifications.
+- **SLA**: `config/support.php` holds the targets (business minutes per priority), support hours, `SUPPORT_TIMEZONE` (default `Asia/Karachi`), holidays, the 75% at-risk ratio, the reopen and auto-close windows. `SlaCalculator` does business-time arithmetic (holidays, timezone, daylight saving); `SlaService` runs a response and a resolution clock per ticket and pauses while a ticket waits for the agency. Agency users see only "We aim to respond by ...".
+- **Scheduled**: `php artisan tickets:sla-sweep` every minute (see `routes/console.php`; needs `schedule:work` or a cron entry). It flags at-risk and breached clocks, escalates tickets nobody has picked up (2 business hours, 15 minutes for P1), reminds agencies after 2 business days and escalates after 5, and closes resolved tickets the agency never answered after 7 days. Each step writes an event once, so running twice never notifies twice.
+- **Notifications**: `SupportNotificationPlanner` is the notification matrix (created, critical, assignment, agency reply, status changes, resolved, closed, reopened, SLA, escalation, reminders). Internal events only reach staff.
+- **Secrets**: `SecretScanner` warns (never redacts) on text that looks like a password or key and flags the ticket for staff; `POST /api/support/scan-text` powers the live warning.
+- **Attachments**: files use the existing private-disk upload (content-sniffed, 20 MB; video mp4, mov, webm up to 100 MB with `ATTACHMENTS_MAX_VIDEO_KB`; zip stays off unless `ATTACHMENTS_ALLOW_ARCHIVES=true`); links (Loom, Drive, any URL) are first-class (`POST /api/tickets/{ticket}/links`); each item is public or internal.
+- **AI**: `TicketAssistant` is an interface with `NullTicketAssistant` bound. Nothing calls out.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/agency/support/form` | Types and their questions, services, priorities, the agency's end clients and open projects |
+| POST | `/api/agency/support/suggest-priority` | Priority from the impact answers |
+| GET / POST | `/api/agency/support/tickets` | List (`tab=open\|waiting\|resolved\|all`, `q`, `status`, `priority`, `type`, `end_client_id`, `project_id`, `from`, `to`) with tab counts; submit |
+| GET | `/api/agency/support/tickets/{ref}` | Agency view of one ticket |
+| POST | `/api/agency/support/tickets/{ref}/reopen`, `/confirm`, `/feedback` | Reopen (reason, inside the window), confirm the resolution, 1 to 5 satisfaction |
+| GET / POST | `/api/agency/support/end-clients` | The agency's own customers |
+| POST | `/api/support/scan-text` | Secret warning while typing (agency and staff) |
+| POST | `/api/tickets/{ticket}/comments` | Public reply, or internal note with `is_internal` (staff) |
+| POST | `/api/tickets/{ticket}/links` | Add a link (internal allowed for staff) |
+| GET | `/api/staff/tickets` | Queue: `view` (my, new, unassigned, critical, waiting_agency, waiting_third_party, qa, resolved, reopened, all), filters, `sort=updated\|sla\|priority\|created`, counts per view |
+| GET / PATCH | `/api/staff/tickets/{ref}` | Staff view; priority, kind, service, estimate |
+| POST | `/api/staff/tickets/{ref}/transition` | `{to, ...}` the data the step needs |
+| POST | `/api/staff/tickets/{ref}/assign` | Owner, team, reviewer (triage or delivery manager) |
+| POST | `/api/staff/tickets/{ref}/scope`, `/scope/approve` | Scope and billing: a builder proposes, a delivery manager decides |
+| GET / POST | `/api/staff/tickets/{ref}/time` | Time entries and the estimate-versus-actual rollup |
+| POST | `/api/staff/tickets/{ref}/convert` | `{to: project, assignment_id}` or `{to: change_request}`; idempotent, keeps the history, links both ways |
+| GET | `/api/staff/dashboard?from&to` | The KPIs of the spec (managers, finance, admin) |
+| GET / POST / PATCH / DELETE | `/api/staff/canned-responses` | Saved replies |
+| GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
+
+Not built yet: generic approvals, agency entitlements and the included-revision check, recurring tickets, custom saved views, the workload view, the settings screen (SLA numbers and holidays are edited in `config/support.php` for now), signed short-lived download URLs for attachments, per-type QA checklists and bug QA runs, and ticket relations and watchers.
+
 ### Running the queue worker and scheduler
 
 Notifications and their emails are queued (`QUEUE_CONNECTION=database`, `afterCommit`), so **`php artisan queue:work` must be running** or nobody receives anything. `composer dev` already starts `queue:listen`. Time tracking needs the scheduler: the hourly `time:stop-stale-timers` command closes timers that ran past 12 hours. Locally run `php artisan schedule:work`; in production add the usual cron entry `* * * * * php artisan schedule:run`. Locally `MAIL_MAILER=log` writes emails to `storage/logs/laravel.log`.

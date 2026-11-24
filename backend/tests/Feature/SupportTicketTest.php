@@ -271,4 +271,24 @@ class SupportTicketTest extends TestCase
         $this->assertFalse($ticket->fresh()->usesLifecycle());
         $this->assertSame(1, DB::table('ticket_allocations')->where('ticket_id', $ticket->id)->count() > 0 ? 1 : 0);
     }
-}
+
+    public function test_files_on_support_tickets_follow_tenant_and_visibility_rules(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $triage = $this->staff(['triage']);
+        $outsider = $this->outsider();
+        $ticket = $this->newTicket();
+        $png = fn (string $name) => \Illuminate\Http\UploadedFile::fake()->createWithContent($name, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+        $public = $this->actingAs($this->u['client'])->post("/api/tickets/{$ticket->id}/attachments", ['files' => [$png('public.png')]], ['Accept' => 'application/json'])->assertCreated()->json('attachments.0.id');
+        $internal = $this->actingAs($triage)->post("/api/tickets/{$ticket->id}/attachments", ['files' => [$png('internal.png')], 'comment' => 'staff note', 'is_internal' => true], ['Accept' => 'application/json'])->assertCreated()->json('attachments.0.id');
+
+        // The owner of the ticket's agency reads the public file; the internal one does not exist for them.
+        $this->actingAs($this->u['owner'])->get("/api/attachments/{$public}/download")->assertOk();
+        $this->actingAs($this->u['owner'])->get("/api/attachments/{$internal}/download")->assertNotFound();
+        // Another agency, and a member of staff with no capability, get nothing at all.
+        $this->actingAs($outsider)->get("/api/attachments/{$public}/download")->assertNotFound();
+        $this->actingAs($this->staff([]))->get("/api/attachments/{$public}/download")->assertNotFound();
+        $this->actingAs($triage)->get("/api/attachments/{$internal}/download")->assertOk();
+        // A file cannot be added to a ticket of another agency.
+        $this->actingAs($outsider)->post("/api/tickets/{$ticket->id}/attachments", ['files' => [$png('x.png')]], ['Accept' => 'application/json'])->assertNotFound();
+    }}

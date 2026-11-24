@@ -65,7 +65,7 @@ class SupportOperationsTest extends TestCase
         $this->actingAs($manager)->postJson("/api/staff/tickets/{$ticket->ref}/time", ['minutes' => 45, 'billable' => true, 'note' => 'INTERNAL-TIME-NOTE'])->assertCreated();
         foreach (['/api/agency/support/tickets/'.$ticket->ref, '/api/agency/support/tickets', "/api/tickets/{$ticket->id}/timeline"] as $url) {
             $body = $this->actingAs($this->u['owner'])->getJson($url)->assertOk()->getContent();
-            foreach (['INTERNAL-BILLING-REASON', 'INTERNAL-TIME-NOTE', 'billing_status', 'scope_classification', 'billable', 'actual_minutes', 'scope_proposal', 'feedback'] as $leak) {
+            foreach (['INTERNAL-BILLING-REASON', 'INTERNAL-TIME-NOTE', 'billing_status', 'scope_classification', 'billable', 'actual_minutes', 'scope_proposal', '"feedback":', 'rating'] as $leak) {
                 $this->assertStringNotContainsString($leak, $body, "$url leaks $leak");
             }
         }

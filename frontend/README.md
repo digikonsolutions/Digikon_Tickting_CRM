@@ -27,6 +27,14 @@ VITE_AUTH_MODE=api
 - `src/hooks/` contains shared hooks.
 - `src/branding/` contains agency white-labelling (see below).
 
+## Support module
+
+`src/features/support` holds the Digikon ticket screens; the shared pieces are in `components/ui` (`LifecycleStatusBadge`, `LifecyclePriorityBadge`, `TypeBadge`, `SavedViewTabs`, `SlaIndicator`).
+
+- Agency: `/agency/support` (tabs with counts, filters kept in the address, cards on a phone), `/agency/support/new` (one page: type cards, the questions each type needs, impact questions that suggest a priority, similar open tickets, files and links, a live password and key warning, a draft kept in `localStorage`) and `/agency/support/:ref` (status and what happens next, public conversation, files, activity, resolution with confirm or reopen, satisfaction). The old project tickets stay at `/agency/tickets`.
+- Staff (admin and employees): `/staff/tickets` (KPI cards, saved views with live counts, filters, SLA column), `/staff/tickets/:ref` (valid next steps only, each opening a dialog that asks for exactly what the step needs; Public reply and Internal note composer that always starts on Public; internal items have amber stripes and a lock; Files, Time, scope and billing, convert to project or change request) and `/staff/reports` (KPIs with the spec's targets and a table under every bar chart).
+- Agency users never receive internal data: the API sends separate payloads, and these screens render only what they are given.
+- Not built yet: the board view, bulk actions, custom saved views, the settings screen, per-type QA checklists and bug QA runs, relations and watchers.
 ## GoHighLevel brief and ticket work orders
 
 `src/features/workorder` holds everything for the detailed project brief and the ticket work order, so agency, admin and employee views share it.
