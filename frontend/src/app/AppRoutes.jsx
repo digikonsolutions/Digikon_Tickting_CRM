@@ -30,6 +30,7 @@ import {
   ProjectDetailPage,
 } from '../features/agency'
 import { NotificationSettingsPage, NotificationsPage } from '../features/notifications'
+import { EmployeeProjectPage, OverviewPage, ProjectsPage, RequestsPage, TicketsPage, TimePage, WeekPage } from '../features/employee'
 import { AdminEmployeePage } from '../features/activity'
 import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeline'
 import { AdminHistoryPage } from '../features/history'
@@ -108,7 +109,15 @@ export function AppRoutes() {
             <Route path="/admin/users/new" element={<Navigate to="/admin/employees/new" replace />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.EMPLOYEE]} />}>
-            <Route path="/my-work" element={<InternalEmployeeWorkPage />} />
+            <Route path="/my-work" element={<InternalEmployeeWorkPage />}>
+              <Route index element={<OverviewPage />} />
+              <Route path="tickets" element={<TicketsPage />} />
+              <Route path="projects" element={<ProjectsPage />} />
+              <Route path="projects/:id" element={<EmployeeProjectPage />} />
+              <Route path="requests" element={<RequestsPage />} />
+              <Route path="week" element={<WeekPage />} />
+              <Route path="time" element={<TimePage />} />
+            </Route>
             <Route path="/my-work/timeline/:id" element={<TimelineReviewPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>

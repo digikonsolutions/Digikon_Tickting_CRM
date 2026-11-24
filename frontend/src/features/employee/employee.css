@@ -1,0 +1,95 @@
+/* Employee workspace (/my-work). Brand tokens only; dense but calm; works down to 360px. */
+
+.ew-workspace { display: grid; gap: var(--space-4); min-width: 0; }
+.ew-page { display: grid; gap: var(--space-4); min-width: 0; }
+.ew-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ew-muted { margin: 0; color: var(--color-muted); font-size: var(--text-sm); }
+.ew-skeleton { display: grid; gap: var(--space-3); }
+
+/* KPI row */
+.ew-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.ew-kpis > :first-child { grid-column: 1 / -1; }
+@media (min-width: 900px) { .ew-kpis { grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr)); } .ew-kpis > :first-child { grid-column: auto; } }
+.ew-kpi-link { display: block; min-width: 0; border-radius: var(--radius-card); color: inherit; text-decoration: none; }
+.ew-kpi-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Two columns on wide screens, one on phones */
+.ew-columns { display: grid; gap: var(--space-4); align-items: start; }
+@media (min-width: 1100px) { .ew-columns { grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem); } }
+.ew-column { display: grid; gap: var(--space-4); min-width: 0; }
+
+/* Sections */
+.ew-section { display: grid; gap: var(--space-3); }
+.ew-section-head { display: grid; gap: .2rem; }
+.ew-section-head h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-lg); color: var(--color-heading); }
+.ew-count { display: inline-grid; place-items: center; min-width: 1.6rem; height: 1.6rem; padding: 0 .4rem; border-radius: var(--radius-pill); background: var(--color-surface-sunken); color: var(--color-heading); font-size: var(--text-xs); font-weight: 700; }
+
+/* Ticket item */
+.ew-ticket-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.ew-ticket { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-card); }
+@media (min-width: 760px) { .ew-ticket { grid-template-columns: minmax(0, 1fr) auto; align-items: start; } }
+.ew-ticket-main { display: grid; gap: .35rem; min-width: 0; }
+.ew-ticket-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ew-ticket-title { margin: 0; font-size: var(--text-md); color: var(--color-heading); overflow-wrap: anywhere; }
+.ew-ticket-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ew-ticket-reason { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--color-border-strong); background: var(--color-surface-sunken); border-radius: var(--radius-sm); font-size: var(--text-sm); color: var(--color-text); }
+.ew-ticket-numbers { font-variant-numeric: tabular-nums; }
+.ew-over { color: var(--color-danger-700, var(--color-heading)); }
+.ew-ticket-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+@media (min-width: 760px) { .ew-ticket-actions { justify-content: flex-end; max-width: 22rem; } }
+
+/* Deadlines and project rows on the overview */
+.ew-deadlines, .ew-project-rows, .ew-schedule, .ew-activity { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.ew-deadlines li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.ew-deadline-main, .ew-project-row-main { display: grid; gap: .1rem; min-width: 0; }
+.ew-project-rows li { display: grid; gap: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border-soft); }
+.ew-project-rows li:last-child { border-bottom: 0; padding-bottom: 0; }
+.ew-project-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Tickets filters */
+.ew-filters { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+@media (min-width: 640px) { .ew-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .ew-filters { grid-template-columns: 2fr repeat(5, minmax(0, 1fr)); } }
+.ew-filter-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
+.ew-toggle { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text); cursor: pointer; }
+.ew-toggle input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ew-more { display: flex; justify-content: center; }
+
+/* Projects */
+.ew-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.ew-project-card { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); }
+.ew-project-card-head { display: flex; align-items: start; justify-content: space-between; gap: var(--space-2); }
+.ew-project-link { color: var(--color-heading); overflow-wrap: anywhere; }
+.ew-project-link:focus-visible, .ew-block:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ew-facts { display: grid; gap: .35rem; margin: 0; }
+.ew-facts div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ew-facts dt { min-width: 4.5rem; color: var(--color-muted); font-size: var(--text-sm); }
+.ew-facts dd { margin: 0; color: var(--color-text); }
+.ew-facts-wide dt { min-width: 5rem; }
+.ew-late { color: var(--color-danger-700, var(--color-heading)); font-weight: 650; }
+.ew-details summary { cursor: pointer; font-weight: 650; color: var(--color-heading); }
+.ew-details[open] summary { margin-bottom: var(--space-3); }
+.ew-description { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border-soft); }
+.ew-breadcrumb { color: var(--color-muted); font-size: var(--text-sm); }
+.ew-schedule li { display: flex; justify-content: space-between; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.ew-schedule li.is-today { font-weight: 700; color: var(--color-heading); }
+.ew-activity li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); font-size: var(--text-sm); }
+
+/* Week planner */
+.ew-week-nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.ew-week-label { flex: 1 1 12rem; margin: 0; text-align: center; font-size: var(--text-lg); color: var(--color-heading); }
+.ew-week { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+@media (min-width: 900px) { .ew-week { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); } }
+.ew-day { display: grid; align-content: start; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-card); min-width: 0; }
+.ew-day.is-today { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.ew-day-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-md); color: var(--color-heading); }
+.ew-today-tag { padding: 0 .4rem; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand-hover); font-size: var(--text-xs); font-weight: 700; }
+.ew-day-items { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.ew-day-empty { font-style: italic; }
+.ew-block { display: grid; gap: .15rem; width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-left: 3px solid var(--brand); border-radius: var(--radius-sm); background: var(--color-surface-hover); color: var(--color-text); text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
+.ew-block:hover { background: var(--brand-soft); }
+.ew-block-project { border-left-color: var(--color-border-strong); }
+.ew-block-title { font-weight: 650; color: var(--color-heading); overflow-wrap: anywhere; }
+.ew-block-meta { color: var(--color-muted); font-size: var(--text-xs); }
+
+@media (prefers-reduced-motion: reduce) { .ew-block, .ew-ticket { transition: none; } }

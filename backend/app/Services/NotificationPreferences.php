@@ -62,6 +62,12 @@ class NotificationPreferences
             'email_default' => true,
             'locked' => true,
         ],
+        'hours' => [
+            'label' => 'Hours requests',
+            'description' => 'An employee asks for more hours on a ticket, or the answer to your request.',
+            'email_default' => true,
+            'locked' => false,
+        ],
         'reminder' => [
             'label' => 'Work reminders',
             'description' => 'Work that should start today, and deadlines that are close or missed.',

@@ -42,6 +42,9 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         // Queue reorders replan an employee's whole schedule: 20 a minute per signed-in user.
         // Rush requests ask the platform for paid work: 5 a minute per signed-in user.
+        // Asking for more hours on a ticket: 10 a minute per signed-in user.
+        RateLimiter::for('hours-request', fn (Request $request) => Limit::perMinute(10)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('rush-create', fn (Request $request) => Limit::perMinute(5)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('queue-reorder',fn (Request $request) => Limit::perMinute(20)

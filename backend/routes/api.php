@@ -31,6 +31,7 @@ use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\AdminRushRequestController;
 use App\Http\Controllers\AgencyRushRequestController;
+use App\Http\Controllers\HoursRequestController;
 use App\Http\Controllers\QueueController;
 use App\Http\Controllers\WorkItemController;
 use Illuminate\Support\Facades\Route;
@@ -59,6 +60,12 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     Route::post('/requests', [AgencyRequestController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:agency-requests']);
+    // Employees' requests for more hours on a ticket: the owner and clients answer.
+    Route::middleware(['auth', 'role:agency_owner,agency_client', 'agency.active'])->prefix('hours-requests')->whereNumber('id')->group(function () {
+        Route::get('/', [HoursRequestController::class, 'agencyIndex']);
+        Route::post('/{id}/approve', [HoursRequestController::class, 'approve'])->middleware('throttle:hours-request');
+        Route::post('/{id}/decline', [HoursRequestController::class, 'decline'])->middleware('throttle:hours-request');
+    });
     // The GHL service types and their fields, for the create-project, create-ticket and request forms.
     Route::get('/service-catalog', [AgencyRequestController::class, 'catalog'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
@@ -304,6 +311,9 @@ Route::middleware(['web', 'auth', 'role:employee'])->group(function () {
     Route::post('/work-items/{workItem}/finish', [WorkItemController::class, 'finish'])->whereNumber('workItem');
     Route::get('/work-items/mine/tickets', [TicketController::class, 'mine']);
     Route::get('/work-items/mine/queue', [QueueController::class, 'mine']);
+    // Ask the agency for more hours on one of my tickets, or withdraw the request.
+    Route::post('/tickets/{ticket}/hours-requests', [HoursRequestController::class, 'store'])->whereNumber('ticket')->middleware('throttle:hours-request');
+    Route::patch('/hours-requests/{id}/cancel', [HoursRequestController::class, 'cancel'])->whereNumber('id');
 });
 
 // Notifications for the signed-in user (any role). Everything is scoped to the caller.

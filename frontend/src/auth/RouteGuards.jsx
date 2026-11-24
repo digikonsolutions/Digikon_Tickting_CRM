@@ -79,7 +79,14 @@ const SIDEBAR_ITEMS = Object.freeze({
   ],
   [ROLES.TEAM_LEAD]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   [ROLES.QA]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
-  [ROLES.EMPLOYEE]: [{ to: '/my-work', label: 'My work', icon: 'ticket' }],
+  [ROLES.EMPLOYEE]: [
+    { to: '/my-work', label: 'Overview', icon: 'dashboard', section: 'My work', end: true },
+    { to: '/my-work/tickets', label: 'Tickets', icon: 'ticket', section: 'My work' },
+    { to: '/my-work/projects', label: 'Projects', icon: 'briefcase', section: 'My work' },
+    { to: '/my-work/requests', label: 'Requests', icon: 'chat', section: 'My work' },
+    { to: '/my-work/week', label: 'Week', icon: 'calendar', section: 'My work' },
+    { to: '/my-work/time', label: 'Time', icon: 'clock', section: 'My work' },
+  ],
   [ROLES.AGENCY_OWNER]: agencyNav(ROLES.AGENCY_OWNER),
   [ROLES.AGENCY_MEMBER]: [
     { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -149,7 +156,7 @@ export function AppLayout() {
       ? 'Employee activity'
       : /^\/agency\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
-      : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/')
+      : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/') || location.pathname.startsWith('/my-work/projects/')
       ? 'Project details'
       : ({
       '/profile': 'My profile',
@@ -283,6 +290,7 @@ export function AppLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end={item.end}
                   className={({ isActive }) => (isActive || item.also?.some((prefix) => location.pathname.startsWith(prefix)) ? 'active' : undefined)}
                   aria-label={badges[item.badgeKey] ? `${item.label}, ${badges[item.badgeKey]} waiting` : item.label}
                   title={item.label}

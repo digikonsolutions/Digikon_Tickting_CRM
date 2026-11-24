@@ -22,6 +22,24 @@ class WorkItemScheduler
     }
 
     /**
+     * The scheduler's calendar for the employee's own screens: today in the app timezone (never the browser's or UTC),
+     * the working weekdays and the hour limits, so the app hardcodes none of them.
+     *
+     * @return array{today: string, timezone: string, working_days: list<int>, daily_hours: int|float, weekly_hours: int|float}
+     */
+    public static function clock(): array
+    {
+        $timezone = (string) config('app.timezone');
+
+        return [
+            'today' => CarbonImmutable::now($timezone)->toDateString(),
+            'timezone' => $timezone,
+            'working_days' => array_values(config('scheduling.working_days', [1, 2, 3, 4, 5, 6])),
+            ...self::capacity(),
+        ];
+    }
+
+    /**
      * Hours-per-day capacity in hundredths of an hour (config scheduling.daily_capacity_hours).
      */
     public static function dailyCapacityUnits(): int

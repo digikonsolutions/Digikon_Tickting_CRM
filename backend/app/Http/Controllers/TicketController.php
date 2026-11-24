@@ -41,7 +41,7 @@ class TicketController extends Controller
 
         return response()->json([
             'tickets' => $workItem->tickets()
-                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
+                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment'])
                 ->withCount(['comments' => $this->commentVisibility($request->user())])
                 ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
                 ->orderBy('position')
@@ -266,7 +266,7 @@ class TicketController extends Controller
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment', 'pendingHoursRequest'])
             ->withCount(['comments' => $this->commentVisibility($employee)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
@@ -276,7 +276,7 @@ class TicketController extends Controller
             ->get()
             ->map(fn (Ticket $ticket): array => $this->ticketPayload($ticket, $employee));
 
-        return response()->json(['tickets' => $tickets]);
+        return response()->json(['tickets' => $tickets, 'capacity' => WorkItemScheduler::capacity(), 'clock' => WorkItemScheduler::clock()]);
     }
 
     public function updateStatus(
@@ -342,7 +342,7 @@ class TicketController extends Controller
         $filters = $request->validated();
 
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent'])
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent', 'pendingHoursRequest'])
             ->withCount(['comments' => $this->commentVisibility($request->user())])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
@@ -413,7 +413,7 @@ class TicketController extends Controller
         $search = trim((string) ($filters['search'] ?? ''));
 
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent'])
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent', 'pendingHoursRequest'])
             ->withCount(['comments' => $this->commentVisibility($user)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->where('agency_id', $user->agency_id)
@@ -467,7 +467,7 @@ class TicketController extends Controller
             ->whereHas('workItem', fn ($q) => $q->whereIn('status', ['scheduled', 'in_progress']));
 
         $tickets = (clone $query)
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment'])
             ->withCount(['comments' => $this->commentVisibility($user)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy(
@@ -566,7 +566,7 @@ class TicketController extends Controller
         abort_unless($agency !== null, 404);
 
         $ticket = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.agency', 'workItem.assignment'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.agency', 'workItem.assignment'])
             ->where('agency_id', $agency->id)
             ->where('number', (int) $numberStr)
             ->first();
@@ -908,7 +908,7 @@ class TicketController extends Controller
      */
     private function ticketPayload(Ticket $ticket, ?User $viewer = null): array
     {
-        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent']);
+        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent', 'pendingHoursRequest']);
 
         $loggedMinutes = array_key_exists('logged_minutes', $ticket->getAttributes())
             ? (int) $ticket->logged_minutes
@@ -967,6 +967,13 @@ class TicketController extends Controller
             'start_date' => $ticket->start_date?->toDateString(),
             'due_date' => $ticket->due_date?->toDateString(),
             'allowed_actions' => $allowedActions,
+            'updated_at' => $ticket->updated_at?->toISOString(),
+            // An open request for more hours (the employee's ask, the agency's decision): null when there is none.
+            'hours_request' => (function () use ($ticket): ?array {
+                $open = $ticket->loadMissing('pendingHoursRequest')->pendingHoursRequest;
+
+                return $open ? ['id' => $open->id, 'hours' => $open->hours, 'reason' => $open->reason, 'created_at' => $open->created_at?->toISOString()] : null;
+            })(),
             'waiting_on' => $waitingOn,
             'waiting_since' => $waitingSince,
             'status_reason' => $statusReason,

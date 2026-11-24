@@ -635,7 +635,7 @@ class WorkItemController extends Controller
             ->get()
             ->map(fn (WorkItem $item): array => $this->payload($item, withAccess: true));
 
-        return response()->json(['projects' => $items, 'capacity' => WorkItemScheduler::capacity()]);
+        return response()->json(['projects' => $items, 'capacity' => WorkItemScheduler::capacity(), 'clock' => WorkItemScheduler::clock()]);
     }
 
     /**

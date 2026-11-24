@@ -11,6 +11,7 @@ import { formatDate, formatElapsed, formatHours } from '../../../lib/format'
 import { getAgencyLabels } from '../../../lib/labels'
 import { getWaitingLabel } from '../../../lib/ticketStatus'
 import { FilesTab } from '../components/FilesTab'
+import { HoursRequestPanel } from '../components/HoursRequestPanel'
 import { TicketBriefView } from '../../briefs'
 import { TimeProgress, TimeTab, TimerButton, useTimerChanged } from '../../time'
 
@@ -282,6 +283,10 @@ export function TicketPage() {
       </header>
 
       {actionError && <Alert variant="error">{actionError.message}</Alert>}
+
+      {(isAssignedEmployee || user.role !== 'employee') && (
+        <HoursRequestPanel ticket={ticket} role={user.role} employeeName={project.employee?.name} onChanged={refresh} onMessage={showToast} />
+      )}
 
       {banner && (
         <NeedsInputBanner

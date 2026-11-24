@@ -101,6 +101,12 @@ class Ticket extends Model
         return $this->hasMany(TicketAllocation::class);
     }
 
+    /** The open request for more hours, if the employee has asked. */
+    public function pendingHoursRequest(): HasOne
+    {
+        return $this->hasOne(HoursRequest::class)->where('status', 'pending')->latestOfMany();
+    }
+
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);

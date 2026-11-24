@@ -4,7 +4,8 @@ import { AT_RISK_DAYS } from './constants'
 // Never use `new Date('2026-11-14')`: that is parsed as UTC and shifts by timezone.
 
 const MS_PER_DAY = 86400000
-const OPEN_STATUSES = ['scheduled', 'in_progress', 'todo', 'in_review']
+// Work that is not finished yet: a due date on it can be close or missed.
+const OPEN_STATUSES = ['scheduled', 'in_progress', 'todo', 'in_review', 'blocked', 'waiting_on_client', 'changes_requested']
 
 // pluralize(1, 'agency') -> "agency"; pluralize(4, 'agency') -> "agencies"; pass `plural` for irregular nouns.
 export function pluralize(count, noun, plural) {
@@ -37,6 +38,44 @@ export function mondayOf(dateStr) {
   const dayOfWeek = d.getDay() || 7
   d.setDate(d.getDate() - dayOfWeek + 1)
   return d
+}
+
+// Today as `YYYY-MM-DD` in a given IANA timezone (the app's, from the API), not the browser's or UTC.
+export function todayIn(timezone) {
+  if (!timezone) return todayStr()
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+    const get = (type) => parts.find((part) => part.type === type)?.value
+    return `${get('year')}-${get('month')}-${get('day')}`
+  } catch {
+    return todayStr()
+  }
+}
+
+// Whole days from `from` to `to` (negative when `to` is earlier). Both are `YYYY-MM-DD`.
+export function daysBetween(from, to) {
+  const a = parseLocal(from)
+  const b = parseLocal(to)
+  if (!a || !b) return null
+  return Math.round((b - a) / MS_PER_DAY)
+}
+
+// ISO weekday of a `YYYY-MM-DD` date: 1 = Monday ... 7 = Sunday.
+export function isoWeekday(dateStr) {
+  const date = parseLocal(dateStr)
+  return date ? (date.getDay() || 7) : null
+}
+
+// "Mon" for a `YYYY-MM-DD` date.
+export function weekdayLabel(dateStr) {
+  const date = parseLocal(dateStr)
+  return date ? new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date) : ''
+}
+
+// "Week of Dec 7, 2026" for the Monday of a week.
+export function formatWeekOf(mondayStr) {
+  const date = parseLocal(mondayStr)
+  return date ? `Week of ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)}` : ''
 }
 
 // `YYYY-MM-DD` shifted by `days` (may be negative).
@@ -87,12 +126,13 @@ function plural(count, word) {
 }
 
 // { label, tone } where tone is 'danger' | 'warning' | 'neutral'.
-export function getDueInfo(dueDateStr, status) {
+// `todayDate` (YYYY-MM-DD) lets a caller use the app's own "today" from the API instead of the browser's.
+export function getDueInfo(dueDateStr, status, todayDate = todayStr()) {
   const due = parseLocal(dueDateStr)
   if (!due) return { label: 'No due date', tone: 'neutral' }
   if (!OPEN_STATUSES.includes(status)) return { label: formatDate(dueDateStr), tone: 'neutral' }
 
-  const today = parseLocal(todayStr())
+  const today = parseLocal(todayDate)
   const days = Math.round((due - today) / MS_PER_DAY)
   if (days < 0) return { label: `${plural(-days, 'day')} overdue`, tone: 'danger' }
   if (days === 0) return { label: 'Due today', tone: 'warning' }

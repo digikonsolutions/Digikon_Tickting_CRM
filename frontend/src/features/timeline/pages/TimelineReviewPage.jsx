@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAuth } from '../../../auth/useAuth'
 import { useAsync } from '../../../hooks/useAsync'
-import { formatDate, formatShortDate } from '../../../lib/format'
+import { formatDate, formatShortDate, mondayOf, toDateStr } from '../../../lib/format'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, Button, Card, Modal, PageHeader, Skeleton, StatusBadge, Textarea, useToast } from '../../../components/ui'
 import { TIMELINE, TimelineChip } from '../TimelineChip'
@@ -20,9 +20,8 @@ function weeksOf(days) {
   days.forEach((day) => {
     const date = new Date(`${day.date}T00:00:00`)
     if (date.getDay() === 0) return
-    const monday = new Date(date)
-    monday.setDate(date.getDate() - ((date.getDay() + 6) % 7))
-    const key = monday.toISOString().slice(0, 10)
+    // Local dates throughout: toISOString() would shift the key back a day east of UTC.
+    const key = toDateStr(mondayOf(day.date))
     let week = weeks.find((item) => item.key === key)
     if (!week) { week = { key, days: [] }; weeks.push(week) }
     week.days.push({ ...day, slot: (date.getDay() + 6) % 7 })

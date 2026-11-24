@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { Alert, Button, Card, EmptyState, StatusBadge, TicketKey, useToast } from '../../../components/ui'
-import { formatDate } from '../../../lib/format'
+import { formatDate, formatHours } from '../../../lib/format'
 import { ProjectFormModal } from './ProjectFormModal'
 import { TicketFormModal } from './TicketFormModal'
 import '../../services/services.css'
@@ -98,6 +98,7 @@ export function EditWorkCard({ isOwner, onChanged }) {
                       </span>
                       <span className="dash-work-actions">
                         <StatusBadge status={ticket.status} />
+                        {ticket.hours_request && <Link className="ui-badge ui-badge-warning" to={`/tickets/${ticket.key}`}>More hours asked: +{formatHours(ticket.hours_request.hours)}</Link>}
                         <Button type="button" size="sm" variant="secondary" aria-label={`Edit ticket ${ticket.title}`} onClick={() => setEditing({ kind: 'ticket', ticket })}>Edit</Button>
                       </span>
                     </li>

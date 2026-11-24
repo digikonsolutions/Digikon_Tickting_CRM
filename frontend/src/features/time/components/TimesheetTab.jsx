@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { Alert, Button, DayStrip, Skeleton, TicketKey } from '../../../components/ui'
@@ -6,10 +6,14 @@ import { useAsync } from '../../../hooks/useAsync'
 import { addDays, formatDateRange, formatHours, mondayOf, toDateStr, todayStr } from '../../../lib/format'
 
 // Monday-to-Saturday timesheet: what was logged against what was scheduled, per day and per ticket.
-export function TimesheetTab({ refreshKey = 0 }) {
+// `onLoaded(data)` lets a parent show more from the same week (the employee Time page adds a per-project summary).
+export function TimesheetTab({ refreshKey = 0, onLoaded }) {
   const [weekStart, setWeekStart] = useState(() => toDateStr(mondayOf()))
   const load = useCallback(() => authService.getTimesheetWeek(weekStart), [weekStart, refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const { data, error, isLoading, reload } = useAsync(load)
+  useEffect(() => {
+    if (data) onLoaded?.(data)
+  }, [data, onLoaded])
   const isThisWeek = weekStart === toDateStr(mondayOf(todayStr()))
 
   if (error && !data) {

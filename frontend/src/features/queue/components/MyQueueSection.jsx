@@ -4,6 +4,7 @@ import { useAsync } from '../../../hooks/useAsync'
 import { Alert, Badge, Card, CapacityBar } from '../../../components/ui'
 import { formatDate, formatDateTime, formatShortDate } from '../../../lib/format'
 import { plannedRange } from '../queueFormat'
+import { DEFAULT_CAPACITY } from '../../../lib/constants'
 
 /** The employee's own queue, read-only: what is on now, what is next and when they are free. No prices, ever. */
 export function MyQueueSection({ queue: given }) {
@@ -50,7 +51,7 @@ export function MyQueueSection({ queue: given }) {
       <p className="queue-muted">
         {capacity.free_from ? <>Free from <strong>{formatShortDate(capacity.free_from.date)}</strong></> : 'No free time in the next four months'}
       </p>
-      <CapacityBar used={Number(capacity.hours_week_used ?? 0)} budget={Number(capacity.weekly_hours ?? 36)} label="this week" ariaLabel="Hours booked this week" />
+      <CapacityBar used={Number(capacity.hours_week_used ?? 0)} budget={Number(capacity.weekly_hours ?? DEFAULT_CAPACITY.weekly_hours)} label="this week" ariaLabel="Hours booked this week" />
     </Card>
   )
 }

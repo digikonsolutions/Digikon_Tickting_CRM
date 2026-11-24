@@ -419,6 +419,23 @@ export const authService = {
     return request(`/agency/assignments${query}`)
   },
   // Team queue: an employee's open projects in order, with what is happening now and the capacity left.
+  // More hours on a ticket: the employee asks, the owner or a client answers.
+  async requestMoreHours(ticketId, { hours, reason }) {
+    if (AUTH_MODE === 'mock') return { hours_request: { id: Date.now(), status: 'pending', hours, reason } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/hours-requests`, { method: 'POST', body: JSON.stringify({ hours, reason }) })
+  },
+  async cancelHoursRequest(id) {
+    if (AUTH_MODE === 'mock') return { hours_request: { id, status: 'cancelled' } }
+    return request(`/hours-requests/${encodeURIComponent(id)}/cancel`, { method: 'PATCH' })
+  },
+  async approveHoursRequest(id) {
+    if (AUTH_MODE === 'mock') return { hours_request: { id, status: 'approved' } }
+    return request(`/agency/hours-requests/${encodeURIComponent(id)}/approve`, { method: 'POST' })
+  },
+  async declineHoursRequest(id, note) {
+    if (AUTH_MODE === 'mock') return { hours_request: { id, status: 'declined' } }
+    return request(`/agency/hours-requests/${encodeURIComponent(id)}/decline`, { method: 'POST', body: JSON.stringify({ note: note || null }) })
+  },
   async getAssignmentQueue(assignmentId) {
     if (AUTH_MODE === 'mock') return { now: null, up_next: [], pinned_work_item_ids: [], capacity: {} }
     return request(`/agency/assignments/${encodeURIComponent(assignmentId)}/queue`)
