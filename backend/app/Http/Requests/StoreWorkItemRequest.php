@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\BriefRules;
 use App\Http\Requests\Concerns\ServiceDetailsRules;
+use App\Support\GhlBrief;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWorkItemRequest extends FormRequest
@@ -31,6 +32,8 @@ class StoreWorkItemRequest extends FormRequest
         return [
             ...$this->projectBriefRules(),
             ...$this->serviceDetailsRules('project'),
+            ...GhlBrief::rules(),
+            ...GhlBrief::agencyProhibited(),
             'title' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:5000'],
             'estimated_hours' => [$adminOnly ? 'nullable' : 'required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:'.config('scheduling.max_project_hours', 180)],

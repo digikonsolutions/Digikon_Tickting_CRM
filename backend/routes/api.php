@@ -24,11 +24,13 @@ use App\Http\Controllers\EmployeeHeartbeatController;
 use App\Http\Controllers\BrowserHistoryController;
 use App\Http\Controllers\MonitoringConsentController;
 use App\Http\Controllers\ProjectAttachmentController;
+use App\Http\Controllers\ProjectBriefController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketDetailsController;
 use App\Http\Controllers\AdminRushRequestController;
 use App\Http\Controllers\AgencyRushRequestController;
 use App\Http\Controllers\HoursRequestController;
@@ -158,6 +160,13 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    // The detailed GoHighLevel brief, ticket work orders and their templates (agency users write; see the README matrix).
+    Route::patch('/projects/{workItem}/brief', [ProjectBriefController::class, 'update'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:work-order']);
+    Route::post('/projects/{workItem}/tickets/{ticket}/duplicate', [TicketController::class, 'duplicate'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:work-order']);
+    Route::get('/ticket-templates', [TicketDetailsController::class, 'templates'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     // White-label branding: everyone in the agency reads it; only the owner changes it.
     Route::get('/branding', [AgencyBrandingController::class, 'show'])
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member', 'agency.active']);
@@ -202,6 +211,9 @@ Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->whereNumber('
     Route::post('/projects/{workItem}/timeline/start-review', [TimelineController::class, 'adminStartReview']);
     Route::post('/projects/{workItem}/timeline/confirm', [TimelineController::class, 'confirm']);
     Route::post('/projects/{workItem}/timeline/request-changes', [TimelineController::class, 'adminRequestChanges']);
+    // Internal notes (visible to administrators and the assigned employee only).
+    Route::patch('/projects/{workItem}/brief/internal-notes', [ProjectBriefController::class, 'updateInternalNotes']);
+    Route::patch('/tickets/{ticket}/internal-notes', [TicketDetailsController::class, 'updateInternalNotes'])->whereNumber('ticket');
 });
 Route::middleware(['web', 'auth', 'role:employee'])->prefix('work-items')->whereNumber('workItem')->group(function () {
     Route::get('/awaiting-timeline', [TimelineController::class, 'employeeAwaiting']);
@@ -299,6 +311,13 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::patch('/tickets/{ticket}/status', [TicketController::class, 'updateStatus'])
         ->middleware(['auth', 'role:employee']);
+    // Work order: the assigned employee delivers and flags a blocker; the employee or the agency ticks the checklist.
+    Route::patch('/tickets/{ticket}/delivery', [TicketDetailsController::class, 'delivery'])
+        ->whereNumber('ticket')->middleware(['auth', 'role:employee', 'throttle:work-order']);
+    Route::patch('/tickets/{ticket}/blocked', [TicketDetailsController::class, 'blocked'])
+        ->whereNumber('ticket')->middleware(['auth', 'role:employee', 'throttle:work-order']);
+    Route::patch('/tickets/{ticket}/checklist/{item}', [TicketDetailsController::class, 'toggleChecklist'])
+        ->whereNumber(['ticket', 'item'])->middleware(['auth', 'role:employee,agency_owner,agency_client', 'throttle:work-order']);
 });
 
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {

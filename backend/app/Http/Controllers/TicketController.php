@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Role;
+use App\Http\Controllers\Concerns\GuardsProjectAccess;
+use App\Http\Requests\DuplicateTicketRequest;
 use App\Http\Requests\ListAdminTicketsRequest;
 use App\Http\Requests\ReorderTicketsRequest;
 use App\Http\Requests\StoreTicketCommentRequest;
@@ -19,6 +21,7 @@ use App\Models\WorkItem;
 use App\Services\ActivityLogger;
 use App\Services\Attachments\AttachmentPresenter;
 use App\Services\TicketAccess;
+use App\Services\TicketDetailsService;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
 use App\Services\TicketWorkflow;
@@ -33,6 +36,8 @@ use Illuminate\Validation\ValidationException;
 
 class TicketController extends Controller
 {
+    use GuardsProjectAccess;
+
     private const COMMENT_LIMIT = 200;
 
     public function index(Request $request, WorkItem $workItem): JsonResponse
@@ -41,7 +46,7 @@ class TicketController extends Controller
 
         return response()->json([
             'tickets' => $workItem->tickets()
-                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment'])
+                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment', 'detail'])
                 ->withCount(['comments' => $this->commentVisibility($request->user())])
                 ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
                 ->orderBy('position')
@@ -65,8 +70,44 @@ class TicketController extends Controller
         // instead of being squeezed into the project's already-past schedule window.
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true, allowCompleted: true);
         $data = $request->validated();
+        $order = $data['work_order'] ?? null;
+        unset($data['work_order']);
 
-        $ticket = DB::transaction(function () use ($workItem, $user, $data, $planner, $recorder): Ticket {
+        return $this->createTicket($workItem, $user, $data, $order, $planner, $recorder);
+    }
+
+    /**
+     * A copy of a ticket in the same project: same text, hours and work order (the checklist starts undone; delivery,
+     * blocked state and review are not copied). It is planned like any new ticket, so the project's hours and the
+     * employee's capacity apply.
+     */
+    public function duplicate(
+        DuplicateTicketRequest $request,
+        WorkItem $workItem,
+        Ticket $ticket,
+        TicketPlanner $planner,
+        TicketEventRecorder $recorder,
+        TicketDetailsService $details
+    ): JsonResponse {
+        $user = $request->user();
+        $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true, allowCompleted: true);
+        abort_unless($ticket->work_item_id === $workItem->id, 404);
+        $input = $request->validated();
+
+        return $this->createTicket($workItem, $user, [
+            'title' => $input['title'] ?? mb_substr('Copy of '.$ticket->title, 0, 160),
+            'description' => $ticket->description,
+            'estimated_hours' => $input['estimated_hours'] ?? $ticket->estimated_hours,
+            'priority' => $ticket->priority,
+            'service_type' => $ticket->service_type,
+            'details' => $ticket->details,
+        ], $details->copyOrder($ticket), $planner, $recorder);
+    }
+
+    /** @param  array<string, mixed>  $data  @param  array<string, mixed>|null  $order */
+    private function createTicket(WorkItem $workItem, User $user, array $data, ?array $order, TicketPlanner $planner, TicketEventRecorder $recorder): JsonResponse
+    {
+        $ticket = DB::transaction(function () use ($workItem, $user, $data, $order, $planner, $recorder): Ticket {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem, allowCompleted: true);
@@ -90,6 +131,10 @@ class TicketController extends Controller
                 'priority' => $data['priority'] ?? 'normal',
                 'status' => 'todo',
             ]);
+            // The work order is information only: it never touches hours, position, status or the planner below.
+            if ($order !== null) {
+                app(TicketDetailsService::class)->save($ticket, $order);
+            }
 
             $planner->plan($lockedWorkItem, $ticket->id, [
                 'type' => 'ticket_created',
@@ -122,13 +167,15 @@ class TicketController extends Controller
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         abort_unless(! in_array($ticket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
         $data = $request->validated();
+        $order = $data['work_order'] ?? null;
+        unset($data['work_order']);
         // Another service makes the old answers meaningless: they go unless new ones are sent with it.
         if (array_key_exists('service_type', $data) && $data['service_type'] !== $ticket->service_type && ! array_key_exists('details', $data)) {
             $data['details'] = null;
         }
 
         $rescheduled = [];
-        DB::transaction(function () use ($ticket, $workItem, $data, $planner, $user, $recorder, &$rescheduled): void {
+        DB::transaction(function () use ($ticket, $workItem, $data, $order, $planner, $user, $recorder, &$rescheduled): void {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             $this->ensureOpenProject($lockedWorkItem);
@@ -152,6 +199,9 @@ class TicketController extends Controller
             }
 
             $lockedTicket->update($data);
+            if ($order !== null) {
+                app(TicketDetailsService::class)->save($lockedTicket, $order);
+            }
 
             if (! empty($changes)) {
                 $recorder->record($lockedTicket, 'updated', ['changes' => $changes], $user);
@@ -266,7 +316,7 @@ class TicketController extends Controller
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment', 'pendingHoursRequest'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment', 'pendingHoursRequest', 'detail'])
             ->withCount(['comments' => $this->commentVisibility($employee)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
@@ -342,7 +392,7 @@ class TicketController extends Controller
         $filters = $request->validated();
 
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent', 'pendingHoursRequest'])
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'detail'])
             ->withCount(['comments' => $this->commentVisibility($request->user())])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
@@ -413,7 +463,7 @@ class TicketController extends Controller
         $search = trim((string) ($filters['search'] ?? ''));
 
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent', 'pendingHoursRequest'])
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'detail'])
             ->withCount(['comments' => $this->commentVisibility($user)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->where('agency_id', $user->agency_id)
@@ -467,7 +517,7 @@ class TicketController extends Controller
             ->whereHas('workItem', fn ($q) => $q->whereIn('status', ['scheduled', 'in_progress']));
 
         $tickets = (clone $query)
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment', 'detail'])
             ->withCount(['comments' => $this->commentVisibility($user)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy(
@@ -566,7 +616,7 @@ class TicketController extends Controller
         abort_unless($agency !== null, 404);
 
         $ticket = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.agency', 'workItem.assignment'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.agency', 'workItem.assignment', 'workItem.ghlBrief', 'detail'])
             ->where('agency_id', $agency->id)
             ->where('number', (int) $numberStr)
             ->first();
@@ -580,6 +630,8 @@ class TicketController extends Controller
 
         return response()->json([
             'ticket' => $this->ticketPayload($ticket, $request->user()),
+            // The whole work order (internal notes only for admins and the assigned employee).
+            'work_order' => app(TicketDetailsService::class)->full($ticket, $request->user()),
             // Linked tickets, resolved only within the same project (the ids were validated on save).
             'related_tickets' => empty($ticket->related_ticket_ids) ? [] : Ticket::query()
                 ->with('agency')
@@ -595,6 +647,7 @@ class TicketController extends Controller
                 'status' => $project->status,
                 'agency_name' => $project->agency?->name,
                 'employee' => $project->employee ? ['id' => $project->employee->id, 'name' => $project->employee->name] : null,
+                'ghl_brief' => app(\App\Services\ProjectBriefService::class)->full($project, $request->user()),
             ],
             'timeline' => $timeline,
         ]);
@@ -734,60 +787,6 @@ class TicketController extends Controller
         ];
     }
 
-    private function authorizeProject(
-        User $user,
-        WorkItem $workItem,
-        bool $requireOpen = false,
-        bool $requireActiveAssignment = false,
-        bool $allowCompleted = false
-    ): void {
-        abort_unless($this->canAccessProject($user, $workItem), 404);
-
-        if ($requireOpen) {
-            $this->ensureOpenProject($workItem, $allowCompleted);
-        }
-
-        if ($requireActiveAssignment) {
-            $this->ensureActiveProjectAssignment($workItem);
-        }
-    }
-
-    private function canAccessProject(User $user, WorkItem $workItem): bool
-    {
-        if (
-            ! in_array($user->role, [Role::AgencyOwner, Role::AgencyClient], true)
-            || $user->agency_id === null
-            || $user->agency?->status !== 'active'
-            || $workItem->agency_id !== $user->agency_id
-        ) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function ensureOpenProject(WorkItem $workItem, bool $allowCompleted = false): void
-    {
-        $allowed = $allowCompleted ? ['scheduled', 'in_progress', 'completed'] : ['scheduled', 'in_progress'];
-        abort_unless(
-            in_array($workItem->status, $allowed, true),
-            422,
-            $allowCompleted ? 'Tickets cannot be added to a cancelled project.' : 'Tickets can only be changed on open projects.'
-        );
-    }
-
-    private function ensureActiveProjectAssignment(WorkItem $workItem): void
-    {
-        abort_unless(
-            EmployeeAssignment::query()
-                ->whereKey($workItem->assignment_id)
-                ->where('employee_id', $workItem->employee_id)
-                ->where('agency_id', $workItem->agency_id)
-                ->where('status', 'active')
-                ->exists(),
-            404
-        );
-    }
 
     /**
      * A completed project's own `work_item_allocations` all sit inside its original (now-past) work
@@ -871,27 +870,6 @@ class TicketController extends Controller
         });
     }
 
-    private function lockActiveProjectAssignment(WorkItem $workItem): EmployeeAssignment
-    {
-        $assignment = EmployeeAssignment::query()
-            ->whereKey($workItem->assignment_id)
-            ->where('employee_id', $workItem->employee_id)
-            ->where('agency_id', $workItem->agency_id)
-            ->where('status', 'active')
-            ->lockForUpdate()
-            ->first();
-
-        abort_unless($assignment !== null, 404);
-
-        return $assignment;
-    }
-
-    private function ensureActiveEmployeeAgency(User $user): void
-    {
-        if ($user->agency_id !== null) {
-            abort_unless($user->agency?->status === 'active', 403, 'An active agency is required to access employee tickets.');
-        }
-    }
 
     /**
      * Constraint for counting/listing comments a viewer may see: agency roles never see internal notes.
@@ -951,6 +929,7 @@ class TicketController extends Controller
             'priority' => $ticket->priority,
             'service_type' => $ticket->service_type,
             'details' => $ticket->details,
+            'details_summary' => app(TicketDetailsService::class)->summary($ticket),
             'brief' => [
                 'steps_to_reproduce' => $ticket->steps_to_reproduce,
                 'expected_result' => $ticket->expected_result,

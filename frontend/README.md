@@ -27,6 +27,17 @@ VITE_AUTH_MODE=api
 - `src/hooks/` contains shared hooks.
 - `src/branding/` contains agency white-labelling (see below).
 
+## GoHighLevel brief and ticket work orders
+
+`src/features/workorder` holds everything for the detailed project brief and the ticket work order, so agency, admin and employee views share it.
+
+- `briefSchema.js` describes the twelve brief sections as data. `BriefForm` (accordion, collapsed by default, with a live "Brief N% complete"), `BriefView` (read-only, empty sections hidden, copy buttons on ids and links) and the completeness estimate all read it. Adding a field means one line there and one rule in `backend/app/Support/GhlBrief.php`.
+- `useProjectBrief` and `useTicketDetails` hold the form state; `briefToPayload` and `orderToPayload` (in `useProjectBrief.js` and `workOrder.js`) are the only places that map state to the API. Nested 422 keys such as `ghl_brief.client.email` or `work_order.ghl.refs.0.url` are matched to inputs by path, and a section with an error opens itself.
+- `features/agency/components/TicketForm.jsx` is the create and edit dialog for tickets on a project page: core fields (title, hours, priority, work type) on top, then the collapsible work-order sections, with the project brief shown read-only for the work type.
+- The ticket page has a "Work order" tab. The assigned employee gets a tickable checklist, a blocked note and a delivery form there and in the My Work ticket drawer; agency users can tick steps; admin is read-only.
+- Shared inputs added to `components/ui`: `ChipInput`, `MultiSelect`, `RepeatableList`, `ChecklistEditor`, `UrlInput`, `CopyButton`, `ProgressBadge`.
+- The tickets-page dialog (`TicketFormModal`) does not have the work-order sections yet.
+
 ## Agency branding
 
 An agency owner customises the workspace at `/agency/branding`; everyone in that agency (owner, client, legacy member) sees it, and employees and admins keep the default ClientHub look.

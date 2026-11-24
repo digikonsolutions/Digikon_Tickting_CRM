@@ -137,4 +137,15 @@ class Ticket extends Model
     {
         return $this->hasMany(TicketEvent::class);
     }
+
+    /** The work order (what is specific to this ticket); absent for tickets created without one. */
+    public function detail(): HasOne
+    {
+        return $this->hasOne(TicketDetail::class);
+    }
+
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(TicketChecklistItem::class)->orderBy('position');
+    }
 }

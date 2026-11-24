@@ -969,6 +969,32 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { ticket: null, project: null, timeline: [] }
     return request(`/tickets/key/${encodeURIComponent(key)}`)
   },
+  // GoHighLevel brief and ticket work orders. The brief replaces whole sections; the checklist and delivery calls
+  // return the refreshed `work_order`.
+  async updateProjectBrief(projectId, ghlBrief) {
+    if (AUTH_MODE === 'mock') return { ghl_brief: ghlBrief }
+    return request(`/agency/projects/${encodeURIComponent(projectId)}/brief`, { method: 'PATCH', body: JSON.stringify({ ghl_brief: ghlBrief }) })
+  },
+  async getTicketTemplates() {
+    if (AUTH_MODE === 'mock') return { templates: [] }
+    return request('/agency/ticket-templates')
+  },
+  async duplicateTicket(projectId, ticketId, data = {}) {
+    if (AUTH_MODE === 'mock') return { ticket: { id: Date.now() } }
+    return request(`/agency/projects/${encodeURIComponent(projectId)}/tickets/${encodeURIComponent(ticketId)}/duplicate`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateTicketDelivery(id, data) {
+    if (AUTH_MODE === 'mock') return { work_order: { delivery: data } }
+    return request(`/tickets/${encodeURIComponent(id)}/delivery`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async updateTicketBlocked(id, data) {
+    if (AUTH_MODE === 'mock') return { work_order: { blocked: data } }
+    return request(`/tickets/${encodeURIComponent(id)}/blocked`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async toggleChecklistItem(ticketId, itemId, done) {
+    if (AUTH_MODE === 'mock') return { work_order: { checklist: [] } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/checklist/${encodeURIComponent(itemId)}`, { method: 'PATCH', body: JSON.stringify({ done }) })
+  },
   // Cursor-paginated, newest first: { events, next_cursor }.
   async getTicketTimeline(id, { cursor } = {}) {
     if (AUTH_MODE === 'mock') return { events: [], next_cursor: null }

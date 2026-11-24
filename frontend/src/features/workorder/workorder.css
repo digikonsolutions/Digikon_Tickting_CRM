@@ -1,0 +1,42 @@
+/* GHL brief and ticket work order: forms (brief-, tk-) and read views. Teal tokens come from index.css. */
+.brief-form { display: grid; gap: var(--space-3); }
+.brief-form-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.brief-section { border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-card); }
+.brief-section > summary { cursor: pointer; padding: var(--space-3); font-weight: 600; font-size: var(--text-base); list-style-position: inside; }
+.brief-section > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.brief-section-body { display: grid; gap: var(--space-3); padding: 0 var(--space-3) var(--space-3); }
+.brief-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-3); align-items: start; }
+.brief-fields > .ui-field:has(textarea), .brief-fields > .ui-chip-box, .brief-fields > .ui-repeat, .brief-fields > .ui-checkgroup { grid-column: 1 / -1; }
+.brief-ghl-view { display: grid; gap: var(--space-4); }
+.brief-ghl-section h4 { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.brief-ghl-section dl { display: grid; gap: var(--space-2); margin: 0; }
+.brief-ghl-section .brief-row { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: var(--space-2); }
+.brief-ghl-section dt { color: var(--color-text-soft); font-size: var(--text-sm); }
+.brief-ghl-section dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.brief-ghl-internal { border-left: 3px solid var(--color-warning, #d97706); padding-left: var(--space-3); }
+.brief-subgroup { margin-bottom: var(--space-3); }
+.brief-subgroup h5 { margin: 0 0 var(--space-1); }
+.brief-text { white-space: pre-wrap; }
+.brief-chips { display: flex; flex-wrap: wrap; gap: .25rem; list-style: none; margin: 0; padding: 0; }
+.brief-chips li { background: var(--brand-soft); color: var(--brand-hover); border-radius: 999px; padding: .0625rem .5rem; font-size: var(--text-sm); }
+@media (max-width: 40rem) { .brief-ghl-section .brief-row { grid-template-columns: 1fr; } }
+
+/* Ticket work order */
+.tk-form { display: grid; gap: var(--space-3); }
+.tk-section { border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-card); }
+.tk-section > summary { cursor: pointer; padding: var(--space-3); font-weight: 600; font-size: var(--text-base); }
+.tk-section > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.tk-section-body { display: grid; gap: var(--space-3); padding: 0 var(--space-3) var(--space-3); }
+.tk-context { border: 1px dashed var(--color-border-strong); border-radius: var(--radius-control); padding: var(--space-3); background: var(--brand-soft); }
+.tk-context > summary { cursor: pointer; font-weight: 600; }
+.tk-missing { color: var(--color-text-soft); font-size: var(--text-sm); }
+.tk-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.tk-blocked { color: var(--color-danger, #b91c1c); font-weight: 600; font-size: var(--text-sm); }
+.tk-order { display: grid; gap: var(--space-4); }
+.tk-order h4 { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.tk-ref { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+.tk-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.tk-checklist label { display: flex; gap: var(--space-2); align-items: flex-start; cursor: pointer; }
+.tk-checklist .is-done span { text-decoration: line-through; color: var(--color-text-soft); }
+.tk-delivery { display: grid; gap: var(--space-3); }
+.tk-readonly-note { font-size: var(--text-sm); color: var(--color-text-soft); }

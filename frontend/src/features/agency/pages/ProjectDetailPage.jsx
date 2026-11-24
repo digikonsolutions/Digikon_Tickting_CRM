@@ -9,15 +9,16 @@ import { formatDate, formatDateRange, formatHours, formatTicketProgress } from '
 import { getAgencyLabels } from '../../../lib/labels'
 import { can } from '../../../lib/permissions'
 import { WaitingChip } from '../../tickets'
-import { BRIEF_LIMITS, FilePicker, ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
+import { ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief } from '../../briefs'
 import { ActivityTimeline } from '../../activity'
 import { TimelinePanel } from '../../timeline'
-import { ServiceFields } from '../../services/ServiceFields'
-import { buildFromAnswers, cleanDetails, typeOf } from '../../services/serviceCatalog'
-import '../../services/services.css'
+import { BriefForm } from '../../workorder/BriefForm'
+import { GhlBriefView } from '../../workorder/BriefView'
+import { useProjectBrief } from '../../workorder/useProjectBrief'
+import { WorkOrderBadges } from '../../workorder/WorkOrderView'
+import { TicketForm } from '../components/TicketForm'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 
-const PRIORITIES = ['low', 'normal', 'high', 'urgent']
 
 export function ProjectDetailPage() {
   const { id } = useParams()
@@ -31,14 +32,9 @@ export function ProjectDetailPage() {
   const [profileId, setProfileId] = useState(null)
   const [mutationError, setMutationError] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [ticketFiles, setTicketFiles] = useState([])
-  const [fileNotice, setFileNotice] = useState(null)
-  // GHL service for the ticket: its answers write the title and description until the person edits those themselves.
-  const loadCatalog = useCallback(() => authService.getServiceCatalog(), [])
-  const catalog = useAsync(loadCatalog).data
-  const [service, setService] = useState({ serviceType: null, details: {} })
-  const [text, setText] = useState({ title: '', description: '' })
-  const [touched, setTouched] = useState({ title: false, description: false })
+  const [briefEditor, setBriefEditor] = useState(false)
+  const [briefError, setBriefError] = useState(null)
+  const brief = useProjectBrief(null)
   const loadData = useCallback(async () => {
     const [projectResponse, ticketResponse] = await Promise.all([
       authService.getAgencyProject(id),
@@ -93,55 +89,44 @@ export function ProjectDetailPage() {
     }
   }
 
-  async function saveTicket(event) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const payload = {
-      title: text.title.trim(),
-      description: text.description.trim(),
-      estimated_hours: Number(formData.get('estimated_hours')),
-      priority: String(formData.get('priority')),
-      ...readTicketBrief(formData),
-    }
-    const cleaned = cleanDetails(ticketType, service.details, 'ticket')
-    if (!editor.ticket || service.serviceType !== (editor.ticket.service_type ?? null)) payload.service_type = service.serviceType
-    if (!editor.ticket || JSON.stringify(cleaned) !== JSON.stringify(editor.ticket.details ?? null)) payload.details = cleaned
-    const files = ticketFiles
-    await mutate(async () => {
-      if (editor.ticket) return authService.updateTicket(editor.ticket.id, payload)
-      const result = await authService.createProjectTicket(id, payload)
-      if (files.length) {
-        try {
-          await authService.uploadTicketAttachments(result.ticket.id, { files })
-        } catch (reason) {
-          showToast(`Ticket created, but the files were not uploaded: ${uploadErrorMessage(reason)}`, 'error')
-        }
-      }
-      return result
-    })
-    setTicketFiles([])
-    setFileNotice(null)
+  // After a ticket is saved: report moved tickets, reload.
+  async function ticketSaved(result, { created, uploadNotice } = {}) {
+    const moved = result?.rescheduled?.length ?? 0
+    if (moved > 0) showToast(` ticket${moved === 1 ? ' was' : 's were'} rescheduled.`)
+    if (uploadNotice) showToast(`Ticket created, but the files were not uploaded: ${uploadNotice}`, 'error')
+    if (created) showToast('Ticket created.')
+    setEditor(null)
+    await reload()
   }
 
-  // Every time the ticket dialog opens, start from the ticket being edited (or a blank one).
-  useEffect(() => {
-    if (!editor) return
-    const ticket = editor.ticket
-    setService({ serviceType: ticket?.service_type ?? null, details: ticket?.details ?? {} })
-    setText({ title: ticket?.title ?? '', description: ticket?.description ?? '' })
-    setTouched({ title: Boolean(ticket), description: Boolean(ticket) })
-  }, [editor])
-  const ticketType = typeOf(catalog, service.serviceType)
-  function changeService(next) {
-    setService(next)
-    setMutationError(null)
-    if (!next.serviceType) return
-    const written = buildFromAnswers(typeOf(catalog, next.serviceType), next.details, 'ticket')
-    setText((current) => ({ title: touched.title ? current.title : written.title, description: touched.description ? current.description : written.description }))
+  async function duplicateTicket(ticket) {
+    await mutate(async () => {
+      const result = await authService.duplicateTicket(id, ticket.id)
+      showToast('Ticket duplicated.')
+      return result
+    })
   }
-  const serviceError = (key) => {
-    const errors = mutationError?.errors ?? {}
-    return errors[key === 'service_type' ? key : `details.${key}`]?.[0]
+
+  function openBriefEditor() {
+    brief.reset(project.ghl_brief)
+    setBriefError(null)
+    setBriefEditor(true)
+  }
+
+  async function saveBrief(event) {
+    event.preventDefault()
+    setIsSaving(true)
+    setBriefError(null)
+    try {
+      await authService.updateProjectBrief(id, brief.payload({ replaceAll: true }))
+      setBriefEditor(false)
+      showToast('Brief saved.')
+      await reload()
+    } catch (reason) {
+      setBriefError(reason)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Links from the projects list (?edit=1 / ?newTicket=1) open the matching dialog once, then clear the link.
@@ -151,7 +136,7 @@ export function ProjectDetailPage() {
     if (!wanted || !project) return
     setSearchParams({}, { replace: true })
     if (wanted === 'edit' && isOwner) openProjectEditor()
-    if (wanted === 'ticket' && canAddTicket) { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }
+    if (wanted === 'ticket' && canAddTicket) { setMutationError(null); setEditor({ ticket: null }) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, project?.id])
 
@@ -274,6 +259,16 @@ export function ProjectDetailPage() {
         </div>
       </Card>
       <ProjectBriefView brief={project.brief} />
+      {(project.ghl_brief || canEdit) && (
+        <Card title="GoHighLevel brief" description="Give this once; every ticket starts from it." header={(
+          <div className="project-tickets-header">
+            <div><h2>GoHighLevel brief</h2><p>Give this once; every ticket starts from it.</p></div>
+            {canEdit && <Button type="button" variant="secondary" onClick={openBriefEditor}>{project.ghl_brief ? 'Edit brief' : 'Add brief'}</Button>}
+          </div>
+        )}>
+          {project.ghl_brief ? <GhlBriefView brief={project.ghl_brief} /> : <p className="ui-field-help">No brief yet.</p>}
+        </Card>
+      )}
       <ProjectFiles projectId={project.id} />
       <TimelinePanel projectId={project.id} onChanged={reload} />
       <Card
@@ -282,7 +277,7 @@ export function ProjectDetailPage() {
         header={(
           <div className="project-tickets-header">
             <div><h2>Tickets</h2><p>Tickets are slices of the project's scheduled hours and dates.</p></div>
-            {canAddTicket && <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>{project.status === 'completed' ? 'Create ticket' : 'Add ticket'}</Button>}
+            {canAddTicket && <Button type="button" onClick={() => { setMutationError(null); setEditor({ ticket: null }) }}>{project.status === 'completed' ? 'Create ticket' : 'Add ticket'}</Button>}
           </div>
         )}
       >
@@ -305,6 +300,7 @@ export function ProjectDetailPage() {
                     <WaitingChip ticket={ticket} role={user.role} />
                     <strong title="Logged of estimated hours">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</strong>
                     {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
+                    <WorkOrderBadges summary={ticket.details_summary} />
                   </div>
                   <div className="project-ticket-dates">
                     {ticket.due_date && <p className="project-ticket-due">{labels.dueDate} <strong>{formatDate(ticket.due_date)}</strong></p>}
@@ -316,6 +312,7 @@ export function ProjectDetailPage() {
                     <Button type="button" variant="ghost" size="sm" disabled={index === 0 || isSaving} aria-label={`Move ${ticket.title} up`} onClick={() => moveTicket(ticket, -1)}>↑</Button>
                     <Button type="button" variant="ghost" size="sm" disabled={index === tickets.length - 1 || isSaving} aria-label={`Move ${ticket.title} down`} onClick={() => moveTicket(ticket, 1)}>↓</Button>
                     <Button type="button" variant="secondary" size="sm" onClick={() => setEditor({ ticket })}>Edit</Button>
+                    <Button type="button" variant="ghost" size="sm" disabled={isSaving} onClick={() => duplicateTicket(ticket)}>Duplicate</Button>
                     <Button type="button" variant="danger" size="sm" onClick={() => mutate(() => authService.cancelTicket(ticket.id))}>Cancel</Button>
                   </div>
                 )}
@@ -326,7 +323,7 @@ export function ProjectDetailPage() {
               </li>
             ))}
           </ol>
-          : <EmptyState title="No tickets yet" action={canAddTicket ? <Button type="button" onClick={() => { setTicketFiles([]); setFileNotice(null); setMutationError(null); setEditor({ ticket: null }) }}>Add the first ticket</Button> : null}>Break the project’s hours into tickets so work can be planned.</EmptyState>}
+          : <EmptyState title="No tickets yet" action={canAddTicket ? <Button type="button" onClick={() => { setMutationError(null); setEditor({ ticket: null }) }}>Add the first ticket</Button> : null}>Break the project’s hours into tickets so work can be planned.</EmptyState>}
       </Card>
       {isOwner && project.employee && <ActivityTimeline projectId={project.id} title="Employee timeline" />}
       {canEdit && ['scheduled', 'in_progress'].includes(project.status) && (
@@ -337,35 +334,21 @@ export function ProjectDetailPage() {
         </div>
       )}
       <EmployeeProfileDrawer employeeId={profileId} onClose={() => setProfileId(null)} />
+      {editor && <TicketForm key={editor.ticket?.id ?? 'new'} project={project} tickets={tickets} ticket={editor.ticket} onClose={() => setEditor(null)} onSaved={ticketSaved} />}
       <Modal
-        open={Boolean(editor)}
-        onClose={() => !isSaving && setEditor(null)}
-        title={editor?.ticket ? 'Edit ticket' : 'Create ticket'}
+        open={briefEditor}
+        onClose={() => !isSaving && setBriefEditor(false)}
+        title="GoHighLevel brief"
         footer={null}
+        className="client-modal"
       >
-        <form className="ui-form" onSubmit={saveTicket}>
-          <FormSection title="What is this about?" description="Optional. Pick a service to get a few quick questions; the title and description are written for you.">
-            <ServiceFields catalog={catalog} scope="ticket" serviceType={service.serviceType} details={service.details} onChange={changeService} errors={serviceError} />
-          </FormSection>
-          <FormSection title="Basics">
-            <Input name="title" label="Title" maxLength="160" value={text.title} onChange={(event) => { setText({ ...text, title: event.target.value }); setTouched({ ...touched, title: true }) }} required error={mutationError?.errors?.title?.[0]} />
-            <Textarea name="description" label="Description" rows="4" value={text.description} onChange={(event) => { setText({ ...text, description: event.target.value }); setTouched({ ...touched, description: true }) }} required error={mutationError?.errors?.description?.[0]} />
-          </FormSection>
-          <FormSection title="Planning" description="Dates are planned from the project schedule, in priority order.">
-            <FieldRow>
-              <Input name="estimated_hours" label="Estimated hours" type="number" inputMode="decimal" min="0.01" step="0.01" defaultValue={editor?.ticket?.estimated_hours ?? ''} required error={mutationError?.errors?.estimated_hours?.[0]} />
-              <Select name="priority" label="Priority" defaultValue={editor?.ticket?.priority ?? 'normal'}>
-                {PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-              </Select>
-            </FieldRow>
-          </FormSection>
-          <FormSection title="Details and files" description="Optional. Helpful for bug reports and change requests.">
-            <TicketBriefFields key={editor?.ticket?.id ?? 'new'} errors={mutationError?.errors} defaults={editor?.ticket?.brief} otherTickets={tickets.filter((item) => item.id !== editor?.ticket?.id && item.status !== 'cancelled')} />
-            {!editor?.ticket && <FilePicker files={ticketFiles} onChange={setTicketFiles} notice={fileNotice} onNotice={setFileNotice} disabled={isSaving} limits={{ ...BRIEF_LIMITS, extensions: BRIEF_LIMITS.extensions.filter((extension) => extension !== 'zip') }} />}
-          </FormSection>
-          {mutationError?.status === 422 && !mutationError.errors && <Alert variant="error">{mutationError.message}</Alert>}
-          <FormActions submitLabel={editor?.ticket ? 'Save changes' : 'Create ticket'} loadingLabel="Saving…" loading={isSaving} onCancel={() => setEditor(null)} />
-        </form>
+        {briefEditor && (
+          <form className="ui-form" onSubmit={saveBrief} noValidate>
+            <BriefForm brief={brief} errors={briefError?.errors} />
+            {briefError && !briefError.errors && <ApiErrorMessage error={briefError} />}
+            <FormActions submitLabel="Save brief" loadingLabel="Saving…" loading={isSaving} onCancel={() => setBriefEditor(false)} />
+          </form>
+        )}
       </Modal>
       <Modal
         open={Boolean(projectEditor)}

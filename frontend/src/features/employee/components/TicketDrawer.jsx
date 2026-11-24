@@ -5,6 +5,7 @@ import { TicketComments } from '../../comments'
 import { HoursRequestPanel } from '../../tickets/components/HoursRequestPanel'
 import { WaitingChip } from '../../tickets'
 import { TimeProgress } from '../../time'
+import { WorkOrderBadges, WorkOrderPanel } from '../../workorder/WorkOrderView'
 
 // The ticket side panel: facts, the actions the server allows, and the comment thread. The Drawer returns focus to
 // the button that opened it when it closes.
@@ -28,6 +29,15 @@ export function TicketDrawer({ ticket, project, today, busy, onAction, onClose, 
       )}
       {ticket.description && (
         <div className="mw-drawer-section"><h4>Description</h4><PlainText text={ticket.description} /></div>
+      )}
+
+      {ticket.details_summary && (
+        <div className="mw-drawer-section">
+          <h4>Work order</h4>
+          <WorkOrderBadges summary={ticket.details_summary} />
+          {project?.brief_summary && <p className="tk-readonly-note">Client: {[project.brief_summary.client_name, project.brief_summary.company].filter(Boolean).join(' · ') || 'see the project brief'}. The full project brief is on the ticket page.</p>}
+          <WorkOrderPanel ticket={ticket} mine />
+        </div>
       )}
 
       <div className="mw-drawer-section">

@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { Link } from 'react-router-dom'
+import { WorkOrderBadges } from '../../workorder/WorkOrderView'
 import { Badge, Button, DueText, PriorityBadge, StatusBadge, TicketKey } from '../../../components/ui'
 import { formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
@@ -34,6 +35,7 @@ export function TicketItem({ ticket, showProject = true }) {
           <StatusBadge status={ticket.status} role="employee" />
           <WaitingChip ticket={ticket} role="employee" />
           <PriorityBadge priority={ticket.priority} />
+          <WorkOrderBadges summary={ticket.details_summary} />
           {late && <Badge variant={late[1]}>{late[0]}</Badge>}
           {ticket.hours_request && <Badge variant="info">Asked for +{formatHours(ticket.hours_request.hours)}</Badge>}
           <DueText dueDate={ticket.due_date} status={ticket.status} today={clock.today} />

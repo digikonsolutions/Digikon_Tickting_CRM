@@ -195,4 +195,10 @@ class WorkItem extends Model
     {
         return array_key_exists('tickets_total', $this->attributes) && $this->relationLoaded('nextTicket');
     }
+
+    /** The detailed GoHighLevel brief; absent for projects created without one. */
+    public function ghlBrief(): HasOne
+    {
+        return $this->hasOne(WorkItemBrief::class);
+    }
 }
