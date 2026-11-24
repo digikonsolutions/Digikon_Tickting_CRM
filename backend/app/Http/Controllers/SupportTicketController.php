@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\WorkItem;
 use App\Services\Support\SecretScanner;
 use App\Services\Support\SupportTicketService;
+use App\Services\Support\TicketOperations;
 use App\Services\Support\SupportWorkflow;
 use App\Services\Support\TicketPresenter;
 use App\Services\Support\TicketSearch;
@@ -122,6 +123,15 @@ class SupportTicketController extends Controller
         $ticket = $workflow->transition($ticket, 'closed', $request->user());
 
         return response()->json(['ticket' => TicketPresenter::agency($this->load($ticket), $request->user())]);
+    }
+
+    /** One satisfaction answer, 1 to 5, once the ticket is resolved or closed. */
+    public function feedback(Request $request, string $ref, TicketOperations $ops): JsonResponse
+    {
+        $data = $request->validate(['rating' => ['required', 'integer', 'between:1,5'], 'comment' => ['nullable', 'string', 'max:1000']]);
+        $ops->feedback($this->find($request, $ref), $request->user(), $data['rating'], $data['comment'] ?? null);
+
+        return response()->json(['message' => 'Thank you for your feedback.']);
     }
 
     public function endClients(Request $request): JsonResponse

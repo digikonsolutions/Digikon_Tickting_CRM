@@ -76,6 +76,7 @@ class Ticket extends Model
             'scope_approved_at' => 'datetime',
             'secret_flagged_at' => 'datetime',
             'waiting_since' => 'datetime',
+            'scope_proposal' => 'array',
             'reopened_count' => 'integer',
         ];
     }

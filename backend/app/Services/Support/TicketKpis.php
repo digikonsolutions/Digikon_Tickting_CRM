@@ -34,7 +34,11 @@ class TicketKpis
             'first_pass_qa_percent' => $this->firstPassQa($tickets),
             'on_time_percent' => $this->onTime($closedTickets),
             'critical_defects' => $tickets->where('type', 'bug')->where('priority', 'urgent')->count(),
-            'feedback_average' => null, // filled in once satisfaction surveys exist
+            'feedback_average' => (function () use ($tickets): ?float {
+                $avg = \Illuminate\Support\Facades\DB::table('ticket_feedback')->whereIn('ticket_id', $tickets->pluck('id'))->avg('rating');
+
+                return $avg === null ? null : round((float) $avg, 2);
+            })(),
             'targets' => self::TARGETS,
         ];
     }

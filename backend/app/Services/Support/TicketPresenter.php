@@ -108,6 +108,8 @@ class TicketPresenter
             'first_response_at' => $t->first_response_at?->toISOString(),
             'resolution' => $t->resolution_summary ? ['summary' => $t->resolution_summary, 'category' => $t->resolution_category, 'root_cause' => $t->root_cause, 'resolved_at' => $t->resolved_at?->toISOString(), 'closed_at' => $t->closed_at?->toISOString()] : null,
             'allowed_transitions' => app(SupportWorkflow::class)->allowed($t, $viewer),
+            'scope_proposal' => $t->scope_proposal ?? null,
+            'feedback' => \Illuminate\Support\Facades\DB::table('ticket_feedback')->where('ticket_id', $t->id)->first(['rating', 'comment']),
             'converted_to' => $t->converted_to_type ? ['type' => $t->converted_to_type, 'id' => $t->converted_to_id] : null,
             'qa_required' => $t->usesLifecycle() && SupportWorkflow::qaRequired($t),
             'sla' => $t->usesLifecycle() ? app(SlaService::class)->snapshot($t) : null,

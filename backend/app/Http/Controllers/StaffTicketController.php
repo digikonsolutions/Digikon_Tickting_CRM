@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Support\StaffCapability;
 use App\Services\Support\SupportTicketService;
 use App\Services\Support\TicketConversionService;
+use App\Services\Support\TicketOperations;
 use App\Services\Support\TicketKpis;
 use Carbon\CarbonImmutable;
 use App\Services\Support\SupportWorkflow;
@@ -126,11 +127,17 @@ class StaffTicketController extends Controller
     {
         $data = $request->validate([
             'priority' => ['sometimes', Rule::in(['low', 'normal', 'high', 'urgent'])], 'priority_reason' => ['nullable', 'string', 'max:1000'],
+            // An estimate is information only for support work: it never reaches the planner.
+            'estimate_hours' => ['sometimes', 'nullable', 'numeric', 'min:0.1', 'max:500'],
             'kind' => ['sometimes', Rule::in(['support', 'fulfillment', 'change_request'])], 'service' => ['sometimes', 'nullable', Rule::in(array_keys(config('support.services')))],
         ]);
         $ticket = $this->find($request, $ref);
         if (isset($data['priority'])) {
             $service->changePriority($ticket, $request->user(), $data['priority'], $data['priority_reason'] ?? null);
+        }
+        if (array_key_exists('estimate_hours', $data) && $ticket->work_item_id === null) {
+            abort_unless(StaffCapability::has($request->user(), 'builder', 'triage', 'delivery_manager'), 403);
+            $ticket->forceFill(['estimated_hours' => $data['estimate_hours']])->save();
         }
         if (array_key_exists('kind', $data) || array_key_exists('service', $data)) {
             abort_unless(StaffCapability::manages($request->user()), 403);
@@ -153,6 +160,42 @@ class StaffTicketController extends Controller
         }
 
         return response()->json(['ticket' => TicketPresenter::staff($this->load($ticket->fresh()), $request->user()), 'project' => $project ? ['id' => $project->id, 'title' => $project->title] : null]);
+    }
+
+    /** Propose (builder) or decide (delivery manager) the scope classification and billing status. */
+    public function classify(Request $request, string $ref, TicketOperations $ops): JsonResponse
+    {
+        $data = $request->validate([
+            'scope_classification' => ['required', Rule::in(array_keys(config('support.scope_classifications')))],
+            'billing_status' => ['nullable', Rule::in(config('support.billing_statuses'))], 'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $ticket = $ops->classify($this->find($request, $ref), $request->user(), $data);
+
+        return response()->json(['ticket' => TicketPresenter::staff($this->load($ticket->fresh()), $request->user())]);
+    }
+
+    public function approveScope(Request $request, string $ref, TicketOperations $ops): JsonResponse
+    {
+        $ticket = $ops->approveProposal($this->find($request, $ref), $request->user());
+
+        return response()->json(['ticket' => TicketPresenter::staff($this->load($ticket->fresh()), $request->user())]);
+    }
+
+    public function time(Request $request, string $ref, TicketOperations $ops): JsonResponse
+    {
+        return response()->json(['time' => $ops->time($this->find($request, $ref))]);
+    }
+
+    public function logTime(Request $request, string $ref, TicketOperations $ops): JsonResponse
+    {
+        $data = $request->validate([
+            'minutes' => ['required', 'integer', 'min:1', 'max:1440'], 'entry_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'activity' => ['nullable', Rule::in(['work', 'qa', 'support'])], 'billable' => ['nullable', 'boolean'], 'note' => ['nullable', 'string', 'max:300'],
+        ]);
+        $ticket = $this->find($request, $ref);
+        $ops->logTime($ticket, $request->user(), $data);
+
+        return response()->json(['time' => $ops->time($ticket)], 201);
     }
 
     /** The agency's active employee assignments, for the convert-to-project dialog. */
