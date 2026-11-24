@@ -30,7 +30,7 @@ async function csrfHeader(apiBase, cookies, fetchImpl) {
  * `status.allowed` is only true while the signed-in employee has accepted the current notice.
  */
 export async function runSync({ apiBase, queue, cookies, fetchImpl = fetch }) {
-  const status = { signedIn: false, allowed: false, error: null }
+  const status = { signedIn: false, allowed: false, recording: false, activeWork: null, error: null }
   const stored = new Set()
 
   let check
@@ -45,6 +45,10 @@ export async function runSync({ apiBase, queue, cookies, fetchImpl = fetch }) {
   const body = await check.json().catch(() => ({}))
   status.signedIn = true
   status.allowed = body.tracking_allowed === true
+  // The server says when to record: only while the employee has a ticket (or a ticket-less project) in progress.
+  status.recording = status.allowed && body.recording === true
+  status.activeWork = status.recording ? (body.active_work ?? null) : null
+  // Whatever was queued is still sent after work stops: it was recorded while work was in progress.
   if (!status.allowed || queue.length === 0) return { status, stored }
 
   try {

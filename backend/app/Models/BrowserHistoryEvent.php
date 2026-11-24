@@ -18,7 +18,7 @@ class BrowserHistoryEvent extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'user_id', 'client_event_id', 'event_type', 'tab_session_id', 'tab_id', 'url', 'domain',
+        'user_id', 'ticket_id', 'work_item_id', 'client_event_id', 'event_type', 'tab_session_id', 'tab_id', 'url', 'domain',
         'title', 'favicon_url', 'duration_seconds', 'occurred_at',
     ];
 
@@ -31,6 +31,16 @@ class BrowserHistoryEvent extends Model
     protected function casts(): array
     {
         return ['occurred_at' => 'datetime', 'received_at' => 'datetime'];
+    }
+
+    public function ticket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class);
+    }
+
+    public function workItem(): BelongsTo
+    {
+        return $this->belongsTo(WorkItem::class);
     }
 
     public function user(): BelongsTo

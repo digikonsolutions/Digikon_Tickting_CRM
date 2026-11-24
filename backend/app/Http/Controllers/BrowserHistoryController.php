@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BrowserHistoryEvent;
 use App\Services\MonitoringPolicy;
+use App\Services\WorkContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -28,15 +29,46 @@ class BrowserHistoryController extends Controller
 
     /* ---- employee (extension) --------------------------------------------------------------- */
 
-    public function status(Request $request, MonitoringPolicy $policy): JsonResponse
+    /**
+     * The extension's check-in. Besides consent it says whether to record right now (only while a ticket or a
+     * ticket-less project is in progress) and for what, so the extension can show it. The check-in time lets the
+     * app tell the employee that the extension is connected.
+     */
+    public function status(Request $request, MonitoringPolicy $policy, WorkContext $work): JsonResponse
     {
+        $user = $request->user();
+        $user->forceFill(['browser_extension_seen_at' => now()])->saveQuietly();
+        $allowed = $this->trackingAllowed($request, $policy);
+        $active = $allowed ? $work->current($user) : null;
+
         return response()->json([
-            'tracking_allowed' => $this->trackingAllowed($request, $policy),
+            'tracking_allowed' => $allowed,
+            'recording' => $allowed && ($active !== null || ! config('activity.browser_history_work_only', true)),
+            'active_work' => $active,
             'policy_version' => $policy->version(),
         ]);
     }
 
-    public function sync(Request $request, MonitoringPolicy $policy): JsonResponse
+    /** For the employee's own screen: is the extension connected, and is anything being recorded now? */
+    public function me(Request $request, MonitoringPolicy $policy, WorkContext $work): JsonResponse
+    {
+        $user = $request->user();
+        $allowed = $this->trackingAllowed($request, $policy);
+        $seen = $user->browser_extension_seen_at;
+        $connected = $seen !== null && CarbonImmutable::parse($seen)->greaterThan(now()->subMinutes((int) config('activity.extension_connected_minutes', 3)));
+        $active = $work->current($user);
+
+        return response()->json([
+            'consented' => $allowed,
+            'extension_connected' => $connected,
+            'extension_seen_at' => $seen ? CarbonImmutable::parse($seen)->toISOString() : null,
+            'active_work' => $active,
+            'recording' => $allowed && $connected && $active !== null,
+            'retention_days' => (int) config('activity.retention_days'),
+        ]);
+    }
+
+    public function sync(Request $request, MonitoringPolicy $policy, WorkContext $work): JsonResponse
     {
         if (! $this->trackingAllowed($request, $policy)) {
             return response()->json([
@@ -58,11 +90,17 @@ class BrowserHistoryController extends Controller
             'events.*.occurred_at' => ['required', 'date'],
         ]);
 
-        $userId = $request->user()->id;
+        $user = $request->user();
+        $userId = $user->id;
         $earliest = CarbonImmutable::now()->subDays((int) config('activity.retention_days'));
         $latest = CarbonImmutable::now()->addMinutes(5);
         $rows = [];
         $skipped = 0;
+        $outsideWork = 0;
+        $workOnly = (bool) config('activity.browser_history_work_only', true);
+        // The server decides which work a record belongs to, from the ticket status history; the extension is not trusted for it.
+        $moments = collect($data['events'])->map(fn (array $event) => rescue(fn () => CarbonImmutable::parse($event['occurred_at']), null, false))->filter();
+        $periods = $moments->isEmpty() ? collect() : $work->periods($user, $moments->min(), $moments->max());
 
         foreach ($data['events'] as $event) {
             $clean = $this->sanitizeUrl($event['url']);
@@ -73,9 +111,17 @@ class BrowserHistoryController extends Controller
 
                 continue;
             }
+            $linked = $work->at($periods, $occurredAt);
+            if ($linked === null && $workOnly) {
+                $outsideWork++;
+
+                continue;
+            }
             $favicon = $event['favicon_url'] ?? null;
             $rows[] = [
                 'user_id' => $userId,
+                'ticket_id' => $linked['ticket_id'] ?? null,
+                'work_item_id' => $linked['work_item_id'] ?? null,
                 'client_event_id' => $event['client_event_id'],
                 'event_type' => $event['event_type'],
                 'tab_session_id' => $event['tab_session_id'],
@@ -96,6 +142,7 @@ class BrowserHistoryController extends Controller
             'accepted' => $inserted,
             'duplicates' => count($rows) - $inserted,
             'skipped' => $skipped,
+            'outside_work' => $outsideWork,
         ]);
     }
 
@@ -134,7 +181,7 @@ class BrowserHistoryController extends Controller
         $perPage = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']])['per_page'] ?? 50;
 
         $page = $this->filtered($request)
-            ->with('user:id,name,photo_path,avatar_url')
+            ->with(['user:id,name,photo_path,avatar_url', 'ticket.agency', 'workItem:id,title'])
             ->orderByDesc('occurred_at')->orderByDesc('id')
             ->paginate($perPage);
 
@@ -142,6 +189,8 @@ class BrowserHistoryController extends Controller
             'events' => $page->getCollection()->map(fn (BrowserHistoryEvent $event): array => [
                 'id' => $event->id,
                 'employee' => ['id' => $event->user_id, 'name' => $event->user?->name, 'photo_url' => $event->user?->photoUrl()],
+                'ticket' => $event->ticket ? ['id' => $event->ticket->id, 'key' => $event->ticket->key, 'title' => $event->ticket->title] : null,
+                'project' => $event->workItem ? ['id' => $event->workItem->id, 'title' => $event->workItem->title] : null,
                 'event_type' => $event->event_type,
                 'tab_session_id' => $event->tab_session_id,
                 'tab_id' => $event->tab_id,
@@ -175,6 +224,8 @@ class BrowserHistoryController extends Controller
     {
         $f = $request->validate([
             'employee_id' => ['sometimes', 'integer'],
+            'ticket_id' => ['sometimes', 'integer'],
+            'work_item_id' => ['sometimes', 'integer'],
             'agency_id' => ['sometimes', 'integer'],
             'domain' => ['sometimes', 'string', 'max:255'],
             'q' => ['sometimes', 'string', 'max:200'],
@@ -186,6 +237,8 @@ class BrowserHistoryController extends Controller
 
         return BrowserHistoryEvent::query()
             ->when($f['employee_id'] ?? null, fn (Builder $q, int $id) => $q->where('user_id', $id))
+            ->when($f['ticket_id'] ?? null, fn (Builder $q, int $id) => $q->where('ticket_id', $id))
+            ->when($f['work_item_id'] ?? null, fn (Builder $q, int $id) => $q->where('work_item_id', $id))
             ->when($f['agency_id'] ?? null, function (Builder $q, int $agencyId): void {
                 // Employees assigned to this agency at the time of the event.
                 $q->whereExists(fn ($sub) => $sub->select(DB::raw(1))->from('employee_assignments as ea')

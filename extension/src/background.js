@@ -6,6 +6,8 @@ import { runSync, trimQueue } from './sync.js'
 
 const DEFAULTS = { enabled: true, apiBase: '' }
 const SYNC_ALARM = 'clienthub-sync'
+// Check in twice a minute, so recording starts and stops soon after a ticket is started or sent for review.
+const SYNC_MINUTES = 0.5
 
 let chain = Promise.resolve()
 
@@ -16,7 +18,7 @@ async function load() {
     settings: { ...DEFAULTS, ...(data.settings ?? {}) },
     tracker: data.tracker ?? createState(),
     queue: data.queue ?? [],
-    status: data.status ?? { signedIn: false, allowed: false, lastSync: null, error: null },
+    status: data.status ?? { signedIn: false, allowed: false, recording: false, activeWork: null, lastSync: null, error: null },
   }
 }
 
@@ -28,7 +30,13 @@ function run(task) {
 }
 
 function recordingOn(store) {
-  return store.settings.enabled && Boolean(store.settings.apiBase) && store.status.allowed
+  return store.settings.enabled && Boolean(store.settings.apiBase) && store.status.allowed && store.status.recording === true
+}
+
+// A visible sign on the toolbar icon whenever tabs are being recorded.
+function showBadge(on) {
+  chrome.action.setBadgeText({ text: on ? 'REC' : '' }).catch(() => {})
+  if (on) chrome.action.setBadgeBackgroundColor({ color: '#B91C1C' }).catch(() => {})
 }
 
 // Applies a tracker update and stores the records it produced. Does nothing while tracking is off, the
@@ -113,15 +121,20 @@ function syncNow() {
       // No connection: keep everything and try again on the next alarm.
     } else if (result.status.signedIn && result.status.allowed) {
       queue = queue.filter((event) => !result.stored.has(event.client_event_id))
+      // No work in progress: stop following tabs. What was queued was recorded during work and has been sent.
+      if (!result.status.recording) tracker = createState()
     } else {
       // Signed out, or the notice is not accepted (or was replaced by a new version): keep nothing.
       queue = []
       tracker = createState()
     }
     await chrome.storage.local.set({ status, queue, tracker })
+    const recordingNow = !result.offline && store.settings.enabled && result.status.allowed && result.status.recording === true
+    showBadge(recordingNow)
 
-    return !store.status.allowed && result.status.allowed
-  }).then((becameAllowed) => (becameAllowed ? seed() : undefined))
+    // Work just started (or tracking was just allowed): follow the tabs that are already open.
+    return recordingNow && !(store.status.allowed && store.status.recording)
+  }).then((becameRecording) => (becameRecording ? seed() : undefined))
 }
 
 chrome.alarms.onAlarm.addListener((alarm) => { if (alarm.name === SYNC_ALARM) syncNow() })
@@ -151,7 +164,7 @@ chrome.runtime.onMessage.addListener((message, _sender, reply) => {
 })
 
 function start() {
-  chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 1 })
+  chrome.alarms.create(SYNC_ALARM, { periodInMinutes: SYNC_MINUTES })
   // A new browser session has new tab ids: forget the old ones, then see who is signed in.
   run(() => chrome.storage.local.set({ tracker: createState() })).then(() => syncNow()).then(seed)
 }

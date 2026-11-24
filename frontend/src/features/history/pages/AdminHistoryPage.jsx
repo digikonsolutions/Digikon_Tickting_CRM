@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
-import { Alert, Card, FilterChips, Input, PageHeader, Select } from '../../../components/ui'
+import { Alert, Button, Card, FilterChips, Input, PageHeader, Select } from '../../../components/ui'
 import { useAsync } from '../../../hooks/useAsync'
 import { todayStr } from '../../../lib/format'
 import { HistoryOverview } from '../components/HistoryOverview'
@@ -17,6 +18,9 @@ export function AdminHistoryPage() {
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
+  // Opened from a ticket (?ticket_id=): everything recorded while that ticket was in progress, whatever the date.
+  const [params, setParams] = useSearchParams()
+  const ticketId = /^\d+$/.test(params.get('ticket_id') ?? '') ? params.get('ticket_id') : ''
 
   // Debounce the search box so typing does not fire a request per keystroke.
   useEffect(() => {
@@ -25,10 +29,12 @@ export function AdminHistoryPage() {
   }, [search])
 
   const range = rangeFor(preset, custom)
-  const validRange = Boolean(range.from && range.to && range.from <= range.to)
+  const validRange = Boolean(ticketId) || Boolean(range.from && range.to && range.from <= range.to)
   const filters = useMemo(
-    () => ({ from: range.from, to: range.to, employee_id: employeeId, agency_id: agencyId, event_type: eventType, q: query }),
-    [range.from, range.to, employeeId, agencyId, eventType, query],
+    () => (ticketId
+      ? { ticket_id: ticketId, employee_id: employeeId, event_type: eventType, q: query }
+      : { from: range.from, to: range.to, employee_id: employeeId, agency_id: agencyId, event_type: eventType, q: query }),
+    [ticketId, range.from, range.to, employeeId, agencyId, eventType, query],
   )
 
   const loadPeople = useCallback(async () => {
@@ -88,6 +94,12 @@ export function AdminHistoryPage() {
       {!validRange && <Alert variant="warning">Choose a start date that is not after the end date.</Alert>}
       {summary.error && <Alert variant="error" title="Could not load the overview">{summary.error.message}</Alert>}
 
+      {ticketId && (
+        <Alert variant="info" title="One ticket">
+          Showing what was recorded while ticket {events.data?.events?.[0]?.ticket?.key ?? `#${ticketId}`} was in progress. The date range does not apply.
+          <div className="ui-retry"><Button type="button" size="sm" variant="secondary" onClick={() => { setParams({}, { replace: true }); setPage(1) }}>Show all activity</Button></div>
+        </Alert>
+      )}
       <HistoryOverview summary={summary.data} isLoading={summary.isLoading} />
       <HistoryTimeline data={events.data} error={events.error} isLoading={events.isLoading} reload={events.reload} onPage={setPage} />
     </section>

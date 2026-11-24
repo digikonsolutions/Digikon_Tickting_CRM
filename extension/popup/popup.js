@@ -22,8 +22,11 @@ async function render() {
     state.className = 'bad'
   } else if (!enabled) {
     state.textContent = 'Tracking is switched off.'
+  } else if (!status.recording) {
+    state.textContent = 'Not recording: no ticket or project is in progress.'
   } else {
-    state.textContent = 'Tracking and syncing.'
+    const work = status.activeWork
+    state.textContent = work ? `Recording for ${work.ticket_key ? `${work.ticket_key} ` : ''}${work.title}.` : 'Recording.'
     state.className = 'ok'
   }
   $('hint').textContent = enabled

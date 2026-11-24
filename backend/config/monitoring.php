@@ -10,7 +10,7 @@
  * `:idle_minutes` and `:retention_days` are filled in from config/activity.php.
  */
 return [
-    'version' => '2.0',
+    'version' => '2.1',
 
     'title' => 'Work activity notice',
 
@@ -43,7 +43,7 @@ return [
         ],
         'browser_history' => [
             'label' => 'Browser tab history',
-            'description' => 'If you install the ClientHub browser extension: when browser tabs are opened, closed, switched or navigated, with the website address (without anything after the "?" or "#"), page title and time spent. This is visible to ClientHub administrators only, who can read it but not change it. The extension has an on/off switch, and nothing is sent until you accept this notice.',
+            'description' => 'If you install the ClientHub browser extension, and only while you have a ticket or project in progress: when browser tabs are opened, closed, switched or navigated, with the website address (without anything after the "?" or "#"), page title and time spent, linked to that ticket. Nothing is kept outside that time or from private windows. The app shows when recording is on. This is visible to ClientHub administrators only, who can read it but not change it. The extension has an on/off switch, and nothing is sent until you accept this notice.',
         ],
     ],
 

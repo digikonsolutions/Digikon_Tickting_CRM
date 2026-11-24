@@ -43,6 +43,12 @@ Never recorded: page content, typed text, form fields, passwords, private (incog
 | `cookies` | Read ClientHub's CSRF cookie to send a signed request. The extension uses your existing ClientHub sign-in; it stores no password or token |
 | optional host access | Granted at run time for the **one** ClientHub address you enter |
 
+## When it records
+
+Only while the employee has a ticket in progress (or a project without tickets that they started). The extension checks in every 30 seconds; the server answers whether to record and for which ticket, and the toolbar icon shows **REC** while recording. The server also links every record to the ticket that was in progress at that moment (from the ticket's status history, not from anything the extension sends) and drops records from outside working time, so pressing **Send to review**, **Mark blocked** or finishing the work stops it. The employee's My work page says plainly when recording is on, for which ticket, and warns when a ticket is in progress but the extension is not connected.
+
+For development, http://localhost and http://127.0.0.1 are host permissions in the manifest, so a local API works right after loading the extension; production addresses (https) are still requested at run time for the one address entered in Settings.
+
 ## Behaviour
 
 - **Off switch:** the toolbar popup toggles tracking. While off, nothing new is recorded.

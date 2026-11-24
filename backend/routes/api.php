@@ -182,6 +182,7 @@ Route::middleware('web')->prefix('agency')->group(function () {
 // an employee reads and writes only their own history. Admin access is below, strictly read-only.
 Route::middleware(['web', 'auth', 'role:employee'])->prefix('browser-history')->group(function () {
     Route::get('/status', [BrowserHistoryController::class, 'status']);
+    Route::get('/me', [BrowserHistoryController::class, 'me']);
     Route::post('/sync', [BrowserHistoryController::class, 'sync'])->middleware('throttle:browser-history-sync');
 });
 

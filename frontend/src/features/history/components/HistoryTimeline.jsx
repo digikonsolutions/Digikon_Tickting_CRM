@@ -40,6 +40,7 @@ export function HistoryTimeline({ data, error, isLoading, reload, onPage }) {
                       <span>{event.domain}</span>
                       <Badge variant={event.event_type === 'navigated' ? 'primary' : 'slate'}>{EVENT_LABELS[event.event_type] ?? event.event_type}</Badge>
                       <span className="history-item-employee"><Avatar name={event.employee.name} src={event.employee.photo_url} size="sm" />{event.employee.name}</span>
+                      {(event.ticket || event.project) && <Badge variant="info">{event.ticket ? event.ticket.key : event.project.title}</Badge>}
                     </span>
                   </span>
                   <span className="history-item-time">
@@ -62,6 +63,7 @@ export function HistoryTimeline({ data, error, isLoading, reload, onPage }) {
             <div className="history-details-site"><SiteIcon domain={selected.domain} src={selected.favicon_url} /><strong>{selected.title || selected.domain}</strong></div>
             <div><dt>Activity</dt><dd><Icon name={EVENT_ICONS[selected.event_type] ?? 'info'} size={14} /> {EVENT_LABELS[selected.event_type] ?? selected.event_type}</dd></div>
             <div><dt>Employee</dt><dd>{selected.employee.name}</dd></div>
+            <div><dt>Working on</dt><dd>{selected.ticket ? `${selected.ticket.key} · ${selected.ticket.title}` : (selected.project?.title ?? '—')}{selected.project && selected.ticket ? ` (${selected.project.title})` : ''}</dd></div>
             <div><dt>Website</dt><dd>{selected.domain}</dd></div>
             <div><dt>Address</dt><dd className="history-details-url">{selected.url}</dd></div>
             <div><dt>When</dt><dd>{formatDateTime(selected.occurred_at)} ({formatClock(selected.occurred_at)})</dd></div>

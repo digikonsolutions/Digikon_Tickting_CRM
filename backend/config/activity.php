@@ -16,4 +16,11 @@ return [
     'login_grace_minutes' => 15,
 
     'retention_days' => (int) env('ACTIVITY_RETENTION_DAYS', 365),
+
+    // Browser history is kept only while the employee has a ticket (or a ticket-less project) in progress, and each
+    // record is linked to that work. Anything the extension sends from outside working time is dropped.
+    'browser_history_work_only' => (bool) env('ACTIVITY_BROWSER_HISTORY_WORK_ONLY', true),
+
+    // The extension counts as connected when it checked in within this many minutes.
+    'extension_connected_minutes' => 3,
 ];

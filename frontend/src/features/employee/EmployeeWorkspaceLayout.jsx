@@ -5,6 +5,7 @@ import { useAsync } from '../../hooks/useAsync'
 import { Alert, Button, Skeleton, useToast } from '../../components/ui'
 import { LogTimeModal, useTimerChanged } from '../time'
 import { TicketDrawer } from './components/TicketDrawer'
+import { TrackingNotice } from './components/TrackingNotice'
 import { buildWorkspace, clockFrom } from './workspace'
 import './employee.css'
 import '../queue/queue.css'
@@ -90,9 +91,11 @@ export function EmployeeWorkspaceLayout() {
   return (
     <div className="ew-workspace">
       <p className="ew-sr-only" role="status" aria-live="polite">{announcement}</p>
+      {data && <TrackingNotice refreshKey={data} />}
       {(actionError || (error && data)) && (
         <Alert variant="error" title={actionError ? 'That did not work' : 'Could not refresh'}>
-          {(actionError ?? error).message}
+          {/* The server's own reason (for example the project's hours), not just "The given data was invalid." */}
+          {Object.values((actionError ?? error).errors ?? {}).flat()[0] ?? (actionError ?? error).message}
           <div className="ui-retry"><Button type="button" size="sm" variant="secondary" onClick={() => { setActionError(null); reload() }}>Try again</Button></div>
         </Alert>
       )}

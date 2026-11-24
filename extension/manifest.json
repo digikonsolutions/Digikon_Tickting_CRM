@@ -6,7 +6,8 @@
   "minimum_chrome_version": "110",
   "incognito": "not_allowed",
   "permissions": ["tabs", "webNavigation", "storage", "alarms", "cookies"],
-  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["https://*/*"],
   "background": { "service_worker": "src/background.js", "type": "module" },
   "action": { "default_title": "ClientHub Tab History", "default_popup": "popup/popup.html" },
   "options_ui": { "page": "options/options.html", "open_in_tab": true }

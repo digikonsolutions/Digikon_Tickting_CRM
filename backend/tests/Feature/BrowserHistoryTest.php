@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\BrowserHistoryEvent;
+use App\Models\EmployeeAssignment;
 use App\Models\User;
+use App\Models\WorkItem;
 use App\Services\ActivityLogger;
 use App\Services\MonitoringPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,6 +25,14 @@ class BrowserHistoryTest extends TestCase
         $this->buildFixture();
         $this->u['lead'] = User::factory()->create(['role' => Role::TeamLead]);
         $this->u['employee2'] = User::factory()->create(['role' => Role::Employee]);
+        // Browser history is only kept while work is in progress, so both employees are working (on projects
+        // without tickets) for the whole time these tests send events. BrowserHistoryWorkLinkTest covers the rules.
+        $this->project->update(['status' => 'in_progress', 'started_at' => now()->subYears(2)]);
+        WorkItem::create([
+            'agency_id' => $this->agency->id, 'client_id' => $this->u['client']->id, 'employee_id' => $this->u['employee2']->id,
+            'title' => 'Second employee project', 'description' => 'd', 'estimated_hours' => 6, 'start_date' => now()->toDateString(),
+            'due_date' => now()->addWeek()->toDateString(), 'status' => 'in_progress', 'started_at' => now()->subYears(2),
+        ]);
     }
 
     private function consent(string $who = 'employee'): void
@@ -148,7 +158,7 @@ class BrowserHistoryTest extends TestCase
     private function seedHistory(): void
     {
         // The employee has been assigned to the agency since yesterday, so today's events fall inside it.
-        \App\Models\EmployeeAssignment::query()->update(['started_at' => now()->subDay()]);
+        EmployeeAssignment::query()->update(['started_at' => now()->subDay()]);
         $this->consent();
         $this->consent('employee2');
         $this->actingAs($this->u['employee'])->postJson('/api/browser-history/sync', ['events' => [

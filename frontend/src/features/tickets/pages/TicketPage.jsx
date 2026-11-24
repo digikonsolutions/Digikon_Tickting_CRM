@@ -284,6 +284,10 @@ export function TicketPage() {
 
       {actionError && <Alert variant="error">{actionError.message}</Alert>}
 
+      {user.role === 'admin' && (
+        <p className="ticket-admin-links"><Link to={`/admin/history?ticket_id=${ticket.id}`}>Browser activity recorded while this ticket was in progress</Link></p>
+      )}
+
       {(isAssignedEmployee || user.role !== 'employee') && (
         <HoursRequestPanel ticket={ticket} role={user.role} employeeName={project.employee?.name} onChanged={refresh} onMessage={showToast} />
       )}

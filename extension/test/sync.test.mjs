@@ -108,3 +108,21 @@ test('the local queue is bounded', () => {
   assert.equal(trimQueue(events(6000)).length, 5000)
   assert.equal(trimQueue(events(6000))[0].client_event_id, 'e1000')
 })
+
+test('records only while the server reports work in progress, and says for what', async () => {
+  const working = server({ '/browser-history/status': json(200, { tracking_allowed: true, recording: true, active_work: { ticket_id: 4, ticket_key: 'NW-4', title: 'Header' } }) })
+  const on = await runSync({ apiBase: 'https://x.test/api', queue: [], cookies, fetchImpl: working.fetchImpl })
+  assert.equal(on.status.recording, true)
+  assert.deepEqual(on.status.activeWork, { ticket_id: 4, ticket_key: 'NW-4', title: 'Header' })
+
+  const idle = server({ '/browser-history/status': json(200, { tracking_allowed: true, recording: false, active_work: null }) })
+  const off = await runSync({ apiBase: 'https://x.test/api', queue: events(2), cookies, fetchImpl: idle.fetchImpl })
+  assert.equal(off.status.recording, false)
+  assert.equal(off.status.activeWork, null)
+  // What was queued during work is still delivered after work stops.
+  assert.equal(off.stored.size, 2)
+
+  const noConsent = server({ '/browser-history/status': json(200, { tracking_allowed: false, recording: true, active_work: { ticket_id: 4 } }) })
+  const blocked = await runSync({ apiBase: 'https://x.test/api', queue: [], cookies, fetchImpl: noConsent.fetchImpl })
+  assert.equal(blocked.status.recording, false)
+})

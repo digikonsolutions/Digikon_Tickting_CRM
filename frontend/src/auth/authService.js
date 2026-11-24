@@ -803,6 +803,11 @@ export const authService = {
     return request(`/${scope}/employees/${encodeURIComponent(id)}/performance?${query}`)
   },
   // Browser tab history: administrators only, read-only (there is deliberately no write method here).
+  // The employee's own view: is the extension connected, and is browser activity being recorded right now?
+  async getBrowserTrackingStatus() {
+    if (AUTH_MODE === 'mock') return { consented: false, extension_connected: false, active_work: null, recording: false, retention_days: 365 }
+    return request('/browser-history/me')
+  },
   async getBrowserHistorySummary(filters = {}) {
     if (AUTH_MODE === 'mock') return { totals: { visits: 0, unique_domains: 0, tabs_opened: 0, seconds: 0 }, top_domains: [], daily: [] }
     return request(`/admin/browser-history/summary?${historyQuery(filters)}`)
