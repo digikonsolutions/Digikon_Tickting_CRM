@@ -6,7 +6,10 @@ return [
     // Private disk only. The `public` disk is refused at runtime: uploads must never have a public URL.
     'disk' => env('ATTACHMENTS_DISK', 'local'),
 
-    'max_file_kb' => (int) env('ATTACHMENTS_MAX_FILE_KB', 10240),
+    'max_file_kb' => (int) env('ATTACHMENTS_MAX_FILE_KB', 20480),
+    // Video files may be larger; Loom or another link is recommended for anything long.
+    'max_video_kb' => (int) env('ATTACHMENTS_MAX_VIDEO_KB', 102400),
+    'video_extensions' => ['mp4', 'mov', 'webm'],
     'max_files_per_upload' => (int) env('ATTACHMENTS_MAX_FILES_PER_UPLOAD', 10),
     'max_files_per_ticket' => (int) env('ATTACHMENTS_MAX_FILES_PER_TICKET', 50),
 
@@ -30,6 +33,12 @@ return [
         'docx' => ["{$office}.wordprocessingml.document", 'application/zip', 'application/octet-stream'],
         'xlsx' => ["{$office}.spreadsheetml.sheet", 'application/zip', 'application/octet-stream'],
         'pptx' => ["{$office}.presentationml.presentation", 'application/zip', 'application/octet-stream'],
+        'doc' => ['application/msword', 'application/x-ole-storage', 'application/octet-stream'],
+        'xls' => ['application/vnd.ms-excel', 'application/x-ole-storage', 'application/octet-stream'],
+        'log' => ['text/plain'],
+        'mp4' => ['video/mp4'],
+        'mov' => ['video/quicktime', 'video/mp4'],
+        'webm' => ['video/webm'],
     ],
 
     // Archives are off unless explicitly enabled.

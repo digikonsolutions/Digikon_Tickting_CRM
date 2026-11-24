@@ -29,6 +29,8 @@ use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
+use App\Http\Controllers\StaffTicketController;
+use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TicketDetailsController;
 use App\Http\Controllers\AdminRushRequestController;
@@ -160,6 +162,19 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    // Support module (agency portal): submit, list, read, reply (through the shared comment route), confirm or reopen.
+    Route::prefix('support')->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active'])->group(function () {
+        Route::get('/form', [SupportTicketController::class, 'form']);
+        Route::post('/suggest-priority', [SupportTicketController::class, 'suggestPriority']);
+        Route::post('/scan-text', [SupportTicketController::class, 'scanText'])->middleware('throttle:work-order');
+        Route::get('/tickets', [SupportTicketController::class, 'index']);
+        Route::post('/tickets', [SupportTicketController::class, 'store'])->middleware('throttle:project-create');
+        Route::get('/tickets/{ref}', [SupportTicketController::class, 'show'])->where('ref', '[A-Za-z]+-[0-9]+');
+        Route::post('/tickets/{ref}/reopen', [SupportTicketController::class, 'reopen'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::post('/tickets/{ref}/confirm', [SupportTicketController::class, 'confirm'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::get('/end-clients', [SupportTicketController::class, 'endClients']);
+        Route::post('/end-clients', [SupportTicketController::class, 'storeEndClient'])->middleware('throttle:work-order');
+    });
     // The detailed GoHighLevel brief, ticket work orders and their templates (agency users write; see the README matrix).
     Route::patch('/projects/{workItem}/brief', [ProjectBriefController::class, 'update'])
         ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:work-order']);
@@ -185,6 +200,17 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/employees/{id}/performance', [AdminEmployeeActivityController::class, 'performance'])
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
+});
+
+// Support module (staff console): the queue, one ticket, transitions, assignment and who is on the team.
+Route::middleware(['web', 'auth', 'role:admin,employee'])->prefix('staff')->group(function () {
+    Route::get('/tickets', [StaffTicketController::class, 'index']);
+    Route::get('/tickets/{ref}', [StaffTicketController::class, 'show'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/transition', [StaffTicketController::class, 'transition'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::post('/tickets/{ref}/assign', [StaffTicketController::class, 'assign'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::patch('/tickets/{ref}', [StaffTicketController::class, 'update'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::get('/people', [StaffTicketController::class, 'people']);
+    Route::patch('/people/{user}/capabilities', [StaffTicketController::class, 'setCapabilities'])->whereNumber('user');
 });
 
 // Browser tab history, synced from the Chrome extension. Employees only, and only after consent;
@@ -299,6 +325,8 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth']);
     Route::get('/tickets/{ticket}/attachments', [AttachmentController::class, 'index'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::post('/tickets/{ticket}/links', [AttachmentController::class, 'storeLink'])->whereNumber('ticket')
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
     Route::post('/tickets/{ticket}/attachments', [AttachmentController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])

@@ -126,6 +126,7 @@ class TicketController extends Controller
                 ...$data,
                 'agency_id' => $agency->id,
                 'number' => $nextNumber,
+                'ref' => app(\App\Services\Support\TicketNumberGenerator::class)->next(),
                 'created_by' => $user->id,
                 'position' => $position,
                 'priority' => $data['priority'] ?? 'normal',
@@ -430,8 +431,8 @@ class TicketController extends Controller
         return response()->json([
             'tickets' => collect($tickets->items())->map(fn (Ticket $ticket): array => [
                 ...$this->ticketPayload($ticket, $request->user()),
-                'project_title' => $ticket->workItem->title,
-                'agency_name' => $ticket->workItem->agency?->name,
+                'project_title' => $ticket->workItem?->title ?? $ticket->relatedProject?->title,
+                'agency_name' => $ticket->workItem?->agency?->name ?? $ticket->agency?->name,
             ]),
             'pagination' => [
                 'current_page' => $tickets->currentPage(),
@@ -492,8 +493,8 @@ class TicketController extends Controller
             'tickets' => collect($tickets->items())->map(fn (Ticket $ticket): array => [
                 ...$this->ticketPayload($ticket, $user),
                 'project_id' => $ticket->work_item_id,
-                'project_title' => $ticket->workItem->title,
-                'client_name' => $ticket->workItem->client?->name,
+                'project_title' => $ticket->workItem?->title ?? $ticket->relatedProject?->title,
+                'client_name' => $ticket->workItem?->client?->name ?? $ticket->submitter?->name,
             ])->values(),
             'pagination' => [
                 'current_page' => $tickets->currentPage(),
@@ -533,7 +534,7 @@ class TicketController extends Controller
             ->get()
             ->map(fn (Ticket $ticket): array => [
                 ...$this->ticketPayload($ticket, $user),
-                'project_title' => $ticket->workItem->title,
+                'project_title' => $ticket->workItem?->title ?? $ticket->relatedProject?->title,
             ])
             ->values();
 
@@ -572,6 +573,7 @@ class TicketController extends Controller
             $isInternal ? 'internal' : 'public'
         );
         app(ActivityLogger::class)->ticketCommented($user, $ticket, $isInternal);
+        app(\App\Services\Support\SupportConversation::class)->afterComment($ticket, $user, $comment);
 
         return response()->json(['comment' => $this->commentPayload($comment->setRelation('user', $user), $user)], 201);
     }
@@ -745,6 +747,11 @@ class TicketController extends Controller
      */
     private function authorizeComments(User $user, Ticket $ticket): void
     {
+        if ($ticket->usesLifecycle()) {
+            abort_unless(app(TicketAccess::class)->canView($user, $ticket), 403);
+            // A support ticket's last word belongs to the support module: it also marks first response, resumes waiting tickets and flags secrets.
+            return;
+        }
         $workItem = $ticket->workItem;
         $isAdmin = $user->role === Role::Admin;
         $isAssignedEmployee = $user->role === Role::Employee && $workItem->employee_id === $user->id;
