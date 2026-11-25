@@ -8,6 +8,7 @@ import { formatDateRange, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
 import { GhlBriefView } from '../../workorder/BriefView'
 import { WorkOrderBadges } from '../../workorder/WorkOrderView'
+import { ProjectEmployee } from '../../agency/components/ProjectEmployee'
 import { ProjectHoursPanel } from '../../agency/components/ProjectHoursPanel'
 import { ProjectServicesView } from '../../agency/components/projectCreate/ProjectServicesView'
 
@@ -60,7 +61,7 @@ export function AdminProjectDetailPage() {
             <dl className="admin-project-facts">
               <div><dt>Agency</dt><dd>{project.agency_name ?? '—'}</dd></div>
               <div><dt>Client</dt><dd>{project.client?.name ?? 'Account removed'}</dd></div>
-              <div><dt>Assigned employee</dt><dd>{project.employee?.name ?? 'Unassigned'}</dd></div>
+              <div><dt>Assigned employee</dt><dd>{project.employee ? <ProjectEmployee employee={project.employee} feedbackTo={`/admin/employees/${project.employee.id}`} /> : 'Unassigned'}</dd></div>
               <div><dt>Project dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
               <div><dt>Project hours</dt><dd>{formatHours(projectHours)}</dd></div>
               <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>

@@ -800,6 +800,8 @@ class WorkItemController extends Controller
                 'id' => $item->employee->id,
                 'name' => $item->employee->name,
                 'role' => $item->employee->role->value,
+                // Who the agency is working with: photo, job title and main skills (detail pages only, so lists stay light).
+                ...($withDetails ? $this->employeeCard($item->employee) : []),
             ] : null,
             'service_type' => $item->service_type,
             'details' => $item->details,
@@ -831,4 +833,16 @@ class WorkItemController extends Controller
             ])->values(),
         ];
     }
-}
+
+    /** @return array<string, mixed> */
+    private function employeeCard(\App\Models\User $employee): array
+    {
+        $employee->loadMissing(['employeeProfile', 'skills']);
+
+        return [
+            'photo_url' => $employee->photoUrl(),
+            'headline' => $employee->employeeProfile?->headline,
+            'department' => $employee->employeeProfile?->department,
+            'skills' => $employee->skills->sortByDesc('years_experience')->take(8)->map(fn ($s): array => ['name' => $s->name, 'level' => $s->level])->values()->all(),
+        ];
+    }}
