@@ -102,6 +102,11 @@ class TicketWorkflow
             return [];
         }
 
+        // Our own check comes first: an administrator reviews the package before the agency sees the work.
+        if ($ticket->status === 'in_internal_review') {
+            return $viewer->role === Role::Admin ? [['action' => 'internal_review', 'label' => 'Review the work', 'requires_comment' => false]] : [];
+        }
+
         $actions = [];
         $requireApproval = (bool) config('scheduling.require_client_approval', true);
 
@@ -122,7 +127,8 @@ class TicketWorkflow
         return $actions;
     }
 
-    public function transition(Ticket $ticket, string $action, ?string $commentBody, User $actor): Ticket
+    /** @param  array{package?: bool}  $options  package says the review package was saved by the caller (the submission endpoint) */
+    public function transition(Ticket $ticket, string $action, ?string $commentBody, User $actor, array $options = []): Ticket
     {
         $def = self::TRANSITIONS[$action] ?? null;
         abort_unless($def !== null, 422, "Unknown action: {$action}");
@@ -132,7 +138,7 @@ class TicketWorkflow
 
         $this->ensureProjectAccess($actor, $workItem);
 
-        return DB::transaction(function () use ($ticket, $workItem, $action, $def, $commentBody, $actor): Ticket {
+        return DB::transaction(function () use ($ticket, $workItem, $action, $def, $commentBody, $actor, $options): Ticket {
             $this->lockActiveProjectAssignment($workItem);
             $lockedWorkItem = WorkItem::query()->lockForUpdate()->findOrFail($workItem->id);
             abort_unless(in_array($lockedWorkItem->status, ['scheduled', 'in_progress'], true), 422, 'Transitions are only allowed on open projects.');
@@ -143,8 +149,13 @@ class TicketWorkflow
             abort_unless(TimelineReview::allowsWork($lockedWorkItem, $lockedTicket), 422, "This timeline hasn't been confirmed yet.");
 
             // A ticket with a work order needs what was done and a link before it goes to review.
+            $internalReview = (bool) config('scheduling.internal_review');
             if ($action === 'send_to_review') {
-                app(TicketDetailsService::class)->assertDeliverable($lockedTicket);
+                // With the two-stage review the work goes in a review package (summary, a link, how to test it).
+                abort_if($internalReview && empty($options['package']), 422, 'Send this for review with a review package: what you did, where to see it and how to test it.');
+                if (empty($options['package'])) {
+                    app(TicketDetailsService::class)->assertDeliverable($lockedTicket);
+                }
             }
 
             // Approval rule check
@@ -185,13 +196,13 @@ class TicketWorkflow
             }
 
             $fromStatus = $lockedTicket->status;
-            $toStatus = $def['to'];
+            $toStatus = $action === 'send_to_review' && $internalReview ? 'in_internal_review' : $def['to'];
             $lockedTicket->update(['status' => $toStatus]);
 
             app(ActivityLogger::class)->ticketStatusChanged($actor, $lockedTicket, $fromStatus, $toStatus);
 
             // The employee is no longer actively working on it: stop any running timer.
-            if (in_array($toStatus, ['blocked', 'waiting_on_client', 'in_review', 'done'], true)) {
+            if (in_array($toStatus, ['blocked', 'waiting_on_client', 'in_internal_review', 'in_review', 'done'], true)) {
                 app(TimeTracker::class)->stopForTickets([$lockedTicket->id], 'status_'.$toStatus);
             }
 

@@ -1206,6 +1206,19 @@ export const authService = {
       body: JSON.stringify({ action, ...(comment ? { comment } : {}) }),
     })
   },
+  // Review package, the thread of packages and reviews, and a review decision (stage internal = our team, agency = the client).
+  async getTicketSubmissions(id) {
+    if (AUTH_MODE === 'mock') return { submissions: [] }
+    return request(`/tickets/${encodeURIComponent(id)}/submissions`)
+  },
+  async submitTicketForReview(id, data) {
+    if (AUTH_MODE === 'mock') return { submission: { id, version: 1 } }
+    return request(`/tickets/${encodeURIComponent(id)}/submissions`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async reviewTicket(id, data) {
+    if (AUTH_MODE === 'mock') return { review: { id } }
+    return request(`/tickets/${encodeURIComponent(id)}/reviews`, { method: 'POST', body: JSON.stringify(data) })
+  },
   // Agency: tickets waiting on the client, longest-waiting first ({ tickets, total }).
   async getAgencyAttention() {
     if (AUTH_MODE === 'mock') return { tickets: [], total: 0 }

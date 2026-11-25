@@ -367,6 +367,10 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth']);
     Route::post('/tickets/{ticket}/transitions', [TicketController::class, 'transition'])
         ->middleware(['auth']);
+    // Review package (employee), the two reviews (our admin, then the agency) and the thread of both.
+    Route::get('/tickets/{ticket}/submissions', [\App\Http\Controllers\TicketReviewController::class, 'index'])->whereNumber('ticket')->middleware(['auth']);
+    Route::post('/tickets/{ticket}/submissions', [\App\Http\Controllers\TicketReviewController::class, 'submit'])->whereNumber('ticket')->middleware(['auth', 'role:employee', 'throttle:work-order']);
+    Route::post('/tickets/{ticket}/reviews', [\App\Http\Controllers\TicketReviewController::class, 'review'])->whereNumber('ticket')->middleware(['auth', 'role:admin,agency_owner,agency_client', 'throttle:work-order']);
     Route::get('/tickets/{ticket}/attachments', [AttachmentController::class, 'index'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::post('/tickets/{ticket}/links', [AttachmentController::class, 'storeLink'])->whereNumber('ticket')

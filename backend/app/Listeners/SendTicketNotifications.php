@@ -119,6 +119,12 @@ class SendTicketNotifications
                 $excerpt = $this->excerpt($payload['comment_id'] ?? null);
 
                 return match ($payload['to'] ?? null) {
+                    'in_internal_review' => [
+                        'class' => TicketNeedsYourInput::class,
+                        'recipients' => $this->admins(),
+                        'title' => 'Ready for internal review',
+                        'body' => "{$key} was sent for internal review by {$actor}.",
+                    ],
                     'in_review' => [
                         'class' => TicketNeedsYourInput::class,
                         'recipients' => $this->creatorAndOwners($ticket),
@@ -161,6 +167,19 @@ class SendTicketNotifications
                     'recipients' => $this->creatorAndOwners($ticket),
                     'title' => 'Schedule changed',
                     'body' => $payload['reason'] ?? "The schedule of {$key} changed.",
+                ];
+
+            case 'internal_review':
+                // Only our team's bounce needs telling; an approval already notifies the agency through the status change.
+                if (($payload['decision'] ?? null) !== 'changes_requested') {
+                    return null;
+                }
+
+                return [
+                    'class' => TicketStatusChanged::class,
+                    'recipients' => collect([$ticket->workItem?->employee]),
+                    'title' => 'Changes requested by our team',
+                    'body' => "{$actor} asked for changes on {$key} before it goes to the agency.",
                 ];
 
             case 'hours_adjusted':

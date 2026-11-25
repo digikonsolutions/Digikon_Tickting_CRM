@@ -11,6 +11,8 @@ return [
     'max_project_hours' => 180,
     'max_open_projects_per_client' => 3,
     'require_client_approval' => true,
+    // Work goes to our own check (admin) before the agency sees it, and must come with a review package.
+    'internal_review' => (bool) env('INTERNAL_REVIEW', true),
 
     // Timeline review: new projects and tickets are scheduled provisionally and an admin (or the assigned employee)
     // confirms the dates before work can start. Turn off for local setups and tests.
