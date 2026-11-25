@@ -31,17 +31,50 @@ class SnapshotPolicy
         return array_values(array_map('strtolower', (array) config('activity.snapshots.allowed_domains')));
     }
 
-    /** A site is allowed when it is one of the approved domains or a subdomain of one. */
-    public function domainAllowed(string $domain): bool
+    /** @return list<string> */
+    public function blocked(): array
     {
-        $domain = strtolower($domain);
-        foreach ($this->domains() as $allowed) {
-            if ($domain === $allowed || str_ends_with($domain, '.'.$allowed)) {
+        return array_values(array_map('strtolower', (array) config('activity.snapshots.blocked_domains')));
+    }
+
+    private function matches(string $domain, array $list): bool
+    {
+        foreach ($list as $item) {
+            if ($domain === $item || str_ends_with($domain, '.'.$item)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /** Any website, unless it is blocked; when an allow list is set, only those sites and their subdomains. */
+    public function domainAllowed(string $domain): bool
+    {
+        $domain = strtolower(trim($domain));
+        if ($domain === '' || $this->matches($domain, $this->blocked())) {
+            return false;
+        }
+        $allowed = $this->domains();
+
+        return $allowed === [] || $this->matches($domain, $allowed);
+    }
+
+    /** Working hours: the configured days and time window in the application timezone. */
+    public function inWorkingHours(?\Carbon\CarbonInterface $at = null): bool
+    {
+        $at = ($at ?? now())->copy()->setTimezone(config('app.timezone'));
+        if (! in_array($at->dayOfWeekIso, (array) config('activity.snapshots.days'), true)) {
+            return false;
+        }
+        $time = $at->format('H:i');
+
+        return $time >= (string) config('activity.snapshots.hours_start') && $time < (string) config('activity.snapshots.hours_end');
+    }
+
+    public function hoursLabel(): string
+    {
+        return config('activity.snapshots.hours_start').' to '.config('activity.snapshots.hours_end');
     }
 
     /** What the extension needs to know when it checks in. */
@@ -52,6 +85,7 @@ class SnapshotPolicy
             'min_minutes' => (int) config('activity.snapshots.min_minutes'),
             'max_minutes' => (int) config('activity.snapshots.max_minutes'),
             'allowed_domains' => $this->domains(),
+            'blocked_domains' => $this->blocked(),
             'max_kb' => $this->maxKb(),
         ];
     }

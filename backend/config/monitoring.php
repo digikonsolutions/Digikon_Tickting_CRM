@@ -50,13 +50,13 @@ return [
         // Only present when snapshots are switched on, so the notice always matches what is recorded.
         ...($snapshots ? ['work_snapshots' => [
             'label' => 'Work snapshots',
-            'description' => 'If you install the ClientHub browser extension, and only while you have a ticket or project in progress: a small picture of the browser tab in front, taken every few minutes at a random time, and only when that tab is on an approved work site (such as GoHighLevel). Nothing is taken when you are idle, in a private window, or on any other site. The toolbar icon shows when a picture is taken. Pictures are visible to ClientHub administrators only, are linked to the ticket, and are deleted after :snapshot_days days.',
+            'description' => 'If you install the ClientHub browser extension, and only while you have a ticket or project in progress: a small picture of the browser tab in front, on any website, taken every few minutes at a random time during working hours (:snapshot_hours). Nothing is taken when you are idle, in a private window, or outside working hours. The toolbar icon shows when a picture is taken. Pictures show what is on the page, so avoid opening personal accounts while you work. They are visible to ClientHub administrators only, are linked to your ticket when one is in progress, and are deleted after :snapshot_days days.',
         ]] : []),
     ],
 
     'not_collected' => [
         'Keystrokes or anything you type',
-        $snapshots ? 'Screenshots of anything other than an approved work site, or of your whole screen' : 'Screenshots or screen recordings',
+        $snapshots ? 'Pictures of other applications or of your whole screen, or any recording outside working hours' : 'Screenshots or screen recordings',
         'Page content, passwords, form inputs, or the text of your comments',
         'Camera, microphone or location',
     ],

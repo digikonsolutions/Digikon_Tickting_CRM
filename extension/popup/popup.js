@@ -33,9 +33,9 @@ async function render() {
     state.className = 'ok'
   }
   const snap = $('snap')
-  snap.hidden = !(status.snapshots && status.recording && enabled)
+  snap.hidden = !(status.snapshots && enabled)
   const last = snapshotLast ? ` Last: ${new Date(snapshotLast).toLocaleTimeString()}.` : ''
-  snap.textContent = status.snapshots ? `Snapshots on: a small picture of approved work sites, every ${status.snapshots.min_minutes} to ${status.snapshots.max_minutes} minutes.${last}` : ''
+  snap.textContent = status.snapshots ? `Snapshots on in working hours: a small picture of the tab in front, every ${status.snapshots.min_minutes} to ${status.snapshots.max_minutes} minutes.${last}` : ''
   $('hint').textContent = enabled
     ? 'Records the address (without anything after “?” or “#”), title and time of the tabs you use. Never page content, passwords or private windows.'
     : 'Nothing new is recorded while this is off.'

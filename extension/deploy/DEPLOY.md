@@ -9,21 +9,21 @@ is pinned to the toolbar, cannot be removed or turned off by the person, and alr
 | --- | --- |
 | Where does the extension come from? | **Chrome Web Store, unlisted** (works on any computer with the policy), or **self-hosted** `update.xml` (only on managed / domain-joined computers: Chrome refuses off-store installs otherwise on Windows). |
 | Which browsers? | Chrome and Edge (both Chromium). Not Firefox or Safari. Tell employees to work in Chrome or Edge. |
-| Which sites may be photographed? | `SNAPSHOT_DOMAINS` here **and** `SNAPSHOTS_ALLOWED_DOMAINS` on the server. They must match. |
+| Which sites may be photographed? | **Any website** (the default), in working hours. To narrow it, set `SNAPSHOT_DOMAINS` here and `SNAPSHOTS_ALLOWED_DOMAINS` on the server, and use `SNAPSHOTS_BLOCKED_DOMAINS` for sites that must never be photographed. |
 
 ## 1. Build the production extension
 
 ```powershell
 cd extension
 $env:API_BASE        = 'https://api.clienthub.example.com/api'
-$env:SNAPSHOT_DOMAINS = 'gohighlevel.com,leadconnectorhq.com,msgsndr.com'
+$env:SNAPSHOT_DOMAINS = '*'        # any website; or a comma list to limit it
 # Self-hosted only (skip both lines for the Web Store):
 $env:KEY_FILE    = 'C:\secure\clienthub-extension-key.pem'
 $env:UPDATE_BASE = 'https://updates.clienthub.example.com/extension'
 node deploy/build.mjs
 ```
 
-`dist/` now holds the production extension. Its manifest allows **only** your API host and the approved work sites, with
+`dist/` now holds the production extension. Its manifest allows your API host and the websites snapshots may be taken on (any website by default), with
 no localhost. Keep the private key out of git and safe: losing it changes the extension id.
 
 ## 2a. Chrome Web Store (recommended)
@@ -64,8 +64,7 @@ Restart the browser, then open `chrome://policy` and check the extension is list
 1. The employee signs in to ClientHub in Chrome and accepts the work activity notice.
 2. The toolbar icon shows **REC** while a ticket is in progress.
 3. Open the extension popup: it says "Recording for ..." and nothing asks for an address.
-4. Admin, Browser history shows the tabs. If snapshots are switched on, a picture appears after 5 to 15 minutes
-   on a work site (the icon shows **CAM** for a moment).
+4. Admin, Browser history shows the tabs. If snapshots are switched on, a picture appears 5 to 15 minutes into working hours,\n   on whatever site is in front (the icon shows **CAM** for a moment). A ticket does not have to be in progress.
 
 ## 5. Switching snapshots on (server)
 
@@ -74,8 +73,7 @@ Snapshots are **off** until you set this in the API `.env`:
 ```
 SNAPSHOTS_ENABLED=true
 SNAPSHOTS_DISK=s3          # a private bucket, not the web server's disk
-SNAPSHOTS_ALLOWED_DOMAINS=gohighlevel.com,leadconnectorhq.com,msgsndr.com
-SNAPSHOTS_MIN_MINUTES=5
+SNAPSHOTS_ALLOWED_DOMAINS=            # empty = any website\nSNAPSHOTS_BLOCKED_DOMAINS=            # never photographed, e.g. a bank or password manager\nSNAPSHOTS_HOURS_START=09:00\nSNAPSHOTS_HOURS_END=18:00\nSNAPSHOTS_DAYS=1,2,3,4,5,6            # 1 = Monday\nSNAPSHOTS_MIN_MINUTES=5
 SNAPSHOTS_MAX_MINUTES=15
 SNAPSHOTS_RETENTION_DAYS=30
 ```
@@ -85,8 +83,6 @@ before the first picture is taken. Run the scheduler so `snapshots:prune` delete
 
 ## Known points to verify before launch
 
-- Chrome's screenshot call needs permission for the page. This build grants it for the approved sites only; check on a
-  real GoHighLevel page that pictures are taken. If Chrome refuses, the fallback is the `<all_urls>` permission (the
-  extension and the server still only keep pictures from approved sites).
+- Pictures show whatever is on the page (email, chats, personal accounts). The notice tells employees this, but get a legal\n  review of consent and local rules, and consider a block list for banking and password-manager sites.\n- The extension asks for the `<all_urls>` permission (needed to photograph any site). A Chrome Web Store listing with it\n  needs a clear justification; a company force-install is not affected.
 - Cookies: the extension signs in with the employee's own ClientHub session. Test one login on the production domains
   (the API and the app should share a parent domain, with `SESSION_DOMAIN` set).

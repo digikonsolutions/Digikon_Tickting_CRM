@@ -46,8 +46,8 @@ class BrowserHistoryController extends Controller
             'recording' => $allowed && ($active !== null || ! config('activity.browser_history_work_only', true)),
             'active_work' => $active,
             'policy_version' => $policy->version(),
-            // Whether, and how often, to take work snapshots. Only offered while recording is on and the notice that lists them was accepted.
-            'snapshots' => ($allowed && $active !== null && $policy->allows('work_snapshots') && app(\App\Services\SnapshotPolicy::class)->enabled()) ? app(\App\Services\SnapshotPolicy::class)->forExtension() : null,
+            // Whether, and how often, to take work snapshots. Only offered in working hours and once the notice that lists them was accepted.
+            'snapshots' => ($allowed && $policy->allows('work_snapshots') && app(\App\Services\SnapshotPolicy::class)->enabled() && app(\App\Services\SnapshotPolicy::class)->inWorkingHours()) ? app(\App\Services\SnapshotPolicy::class)->forExtension() : null,
         ]);
     }
 

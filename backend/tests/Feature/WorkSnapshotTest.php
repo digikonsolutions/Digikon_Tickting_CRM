@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\BuildsTicketFixture;
 use Tests\TestCase;
 
-/** Work snapshots: off by default, consent-gated, only while a ticket is in progress, only on approved sites. */
+/** Work snapshots: off by default, consent-gated, any website, only in working hours, linked to the ticket when there is one. */
 class WorkSnapshotTest extends TestCase
 {
     use BuildsTicketFixture;
@@ -80,20 +80,33 @@ class WorkSnapshotTest extends TestCase
         $this->assertSame(0, WorkSnapshot::count());
     }
 
-    public function test_no_snapshot_is_kept_without_a_ticket_in_progress(): void
+    public function test_a_picture_is_kept_in_working_hours_without_a_ticket_and_refused_outside_them(): void
     {
         $this->ticket->update(['status' => 'in_review']);
-        $this->upload()->assertStatus(409);
+        $this->upload()->assertCreated();
+        $this->assertNull(WorkSnapshot::first()->ticket_id);
+
+        WorkSnapshot::query()->delete();
+        $this->travelTo(CarbonImmutable::parse('2026-12-09 20:00', config('app.timezone')));
+        $this->upload(['captured_at' => now()->toIso8601String()])->assertStatus(409);
+        $this->travelTo(CarbonImmutable::parse('2026-12-13 11:00', config('app.timezone'))); // a Sunday
+        $this->upload(['captured_at' => now()->toIso8601String()])->assertStatus(409);
         $this->assertSame(0, WorkSnapshot::count());
     }
 
-    public function test_only_approved_sites_and_their_subdomains_are_kept(): void
+    public function test_any_website_is_kept_unless_blocked_and_an_allow_list_narrows_it(): void
     {
+        $this->upload(['domain' => 'mail.example.com'])->assertCreated();
+        WorkSnapshot::query()->delete();
+        config(['activity.snapshots.blocked_domains' => ['bank.example.com']]);
+        $this->upload(['domain' => 'login.bank.example.com'])->assertStatus(422);
+        $this->upload(['domain' => 'notbank.example.com'])->assertCreated();
+        WorkSnapshot::query()->delete();
+        config(['activity.snapshots.blocked_domains' => [], 'activity.snapshots.allowed_domains' => ['gohighlevel.com']]);
         $this->upload(['domain' => 'mail.example.com'])->assertStatus(422);
         $this->upload(['domain' => 'evilgohighlevel.com'])->assertStatus(422);
         $this->upload(['domain' => 'GoHighLevel.com'])->assertCreated();
     }
-
     public function test_pictures_must_be_images_and_small_and_recent_and_spaced_out(): void
     {
         $this->upload(['image' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf')])->assertStatus(422);
@@ -111,8 +124,9 @@ class WorkSnapshotTest extends TestCase
         }
         $res = $this->actingAs($this->u['employee'])->getJson('/api/browser-history/status')->assertOk();
         $this->assertTrue($res->json('snapshots.enabled'));
-        $this->assertContains('gohighlevel.com', $res->json('snapshots.allowed_domains'));
-        $this->ticket->update(['status' => 'in_review']);
+        $this->assertSame([], $res->json('snapshots.allowed_domains'), 'empty means any website');
+        // Outside working hours nothing is offered.
+        $this->travelTo(CarbonImmutable::parse('2026-12-09 21:00', config('app.timezone')));
         $this->assertNull($this->actingAs($this->u['employee'])->getJson('/api/browser-history/status')->json('snapshots'));
     }
 

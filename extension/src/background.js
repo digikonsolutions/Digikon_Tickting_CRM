@@ -41,6 +41,10 @@ function recordingOn(store) {
   return store.settings.enabled && Boolean(store.settings.apiBase) && store.status.allowed && store.status.recording === true
 }
 
+function snapshotsOn(store) {
+  return store.settings.enabled && Boolean(store.settings.apiBase) && store.status.allowed && store.status.signedIn && store.status.snapshots?.enabled === true
+}
+
 // A visible sign on the toolbar icon whenever tabs are being recorded.
 function showBadge(on) {
   chrome.action.setBadgeText({ text: on ? 'REC' : '' }).catch(() => {})
@@ -138,7 +142,7 @@ function syncNow() {
     }
     const recordingNow = !result.offline && store.settings.enabled && result.status.allowed && result.status.recording === true
     // Not recording (or snapshots no longer offered): the next picture is scheduled afresh when work starts again.
-    const stillSnapshotting = recordingNow && result.status.snapshots !== null
+    const stillSnapshotting = !result.offline && store.settings.enabled && result.status.allowed && result.status.snapshots !== null
     await chrome.storage.local.set({ status, queue, tracker, ...(stillSnapshotting ? {} : { snapshotNextAt: 0 }) })
     showBadge(recordingNow)
 
@@ -147,13 +151,14 @@ function syncNow() {
   }).then((becameRecording) => (becameRecording ? seed() : undefined))
 }
 
-// One picture of the tab in front, now and then, while a ticket is in progress and only on an approved work site. The toolbar
-// icon flashes when one is taken. A failed upload is dropped, never queued.
+// One picture of the tab in front, now and then, in working hours, on any site that is not blocked. The toolbar icon flashes
+// when one is taken. A failed upload is dropped, never queued.
 function maybeSnapshot() {
   return run(async () => {
     const store = await load()
     const config = store.status.snapshots
-    if (!recordingOn(store) || !config?.enabled) return
+    // Working hours are decided by the server (it only offers snapshots then); no ticket has to be in progress.
+    if (!snapshotsOn(store) || !config?.enabled) return
     const now = Date.now()
     const action = tickAction({ now, nextAt: store.snapshotNextAt })
     if (action === 'schedule') {
@@ -166,7 +171,7 @@ function maybeSnapshot() {
     const focused = await chrome.windows.getLastFocused().catch(() => null)
     if (!focused?.focused) return
     const [tab] = await chrome.tabs.query({ active: true, windowId: focused.id })
-    const host = capturable(tab, config.allowed_domains)
+    const host = capturable(tab, config.allowed_domains, config.blocked_domains)
     if (!host) return
     let shot
     try {
@@ -182,7 +187,7 @@ function maybeSnapshot() {
     await chrome.storage.local.set({ snapshotNextAt: Date.now() + wait, ...(outcome === 'stored' ? { snapshotLast: Date.now() } : {}) })
     if (outcome === 'stored') {
       chrome.action.setBadgeText({ text: 'CAM' }).catch(() => {})
-      setTimeout(() => showBadge(true), 2500)
+      setTimeout(async () => showBadge(recordingOn(await load())), 2500)
     }
   })
 }

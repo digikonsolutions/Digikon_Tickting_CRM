@@ -23,8 +23,10 @@ const apiBase = (process.env.API_BASE ?? '').trim().replace(/\/+$/, '')
 let api
 try { api = new URL(apiBase) } catch { fail('set API_BASE to the https API address, for example https://api.clienthub.example.com/api') }
 if (api.protocol !== 'https:') fail('API_BASE must be https://')
-const domains = (process.env.SNAPSHOT_DOMAINS ?? 'gohighlevel.com,leadconnectorhq.com,msgsndr.com').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean)
-if (domains.some((domain) => !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain))) fail('SNAPSHOT_DOMAINS must be plain domains such as gohighlevel.com')
+// '*' (the default) means snapshots may be taken on any website; a list narrows the browser permission to those sites.
+const anySite = (process.env.SNAPSHOT_DOMAINS ?? '*').trim() === '*'
+const domains = anySite ? [] : (process.env.SNAPSHOT_DOMAINS ?? '').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean)
+if (domains.some((domain) => !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain))) fail('SNAPSHOT_DOMAINS must be * or plain domains such as gohighlevel.com')
 
 rmSync(dist, { recursive: true, force: true })
 mkdirSync(dist, { recursive: true })
@@ -33,8 +35,8 @@ mkdirSync(join(dist, 'deploy'), { recursive: true })
 cpSync(join(root, 'deploy', 'managed_schema.json'), join(dist, 'deploy', 'managed_schema.json'))
 
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'))
-// Least privilege: no localhost, only the API and the approved work sites.
-manifest.host_permissions = [`${api.origin}/*`, ...domains.map((domain) => `https://*.${domain}/*`)]
+// No localhost. Any website for snapshots (<all_urls>), or only the listed sites when SNAPSHOT_DOMAINS narrows it.
+manifest.host_permissions = [`${api.origin}/*`, ...(anySite ? ['<all_urls>'] : domains.map((domain) => `https://*.${domain}/*`))]
 delete manifest.optional_host_permissions
 
 let extensionId = null
@@ -61,5 +63,5 @@ if (extensionId) {
 }
 console.log(`Built dist/ (version ${manifest.version})`)
 console.log(`  API:      ${api.origin}`)
-console.log(`  Snapshot sites: ${domains.join(', ')}`)
+console.log(`  Snapshot sites: ${anySite ? 'any website' : domains.join(', ')}`)
 console.log(extensionId ? `  Extension id: ${extensionId}` : '  No KEY_FILE: the extension id is chosen by the Chrome Web Store when you upload.')

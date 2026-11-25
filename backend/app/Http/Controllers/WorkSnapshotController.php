@@ -27,8 +27,9 @@ class WorkSnapshotController extends Controller
         $user = $request->user();
         abort_unless($snapshots->enabled(), 404);
         abort_unless($monitoring->allows('work_snapshots') && $monitoring->hasConsented($user), 403, 'Snapshots are not allowed until you accept the current monitoring notice.');
+        abort_unless($snapshots->inWorkingHours(), 409, 'Snapshots are only kept in working hours.');
+        // The ticket in progress, when there is one; a picture in working hours is kept either way.
         $active = $work->current($user);
-        abort_if($active === null, 409, 'No ticket is in progress, so no snapshot is kept.');
 
         $data = $request->validate([
             'image' => ['required', 'file', 'mimetypes:image/webp,image/jpeg,image/png', 'max:'.$snapshots->maxKb()],
@@ -39,7 +40,7 @@ class WorkSnapshotController extends Controller
             'height' => ['nullable', 'integer', 'min:1', 'max:4000'],
         ]);
         $domain = strtolower(trim($data['domain']));
-        abort_unless($snapshots->domainAllowed($domain), 422, 'Pictures are only kept for approved work sites.');
+        abort_unless($snapshots->domainAllowed($domain), 422, 'Pictures are not kept for this site.');
 
         $capturedAt = CarbonImmutable::parse($data['captured_at']);
         abort_if($capturedAt->lessThan(now()->subMinutes(30)) || $capturedAt->greaterThan(now()->addMinutes(5)), 422, 'That picture is too old.');
@@ -51,7 +52,7 @@ class WorkSnapshotController extends Controller
         $disk = $snapshots->disk();
         $path = Storage::disk($disk)->putFile('snapshots/'.$user->id.'/'.$capturedAt->format('Ymd'), $file);
         $row = WorkSnapshot::create([
-            'user_id' => $user->id, 'ticket_id' => $active['ticket_id'], 'work_item_id' => $active['work_item_id'],
+            'user_id' => $user->id, 'ticket_id' => $active['ticket_id'] ?? null, 'work_item_id' => $active['work_item_id'] ?? null,
             'captured_at' => $capturedAt, 'domain' => $domain, 'page_title' => $data['title'] ?? null,
             'disk' => $disk, 'path' => $path, 'mime' => $file->getMimeType(), 'size_bytes' => $file->getSize(),
             'width' => $data['width'] ?? null, 'height' => $data['height'] ?? null,

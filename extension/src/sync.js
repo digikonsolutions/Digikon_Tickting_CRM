@@ -48,8 +48,8 @@ export async function runSync({ apiBase, queue, cookies, fetchImpl = fetch }) {
   // The server says when to record: only while the employee has a ticket (or a ticket-less project) in progress.
   status.recording = status.allowed && body.recording === true
   status.activeWork = status.recording ? (body.active_work ?? null) : null
-  // Work snapshots: only offered by the server while recording, with the approved sites and how often to take one.
-  status.snapshots = status.recording && body.snapshots?.enabled === true ? body.snapshots : null
+  // Work snapshots: offered by the server in working hours once the notice that lists them is accepted (no ticket needed).
+  status.snapshots = status.allowed && body.snapshots?.enabled === true ? body.snapshots : null
   // Whatever was queued is still sent after work stops: it was recorded while work was in progress.
   if (!status.allowed || queue.length === 0) return { status, stored }
 

@@ -4,21 +4,25 @@
 export const MAX_WIDTH = 1000
 export const QUALITY = 0.6
 
-// A site is allowed when it is an approved domain or a subdomain of one. The server checks the same rule again.
-export function domainAllowed(host, allowed = []) {
+const listed = (host, list) => list.some((domain) => {
+  const d = String(domain).toLowerCase()
+  return host === d || host.endsWith(`.${d}`)
+})
+
+// Any website unless it is blocked. When the server sends an allow list, only those sites and their subdomains. The server
+// checks the same rule again.
+export function domainAllowed(host, allowed = [], blocked = []) {
   const name = String(host ?? '').toLowerCase()
-  return allowed.some((domain) => {
-    const d = String(domain).toLowerCase()
-    return name === d || name.endsWith(`.${d}`)
-  })
+  if (!name || listed(name, blocked)) return false
+  return allowed.length === 0 || listed(name, allowed)
 }
 
-// Only ordinary https pages in a normal window, and only approved sites. Returns the host to report, or null.
-export function capturable(tab, allowed) {
-  if (!tab || tab.incognito || typeof tab.url !== 'string' || !tab.url.startsWith('https://')) return null
+// Only ordinary web pages (http or https) in a normal window. Returns the host to report, or null.
+export function capturable(tab, allowed = [], blocked = []) {
+  if (!tab || tab.incognito || typeof tab.url !== 'string' || !/^https?:\/\//.test(tab.url)) return null
   try {
     const host = new URL(tab.url).hostname.toLowerCase()
-    return domainAllowed(host, allowed) ? host : null
+    return domainAllowed(host, allowed, blocked) ? host : null
   } catch {
     return null
   }

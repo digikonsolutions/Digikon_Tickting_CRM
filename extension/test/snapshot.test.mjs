@@ -6,26 +6,31 @@ import { uploadSnapshot } from '../src/sync.js'
 
 const allowed = ['gohighlevel.com', 'leadconnectorhq.com']
 
-test('a site is allowed only when it is an approved domain or a subdomain of one', () => {
+test('any website is allowed unless it is blocked, and an allow list narrows it', () => {
+  assert.equal(domainAllowed('mail.example.com', [], []), true)
+  assert.equal(domainAllowed('login.bank.example.com', [], ['bank.example.com']), false)
+  assert.equal(domainAllowed('notbank.example.com', [], ['bank.example.com']), true)
   assert.equal(domainAllowed('app.gohighlevel.com', allowed), true)
   assert.equal(domainAllowed('GoHighLevel.com', allowed), true)
   assert.equal(domainAllowed('evilgohighlevel.com', allowed), false)
   assert.equal(domainAllowed('gohighlevel.com.evil.test', allowed), false)
   assert.equal(domainAllowed('mail.google.com', allowed), false)
-  assert.equal(domainAllowed('', allowed), false)
+  assert.equal(domainAllowed('', []), false)
 })
 
-test('only https pages of approved sites in a normal window are captured', () => {
-  assert.equal(capturable({ url: 'https://app.gohighlevel.com/v2/location/1/workflows' }, allowed), 'app.gohighlevel.com')
-  assert.equal(capturable({ url: 'https://app.gohighlevel.com/', incognito: true }, allowed), null)
-  assert.equal(capturable({ url: 'http://app.gohighlevel.com/' }, allowed), null)
-  assert.equal(capturable({ url: 'chrome://settings' }, allowed), null)
-  assert.equal(capturable({ url: 'https://bank.example.com/' }, allowed), null)
-  assert.equal(capturable({}, allowed), null)
-  assert.equal(capturable(null, allowed), null)
-  assert.equal(capturable({ url: 'not a url' }, allowed), null)
+test('only ordinary web pages in a normal window are captured', () => {
+  assert.equal(capturable({ url: 'https://app.gohighlevel.com/v2/location/1/workflows' }), 'app.gohighlevel.com')
+  assert.equal(capturable({ url: 'http://intranet.local/page' }), 'intranet.local')
+  assert.equal(capturable({ url: 'https://news.example.com/' }, [], []), 'news.example.com')
+  assert.equal(capturable({ url: 'https://app.gohighlevel.com/', incognito: true }), null)
+  assert.equal(capturable({ url: 'chrome://settings' }), null)
+  assert.equal(capturable({ url: 'file:///C:/secret.pdf' }), null)
+  assert.equal(capturable({ url: 'https://bank.example.com/' }, [], ['bank.example.com']), null)
+  assert.equal(capturable({ url: 'https://news.example.com/' }, allowed), null, 'an allow list excludes other sites')
+  assert.equal(capturable({}), null)
+  assert.equal(capturable(null), null)
+  assert.equal(capturable({ url: 'not a url' }), null)
 })
-
 test('the wait is random between the minimum and the maximum', () => {
   assert.equal(nextDelayMs(5, 15, () => 0), 5 * 60_000)
   assert.equal(nextDelayMs(5, 15, () => 1), 15 * 60_000)
