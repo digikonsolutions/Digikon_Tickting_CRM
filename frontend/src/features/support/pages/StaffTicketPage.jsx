@@ -68,6 +68,12 @@ export function StaffTicketPage() {
         {ticket.sla?.resolution && <SlaIndicator clock={ticket.sla.resolution} kind="resolution" />}
         {ticket.secret_flagged &&<span className="sup-secret">Possible password or key in the text. Check before replying.</span>}
       </div>
+      <p className="sup-facts">
+        <strong>{ticket.agency?.name}</strong>{ticket.end_client ? `  ·  ${ticket.end_client.name}` : ''}
+        {ticket.submitted_by?.name ? `  ·  opened by ${ticket.submitted_by.name}` : ''} <RelativeTime date={ticket.created_at} />
+        {ticket.requested_deadline ? `  ·  wanted by ${formatDate(ticket.requested_deadline)}` : ''}
+        {ticket.assigned_to ? `  ·  owner ${ticket.assigned_to.name}` : '  ·  nobody owns it yet'}
+      </p>
       <ApiErrorMessage error={error && !error.errors ? error : null} />
       {error?.errors && <Alert variant="error">{Object.values(error.errors).flat()[0]}</Alert>}
 
@@ -113,10 +119,15 @@ export function StaffTicketPage() {
               {PRIORITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </Select>
           </Card>
-          {!ticket.is_legacy && <ScopePanel key={`${ticket.id}-${ticket.scope_classification}-${ticket.scope_proposal ? 'p' : 'n'}`} ticket={ticket} canDecide={user.role === 'admin' || myCapabilities.includes('delivery_manager')} onChanged={reload} />}
-          {!ticket.is_legacy && <QuotePanel key={'q' + ticket.id + (ticket.quotes?.length ?? 0)} ticket={ticket} canSend={user.role === 'admin' || myCapabilities.some((name) => ['delivery_manager', 'finance'].includes(name))} onChanged={reload} />}
-          {!ticket.is_legacy && <ApprovalsPanel key={'a' + ticket.id} ticket={ticket} />}
-          {!ticket.is_legacy && <RelationsPanel key={'r' + ticket.id} ticket={ticket} />}
+          {!ticket.is_legacy && (
+            <details className="sup-folded">
+              <summary>Scope, quote, approvals and related tickets</summary>
+              <ScopePanel key={`${ticket.id}-${ticket.scope_classification}-${ticket.scope_proposal ? 'p' : 'n'}`} ticket={ticket} canDecide={user.role === 'admin' || myCapabilities.includes('delivery_manager')} onChanged={reload} />
+              <QuotePanel key={'q' + ticket.id + (ticket.quotes?.length ?? 0)} ticket={ticket} canSend={user.role === 'admin' || myCapabilities.some((name) => ['delivery_manager', 'finance'].includes(name))} onChanged={reload} />
+              <ApprovalsPanel key={'a' + ticket.id} ticket={ticket} />
+              <RelationsPanel key={'r' + ticket.id} ticket={ticket} />
+            </details>
+          )}
           <Card title="Details">
             <dl>
               <div><dt>Agency</dt><dd>{ticket.agency?.name}</dd></div>

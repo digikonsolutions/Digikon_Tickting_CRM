@@ -80,7 +80,7 @@ export function StaffSettingsPage() {
   return (
     <section className="page">
       <PageHeader eyebrow="Staff" title="Support settings" subtitle="Targets are in business minutes, inside the support hours below. Changes apply to new tickets." />
-      <form className="ui-form" onSubmit={save} noValidate>
+      <form className="ui-form sup-settings" onSubmit={save} noValidate>
         <Card title="SLA targets (business minutes)">
           <table className="sup-queue"><thead><tr><th scope="col">Priority</th><th scope="col">First response</th><th scope="col">Resolution</th></tr></thead>
             <tbody>{PRIORITIES.map(([key, label]) => (
