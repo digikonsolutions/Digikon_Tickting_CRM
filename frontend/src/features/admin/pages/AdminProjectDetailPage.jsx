@@ -1,30 +1,67 @@
 import { useCallback } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Icon, PageHeader, PriorityBadge, ScheduleSummary, Spinner, StatusBadge, TicketKey } from '../../../components/ui'
+import { Button, Card, Icon, PageHeader, Spinner, StatusBadge, Tabs } from '../../../components/ui'
 import { formatDateRange, formatHours } from '../../../lib/format'
-import { WaitingChip } from '../../tickets'
 import { GhlBriefView } from '../../workorder/BriefView'
-import { WorkOrderBadges } from '../../workorder/WorkOrderView'
 import { ProjectEmployee } from '../../agency/components/ProjectEmployee'
 import { ProjectHoursPanel } from '../../agency/components/ProjectHoursPanel'
 import { ProjectServicesView } from '../../agency/components/projectCreate/ProjectServicesView'
+import { ProjectTicketsTable } from '../components/ProjectTicketsTable'
+import '../components/projectTickets.css'
 
+const TAB_IDS = ['tickets', 'hours', 'details']
+
+// Four numbers that answer "where is this project?" before anything else is read.
+function SummaryStrip({ project, tickets }) {
+  const counted = tickets.filter((ticket) => ticket.status !== 'cancelled')
+  const done = counted.filter((ticket) => ticket.status === 'done').length
+  const hours = project.hours ?? {}
+  const logged = hours.logged ?? tickets.reduce((sum, ticket) => sum + Number(ticket.logged_hours ?? 0), 0)
+  const inTickets = hours.allocated ?? counted.reduce((sum, ticket) => sum + Number(ticket.estimated_hours), 0)
+  const total = hours.total ?? Number(project.estimated_hours ?? 0)
+
+  return (
+    <div className="aps" aria-label="Project at a glance">
+      <div className="aps-item">
+        <span className="aps-label">Tickets</span>
+        <span className="aps-value">{done} of {counted.length} done</span>
+        <span className="aps-sub">{counted.length - done} still open</span>
+      </div>
+      <div className="aps-item">
+        <span className="aps-label">Hours</span>
+        <span className="aps-value">{formatHours(logged)} logged</span>
+        <span className="aps-sub">{formatHours(inTickets)} in tickets, of {formatHours(total)} for the project</span>
+      </div>
+      <div className="aps-item">
+        <span className="aps-label">Dates</span>
+        <span className="aps-value">{formatDateRange(project.start_date, project.due_date)}</span>
+        <span className="aps-sub"><StatusBadge status={project.status} /></span>
+      </div>
+      <div className="aps-item">
+        <span className="aps-label">Employee</span>
+        <span className="aps-value">{project.employee ? <Link to={`/admin/employees/${project.employee.id}`}>{project.employee.name}</Link> : 'Unassigned'}</span>
+        <span className="aps-sub">{project.employee?.headline || project.client?.name || ''}</span>
+      </div>
+    </div>
+  )
+}
+
+// Read-mostly view of one project for the platform team: the tickets first (grouped by the service each is for), then
+// the hours (where an admin can change them) and the details the agency sent.
 export function AdminProjectDetailPage() {
   const { id } = useParams()
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('tab')
+  const tab = TAB_IDS.includes(requested) ? requested : 'tickets'
   const loadProject = useCallback(() => authService.getAdminProject(id), [id])
   const { data, error, isLoading, reload } = useAsync(loadProject)
   const project = data?.project
   const tickets = data?.tickets ?? []
-  const ticketHours = tickets
-    .filter((ticket) => ticket.status !== 'cancelled')
-    .reduce((sum, ticket) => sum + Number(ticket.estimated_hours), 0)
-  const projectHours = Number(project?.estimated_hours ?? 0)
-  const ticketProgress = projectHours > 0 ? Math.min(100, (ticketHours / projectHours) * 100) : 0
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <section className="page admin-project-detail"><p className="admin-project-loading" role="status"><Spinner /> Loading project details…</p></section>
   }
 
@@ -40,12 +77,20 @@ export function AdminProjectDetailPage() {
     )
   }
 
+  const openCount = tickets.filter((ticket) => !['done', 'cancelled'].includes(ticket.status)).length
+  const tabs = [
+    { id: 'tickets', label: 'Tickets', count: tickets.length },
+    { id: 'hours', label: 'Hours' },
+    { id: 'details', label: 'Details' },
+  ]
+  const setTab = (next) => setParams(next === 'tickets' ? {} : { tab: next }, { replace: true })
+
   return (
     <section className="page admin-project-detail">
       <PageHeader
-        eyebrow={project.agency_name ?? 'Administration'}
+        eyebrow={[project.agency_name, project.client?.name].filter(Boolean).join(' · ') || 'Administration'}
         title={project.title}
-        subtitle="Read-only project and assigned ticket details."
+        subtitle={openCount > 0 ? `${openCount} ticket${openCount === 1 ? '' : 's'} still open` : 'No open tickets'}
         action={(
           <Link className="ui-button ui-button-secondary admin-project-back-button" to="/admin/projects">
             <Icon name="arrow" size={16} />
@@ -54,85 +99,27 @@ export function AdminProjectDetailPage() {
         )}
       />
 
-      <Card className="admin-project-overview">
-        <div className="admin-project-summary">
-          <div className="admin-project-description">
-            <p>{project.description || 'No project description provided.'}</p>
-            <dl className="admin-project-facts">
-              <div><dt>Agency</dt><dd>{project.agency_name ?? '—'}</dd></div>
-              <div><dt>Client</dt><dd>{project.client?.name ?? 'Account removed'}</dd></div>
-              <div><dt>Assigned employee</dt><dd>{project.employee ? <ProjectEmployee employee={project.employee} feedbackTo={`/admin/employees/${project.employee.id}`} /> : 'Unassigned'}</dd></div>
-              <div><dt>Project dates</dt><dd>{formatDateRange(project.start_date, project.due_date)}</dd></div>
-              <div><dt>Project hours</dt><dd>{formatHours(projectHours)}</dd></div>
-              <div><dt>Status</dt><dd><StatusBadge status={project.status} /></dd></div>
-            </dl>
-          </div>
-          <div className="admin-project-progress">
-            <div className="admin-project-progress-label">
-              <strong>Ticket hours</strong>
-              <span>{formatHours(ticketHours)} / {formatHours(projectHours)}</span>
-            </div>
-            <div
-              className="admin-project-progress-track"
-              role="progressbar"
-              aria-label="Assigned ticket hours compared with project hours"
-              aria-valuemin="0"
-              aria-valuemax={projectHours}
-              aria-valuenow={Math.min(ticketHours, projectHours)}
-            >
-              <span style={{ width: `${ticketProgress}%` }} />
-            </div>
-            <p>Ticket hours exclude cancelled tickets.</p>
-          </div>
-        </div>
-      </Card>
+      <SummaryStrip project={project} tickets={tickets} />
+      <Tabs tabs={tabs} activeTab={tab} onChange={setTab} label="Project sections" />
 
-      <ProjectServicesView services={project.services} />
-      <ProjectHoursPanel hours={project.hours} tickets={tickets} admin projectId={project.id} onChanged={reload} />
-      {project.ghl_brief && <Card title="GoHighLevel brief" description="Read-only. Internal notes are shown to staff only."><GhlBriefView brief={project.ghl_brief} /></Card>}
+      {tab === 'tickets' && (
+        <Card title="Tickets" description="Grouped by the service each one is for. Open a row for its description and schedule.">
+          <ProjectTicketsTable tickets={tickets} services={project.services ?? []} />
+        </Card>
+      )}
 
-      <Card
-        className="admin-project-tickets"
-        header={(
-          <div className="admin-project-tickets-heading">
-            <div>
-              <h2>Assigned tickets</h2>
-              <p>{tickets.length} ticket{tickets.length === 1 ? '' : 's'} · read-only</p>
-            </div>
-            <span className="admin-ticket-count">{tickets.length}</span>
-          </div>
-        )}
-      >
-        {tickets.length
-          ? (
-            <ol className="admin-project-ticket-list">
-              {tickets.map((ticket) => (
-                <li className="admin-project-ticket" key={ticket.id}>
-                  <span className="admin-project-ticket-position">{ticket.position + 1}</span>
-                  <div className="admin-project-ticket-content">
-                    <div className="admin-project-ticket-title-row">
-                      <h3><TicketKey ticketKey={ticket.key} /> <Link className="admin-project-detail-link" to={`/tickets/${ticket.key}`}>{ticket.title}</Link></h3>
-                      <div className="admin-project-ticket-badges">
-                        <PriorityBadge priority={ticket.priority} />
-                        <StatusBadge status={ticket.status} />
-                      </div>
-                    </div>
-                    {ticket.description && <p>{ticket.description}</p>}
-                    <div className="admin-project-ticket-meta">
-                      <span title="Logged of estimated hours">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</span>
-                      {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
-                      <WorkOrderBadges summary={ticket.details_summary} />
-                      <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
-                    </div>
-                    <ScheduleSummary className="admin-project-ticket-schedule" schedule={ticket.schedule} />
-                    <p className="project-ticket-footer"><WaitingChip ticket={ticket} role="admin" /> <Link to={`/tickets/${ticket.key}`}>Open ticket</Link> <span>{ticket.comments_count ?? 0} comment{ticket.comments_count === 1 ? '' : 's'}</span></p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )
-          : <p className="admin-project-empty">This project has no tickets yet.</p>}
-      </Card>
+      {tab === 'hours' && <ProjectHoursPanel hours={project.hours} tickets={tickets} admin projectId={project.id} onChanged={reload} />}
+
+      {tab === 'details' && (
+        <>
+          <Card title="What the agency asked for">
+            <p className="admin-project-description-text">{project.description || 'No project description provided.'}</p>
+            <ProjectEmployee employee={project.employee} feedbackTo={project.employee ? `/admin/employees/${project.employee.id}` : null} />
+          </Card>
+          <ProjectServicesView services={project.services} />
+          {project.ghl_brief && <Card title="GoHighLevel brief" description="Internal notes are shown to staff only."><GhlBriefView brief={project.ghl_brief} /></Card>}
+        </>
+      )}
     </section>
   )
 }

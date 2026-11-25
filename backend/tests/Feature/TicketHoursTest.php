@@ -154,4 +154,32 @@ class TicketHoursTest extends TestCase
         $this->assertEquals([3.0, 5.0], [(float) $a->fresh()->estimated_hours, (float) $b->fresh()->estimated_hours]);
         $this->assertSame(2, TicketEvent::where('type', 'hours_adjusted')->count());
     }
+
+    public function test_ticket_lists_do_not_query_each_tickets_service_separately(): void
+    {
+        $service = $this->service('workflow', 20);
+        $make = function (int $count) use ($service): void {
+            foreach (range(1, $count) as $i) {
+                $this->makeTicket('owner', "Ticket {$i}", 0.5)->update(['project_service_id' => $service->id]);
+            }
+        };
+        $measure = function (string $who, string $url): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->actingAs($this->u[$who])->getJson($url)->assertOk();
+            $count = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $count;
+        };
+        $make(2);
+        foreach (['admin' => '/api/admin/tickets', 'owner' => '/api/agency/tickets'] as $who => $url) {
+            $measure($who, $url);
+        }
+        $before = ['admin' => $measure('admin', '/api/admin/tickets'), 'owner' => $measure('owner', '/api/agency/tickets')];
+        $make(6);
+
+        $this->assertSame($before['admin'], $measure('admin', '/api/admin/tickets'), 'admin list');
+        $this->assertSame($before['owner'], $measure('owner', '/api/agency/tickets'), 'agency list');
+    }
 }

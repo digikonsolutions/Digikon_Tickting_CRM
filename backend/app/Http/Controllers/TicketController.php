@@ -46,7 +46,7 @@ class TicketController extends Controller
 
         return response()->json([
             'tickets' => $workItem->tickets()
-                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment', 'detail'])
+                ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment', 'detail', 'projectService'])
                 ->withCount(['comments' => $this->commentVisibility($request->user())])
                 ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
                 ->orderBy('position')
@@ -320,7 +320,7 @@ class TicketController extends Controller
         $employee = $request->user();
         $this->ensureActiveEmployeeAgency($employee);
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment', 'pendingHoursRequest', 'detail'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'workItem.assignment', 'pendingHoursRequest', 'detail', 'projectService'])
             ->withCount(['comments' => $this->commentVisibility($employee)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->whereHas('workItem', fn ($query) => $query->where('employee_id', $employee->id))
@@ -397,8 +397,10 @@ class TicketController extends Controller
     {
         $filters = $request->validated();
 
+        // Project tickets only. Support-module tickets have no project and live in the support queue.
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'detail'])
+            ->whereNotNull('work_item_id')
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'detail', 'projectService'])
             ->withCount(['comments' => $this->commentVisibility($request->user())])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
@@ -469,7 +471,7 @@ class TicketController extends Controller
         $search = trim((string) ($filters['search'] ?? ''));
 
         $tickets = Ticket::query()
-            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'detail'])
+            ->with(['agency', 'allocations', 'workItem.agency', 'workItem.assignment', 'workItem.client', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'detail', 'projectService'])
             ->withCount(['comments' => $this->commentVisibility($user)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->where('agency_id', $user->agency_id)
@@ -523,7 +525,7 @@ class TicketController extends Controller
             ->whereHas('workItem', fn ($q) => $q->whereIn('status', ['scheduled', 'in_progress']));
 
         $tickets = (clone $query)
-            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment', 'detail'])
+            ->with(['agency', 'allocations', 'creator', 'latestStatusEvent', 'pendingHoursRequest', 'workItem.assignment', 'detail', 'projectService'])
             ->withCount(['comments' => $this->commentVisibility($user)])
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy(

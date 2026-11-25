@@ -5,7 +5,7 @@ import { useAsync } from '../../../../../hooks/useAsync'
 import { Alert, Button, DropdownMenu, Icon, PageHeader } from '../../../../../components/ui'
 import { AgencyStatusModal } from '../../../../admin/agencies/AgencyStatusModal'
 import {
-  AgenciesCard, AttentionCard, ContractsCard, DashboardSkeleton, EmployeeCapacityCard, KpiRow, QuickActionsCard, RecentProjectsCard,
+  AgenciesCard, AttentionCard, ContractsCard, DashboardSkeleton, EmployeeCapacityCard, KpiRow, QuickActionsCard, RecentProjectsCard, SupportActivityCard, SupportBand,
 } from './AdminDashboardCards'
 import { useUrgentCounts } from '../../../../admin/pages/useUrgentCounts'
 import './adminDashboard.css'
@@ -49,7 +49,7 @@ export const AdminDashboard = () => {
       <PageHeader
         eyebrow="Administration"
         title="Workspace overview"
-        subtitle="Employees, agencies and capacity at a glance."
+        subtitle="Support, employees, agencies and capacity at a glance."
         action={(
           <div className="adm-header-actions">
             {data && <span className="adm-updated" aria-live="polite">Last updated {timeLabel(data.generated_at)}</span>}
@@ -77,9 +77,11 @@ export const AdminDashboard = () => {
       {data && (
         <>
           <UrgentRequestsStrip />
+          {data.support && <SupportBand support={data.support} />}
           <KpiRow data={data} />
           <div className="adm-cols">
             <div className="adm-col">
+              {data.support && <SupportActivityCard support={data.support} />}
               <AttentionCard items={data.attention} />
               <AgenciesCard data={data} onToggle={setAgencyAction} />
               <RecentProjectsCard projects={data.recent_projects ?? []} />

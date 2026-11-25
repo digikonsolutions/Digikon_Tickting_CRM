@@ -64,23 +64,24 @@ const AGENCY_NAV = Object.freeze([
 const agencyNav = (role) => AGENCY_NAV.filter((item) => item.roles.includes(role)).map(({ roles: _roles, ...item }) => item)
 const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.ADMIN]: [
-    { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Work' },
-    { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
-    { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
-    { to: '/staff/tickets', label: 'Support queue', icon: 'inbox', section: 'Work' },
-    { to: '/staff/reports', label: 'Support reports', icon: 'chart', section: 'Work' },
-    { to: '/staff/workload', label: 'Support workload', icon: 'users', section: 'Work' },
-    { to: '/staff/settings', label: 'Support settings', icon: 'settings', section: 'Work' },
-    { to: '/admin/reports', label: 'Reports', icon: 'chart', section: 'Work' },
-    { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
-    { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'Work' },
-    { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'People' },
-    { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
-    { to: '/admin/rush-requests', label: 'Urgent requests', icon: 'alert', section: 'Work', badgeKey: 'urgent' },
+    { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Overview' },
+    { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Projects' },
+    { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Projects' },
+    { to: '/staff/tickets', label: 'Support queue', icon: 'inbox', section: 'Support' },
+    { to: '/admin/rush-requests', label: 'Urgent requests', icon: 'alert', section: 'Support', badgeKey: 'urgent' },
+    { to: '/staff/reports', label: 'Support reports', icon: 'chart', section: 'Support' },
+    { to: '/staff/workload', label: 'Support workload', icon: 'users', section: 'Support' },
+    { to: '/staff/settings', label: 'Support settings', icon: 'settings', section: 'Support' },
     { to: '/admin/employees', label: 'Employees', icon: 'user', section: 'People' },
     { to: '/admin/agencies', label: 'Agencies', icon: 'building', section: 'People' },
-    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'user', section: 'People' },
+    { to: '/admin/agency-owners', label: 'Agency owners', icon: 'shield', section: 'People' },
     { to: '/admin/agency-clients', label: 'Agency clients', icon: 'users', section: 'People' },
+    { to: '/admin/assignments', label: 'Assignments', icon: 'calendar', section: 'People' },
+    // Less-used pages: tucked behind the "More" toggle instead of crowding the main list.
+    { to: '/admin/reports', label: 'Business reports', icon: 'chart', section: 'More' },
+    { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'More' },
+    { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'More' },
+    { to: '/admin/history', label: 'Browser history', icon: 'search', section: 'More' },
   ],
   [ROLES.TEAM_LEAD]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   [ROLES.QA]: [{ to: '/profile', label: 'My profile', icon: 'user' }],
@@ -142,6 +143,14 @@ export function AppLayout() {
       return false
     }
   })
+  // The "More" nav group (less-used admin pages) remembers whether it was left open.
+  const [isMoreOpen, setIsMoreOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem('ui:nav-more-open') === 'true'
+    } catch {
+      return false
+    }
+  })
   const visibleItems = [
     ...(SIDEBAR_ITEMS[user.role] ?? []),
   ]
@@ -184,7 +193,7 @@ export function AppLayout() {
       '/admin/dashboard': 'Dashboard',
       '/admin/projects': 'All projects',
       '/admin/tickets': 'All tickets',
-      '/admin/reports': 'Reports',
+      '/admin/reports': 'Business reports',
       '/admin/assignments': 'Assignments',
       '/admin/rush-requests': 'Urgent requests',
       '/admin/time': 'Time report',
@@ -304,25 +313,53 @@ export function AppLayout() {
           </button>
         </div>
         <nav aria-label="Main navigation">
-          {sidebarGroups.map((group) => (
-            <div className="sidebar-nav-group" key={group.label}>
-              <p className="sidebar-group-label">{group.label}</p>
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) => (isActive || item.also?.some((prefix) => location.pathname.startsWith(prefix)) ? 'active' : undefined)}
-                  aria-label={badges[item.badgeKey] ? `${item.label}, ${badges[item.badgeKey]} waiting` : item.label}
-                  title={item.label}
-                  onClick={() => setIsNavOpen(false)}
+          {sidebarGroups.map((group) => {
+            const links = group.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => (isActive || item.also?.some((prefix) => location.pathname.startsWith(prefix)) ? 'active' : undefined)}
+                aria-label={badges[item.badgeKey] ? `${item.label}, ${badges[item.badgeKey]} waiting` : item.label}
+                title={item.label}
+                onClick={() => setIsNavOpen(false)}
+              >
+                <Icon name={item.icon} size={18} /><span>{item.label}</span>
+                {badges[item.badgeKey] > 0 && <Badge variant="warning" className="sidebar-badge">{badges[item.badgeKey]}</Badge>}
+              </NavLink>
+            ))
+            // A handful of rarely-used admin pages live behind this toggle instead of crowding the list above.
+            if (group.label === 'More') {
+              return (
+                <details
+                  className="sidebar-nav-group sidebar-nav-more"
+                  key={group.label}
+                  open={isMoreOpen}
+                  onToggle={(event) => {
+                    const open = event.currentTarget.open
+                    setIsMoreOpen(open)
+                    try {
+                      window.localStorage.setItem('ui:nav-more-open', String(open))
+                    } catch {
+                      // Nothing to persist to; the toggle still works for this visit.
+                    }
+                  }}
                 >
-                  <Icon name={item.icon} size={18} /><span>{item.label}</span>
-                  {badges[item.badgeKey] > 0 && <Badge variant="warning" className="sidebar-badge">{badges[item.badgeKey]}</Badge>}
-                </NavLink>
-              ))}
-            </div>
-          ))}
+                  <summary className="sidebar-group-label sidebar-more-toggle">
+                    <span>More</span>
+                    <Icon name="arrow" size={14} className="sidebar-more-caret" />
+                  </summary>
+                  {links}
+                </details>
+              )
+            }
+            return (
+              <div className="sidebar-nav-group" key={group.label}>
+                <p className="sidebar-group-label">{group.label}</p>
+                {links}
+              </div>
+            )
+          })}
         </nav>
         <div className="sidebar-user">
           <Link className="sidebar-user-profile" to="/profile" title="My profile" onClick={() => setIsNavOpen(false)}>

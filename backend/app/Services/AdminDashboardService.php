@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\Role;
+use App\Models\TicketEvent;
+use App\Support\TicketStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +71,7 @@ class AdminDashboardService
             'employee_capacity' => $this->employeeRows($weekStart, $weekEnd, $budget, $employeeFilter),
             'agency_rows' => $this->agencyRows($weekStart, $weekEnd),
             'attention' => $this->attention($employees, $projects, $documents, $idleAgencies),
+            'support' => $this->supportSnapshot(),
             'work_summary' => [
                 'projects' => [
                     'total' => $projects['total'],
@@ -350,6 +353,89 @@ class AdminDashboardService
             ->whereNotExists(fn ($query) => $query->select(DB::raw(1))->from('work_items as w')
                 ->whereColumn('w.agency_id', 'ag.id')->whereIn('w.status', self::OPEN_STATUSES))
             ->count();
+    }
+
+    /**
+     * Live support-queue counts, plus a short feed of what changed most recently, so an admin's first screen
+     * shows support alongside projects and employees. Tickets opened through the support module are the ones
+     * with a `type` set (see Ticket::usesLifecycle()); project/ticket work keeps the summary above.
+     *
+     * @return array{open: int, unassigned: int, critical: int, breached_sla: int, resolved_today: int, recent_activity: list<array<string, mixed>>}
+     */
+    private function supportSnapshot(): array
+    {
+        $finished = array_values(array_unique([
+            ...TicketStatus::stored('resolved'), ...TicketStatus::stored('closed'), ...TicketStatus::stored('rejected'),
+        ]));
+
+        $counts = DB::table('tickets')
+            ->whereNotNull('type')
+            ->whereNotIn('status', $finished)
+            ->selectRaw(
+                "COUNT(*) AS open,
+                SUM(CASE WHEN assigned_to_id IS NULL AND status IN ('new', 'triage') THEN 1 ELSE 0 END) AS unassigned,
+                SUM(CASE WHEN priority = 'urgent' THEN 1 ELSE 0 END) AS critical"
+            )->first();
+
+        $breached = DB::table('ticket_sla_clocks as c')
+            ->join('tickets as t', 't.id', '=', 'c.ticket_id')
+            ->whereNotNull('t.type')
+            ->whereNotIn('t.status', $finished)
+            ->whereNull('c.met_at')
+            ->where('c.due_at', '<', now())
+            ->distinct()
+            ->count('c.ticket_id');
+
+        $resolvedToday = DB::table('tickets')
+            ->whereNotNull('type')
+            ->whereIn('status', $finished)
+            ->whereDate('updated_at', now(config('app.timezone'))->toDateString())
+            ->count();
+
+        $events = TicketEvent::query()
+            ->whereHas('ticket', fn ($query) => $query->whereNotNull('type'))
+            ->with(['ticket:id,ref,title,agency_id', 'ticket.agency:id,name'])
+            ->orderByDesc('id')
+            ->limit(self::LIST_LIMIT)
+            ->get();
+
+        return [
+            'open' => (int) $counts->open,
+            'unassigned' => (int) $counts->unassigned,
+            'critical' => (int) $counts->critical,
+            'breached_sla' => (int) $breached,
+            'resolved_today' => (int) $resolvedToday,
+            'recent_activity' => $events->filter(fn (TicketEvent $event): bool => $event->ticket !== null)->map(fn (TicketEvent $event): array => [
+                'id' => $event->id,
+                'ticket_ref' => $event->ticket->ref,
+                'ticket_title' => $event->ticket->title,
+                'agency_name' => $event->ticket->agency?->name,
+                'text' => $this->describeSupportEvent($event),
+                'actor_name' => $event->actor_name,
+                'created_at' => $event->created_at?->toISOString(),
+            ])->values()->all(),
+        ];
+    }
+
+    /** A short, plain-language line for the dashboard feed; an event type not listed here falls back to a generic line. */
+    private function describeSupportEvent(TicketEvent $event): string
+    {
+        $payload = $event->payload ?? [];
+
+        return match ($event->type) {
+            'created' => 'New ticket opened',
+            'status_changed' => 'Moved to '.($payload['to_label'] ?? $payload['to'] ?? 'a new status'),
+            'priority_changed' => 'Priority changed to '.($payload['to_label'] ?? $payload['to'] ?? '?'),
+            'sla_breached' => 'SLA breached ('.($payload['kind'] ?? 'response').')',
+            'sla_at_risk' => 'SLA at risk ('.($payload['kind'] ?? 'response').')',
+            'escalated_unassigned' => 'Escalated: left unassigned too long',
+            'waiting_reminder' => 'Reminder sent while waiting on the agency',
+            'waiting_stalled' => 'Stalled while waiting on a reply',
+            'quote_sent' => 'A quote was sent',
+            'quote_decided' => ($payload['accepted'] ?? false) ? 'Quote accepted' : 'Quote declined',
+            'converted' => 'Converted to a change request',
+            default => 'Ticket updated',
+        };
     }
 
     /**

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Input, PageHeader, Pagination, PriorityBadge, RelativeTime, Select, StatusBadge, Table, TicketKey } from '../../../components/ui'
+import { Badge, Button, Card, Input, PageHeader, Pagination, PriorityBadge, RelativeTime, Select, StatusBadge, Table, TicketKey } from '../../../components/ui'
 import { formatDate, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
 
@@ -12,6 +12,7 @@ const STATUS_OPTIONS = [
   ['', 'All statuses'],
   ['todo', 'To do'],
   ['in_progress', 'In progress'],
+  ['in_internal_review', 'In our review'],
   ['in_review', 'In review'],
   ['blocked', 'Blocked'],
   ['waiting_on_client', 'Waiting on client'],
@@ -72,6 +73,7 @@ export function AdminTicketsPage() {
   const columns = [
     { key: 'key', label: 'Key', render: (key) => <Link to={`/tickets/${key}`}><TicketKey ticketKey={key} /></Link> },
     { key: 'title', label: 'Ticket', render: (title, ticket) => <Link className="admin-project-detail-link" to={`/tickets/${ticket.key}`}>{title}</Link> },
+    { key: 'service', label: 'Service', render: (service) => (service ? <Badge variant="info">{service.label}</Badge> : <span className="ui-field-help">General</span>) },
     { key: 'project_title', label: 'Project' },
     { key: 'agency_name', label: 'Agency' },
     { key: 'creator', label: 'Created by', render: (creator) => creator?.name ?? 'Account removed' },
