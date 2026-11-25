@@ -69,6 +69,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
     { to: '/staff/tickets', label: 'Support queue', icon: 'inbox', section: 'Work' },
     { to: '/staff/reports', label: 'Support reports', icon: 'chart', section: 'Work' },
+    { to: '/staff/settings', label: 'Support settings', icon: 'settings', section: 'Work' },
     { to: '/admin/reports', label: 'Reports', icon: 'chart', section: 'Work' },
     { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
     { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'Work' },
@@ -162,6 +163,8 @@ export function AppLayout() {
       ? 'Employee activity'
       : /^\/agency\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
+      : /^\/(agency\/support|staff\/tickets)\/[A-Za-z]+-\d+$/.test(location.pathname)
+      ? 'Ticket'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/') || location.pathname.startsWith('/my-work/projects/')
       ? 'Project details'
       : ({
@@ -189,8 +192,10 @@ export function AppLayout() {
       '/agency/clients': 'Clients',
       '/agency/tickets': 'Project tickets',
       '/agency/support': 'Support',
+      '/agency/support/new': 'New ticket',
       '/staff/tickets': 'Support queue',
       '/staff/reports': 'Support reports',
+      '/staff/settings': 'Support settings',
       '/agency/branding': 'Branding',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace'))

@@ -82,3 +82,10 @@
 .sup-bar { display: grid; grid-template-columns: 9rem 1fr 2.5rem; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
 .sup-bar i { display: block; height: .625rem; border-radius: 999px; background: var(--brand); min-width: 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.sup-qa { display: grid; gap: var(--space-3); }
+.sup-qa-list { border: 1px solid var(--color-border); border-radius: var(--radius-control); padding: var(--space-3); }
+.sup-qa-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding: .25rem 0; }
+.sup-qa-row > span { flex: 1 1 14rem; }
+.sup-approvals { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.sup-approval-actions { display: inline-flex; gap: .25rem; margin-left: var(--space-2); }

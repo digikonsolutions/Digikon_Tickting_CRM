@@ -10,12 +10,14 @@ import { FilesTab } from '../../tickets/components/FilesTab'
 import { TicketActivityTab } from '../components/TicketActivityTab'
 import { TicketConversation } from '../components/TicketConversation'
 import { ConvertModal } from '../components/ConvertModal'
+import { QaTab } from '../components/QaTab'
 import { ScopePanel } from '../components/ScopePanel'
+import { ApprovalsPanel, RelationsPanel } from '../components/SidePanels'
 import { TimeTab } from '../components/TimeTab'
 import { TransitionModal } from '../components/TransitionModal'
 import '../support.css'
 
-const TABS = [{ id: 'conversation', label: 'Conversation' }, { id: 'internal', label: 'Internal notes' }, { id: 'activity', label: 'Activity' }, { id: 'files', label: 'Files' }, { id: 'time', label: 'Time' }]
+const TABS = [{ id: 'conversation', label: 'Conversation' }, { id: 'internal', label: 'Internal notes' }, { id: 'activity', label: 'Activity' }, { id: 'files', label: 'Files' }, { id: 'time', label: 'Time' }, { id: 'qa', label: 'QA and bug' }]
 
 // One ticket for staff: the status control lists only valid next steps, owner and reviewer are pickers, and the composer
 // switches between a public reply and an internal note (always starting on public).
@@ -92,6 +94,7 @@ export function StaffTicketPage() {
           {tab === 'internal' && <TicketConversation key={`i${ticket.id}`} ticket={ticket} audience="staff" internalOnly closed={closed} />}
           {tab === 'activity' && <TicketActivityTab ticketId={ticket.id} role={user.role} />}
           {tab === 'files' && <FilesTab ticket={ticket} readOnly={closed} allowInternal />}
+          {tab === 'qa' && <QaTab key={ticket.id + ticket.status} ticket={ticket} meta={meta} onChanged={reload} />}
           {tab === 'time' && <TimeTab key={ticket.id} ticket={ticket} closed={closed} />}
         </div>
         <aside className="sup-side" aria-label="Ticket details">
@@ -110,6 +113,8 @@ export function StaffTicketPage() {
             </Select>
           </Card>
           {!ticket.is_legacy && <ScopePanel key={`${ticket.id}-${ticket.scope_classification}-${ticket.scope_proposal ? 'p' : 'n'}`} ticket={ticket} canDecide={user.role === 'admin' || myCapabilities.includes('delivery_manager')} onChanged={reload} />}
+          {!ticket.is_legacy && <ApprovalsPanel key={'a' + ticket.id} ticket={ticket} />}
+          {!ticket.is_legacy && <RelationsPanel key={'r' + ticket.id} ticket={ticket} />}
           <Card title="Details">
             <dl>
               <div><dt>Agency</dt><dd>{ticket.agency?.name}</dd></div>

@@ -1050,6 +1050,54 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { message: 'ok' }
     return request(`/agency/support/tickets/${encodeURIComponent(ref)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
   },
+  async getTicketQa(ref) {
+    if (AUTH_MODE === 'mock') return { library: {}, runs: [], bug: {} }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/qa`)
+  },
+  async recordTicketQa(ref, data) {
+    if (AUTH_MODE === 'mock') return { status: 'resolved', runs: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/qa`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async saveTicketBug(ref, data) {
+    if (AUTH_MODE === 'mock') return { bug: data }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/bug`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+  async listTicketApprovals(ref) {
+    if (AUTH_MODE === 'mock') return { approvals: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/approvals`)
+  },
+  async requestTicketApproval(ref, data) {
+    if (AUTH_MODE === 'mock') return { approvals: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/approvals`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async decideTicketApproval(ref, id, data) {
+    if (AUTH_MODE === 'mock') return { approvals: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/approvals/${id}`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getTicketRelations(ref) {
+    if (AUTH_MODE === 'mock') return { relations: [], watching: false, watchers: 0 }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/relations`)
+  },
+  async addTicketRelation(ref, data) {
+    if (AUTH_MODE === 'mock') return { relations: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/relations`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async removeTicketRelation(ref, id) {
+    if (AUTH_MODE === 'mock') return { relations: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/relations/${id}`, { method: 'DELETE' })
+  },
+  async watchTicket(ref, on) {
+    if (AUTH_MODE === 'mock') return { watching: on }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/watch`, { method: 'POST', body: JSON.stringify({ on }) })
+  },
+  async getSupportSettings() {
+    if (AUTH_MODE === 'mock') return { settings: {} }
+    return request('/staff/settings')
+  },
+  async saveSupportSettings(data) {
+    if (AUTH_MODE === 'mock') return { settings: data }
+    return request('/staff/settings', { method: 'PUT', body: JSON.stringify(data) })
+  },
   async listTicketAssignments(ref) {
     if (AUTH_MODE === 'mock') return { assignments: [] }
     return request(`/staff/tickets/${encodeURIComponent(ref)}/assignments`)

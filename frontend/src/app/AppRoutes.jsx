@@ -36,7 +36,7 @@ import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeli
 import { AdminHistoryPage } from '../features/history'
 import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
-import { AgencySupportDetailPage, AgencySupportListPage, AgencySupportNewPage, StaffQueuePage, StaffReportsPage, StaffTicketPage } from '../features/support'
+import { AgencySupportDetailPage, AgencySupportListPage, AgencySupportNewPage, StaffQueuePage, StaffReportsPage, StaffSettingsPage, StaffTicketPage } from '../features/support'
 import { AdminReportsPage, AgencyReportsPage } from '../features/reports'
 import {
   ForgotPasswordPage,
@@ -85,6 +85,7 @@ export function AppRoutes() {
             <Route path="/staff/tickets" element={<StaffQueuePage />} />
             <Route path="/staff/tickets/:ref" element={<StaffTicketPage />} />
             <Route path="/staff/reports" element={<StaffReportsPage />} />
+            <Route path="/staff/settings" element={<StaffSettingsPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/tickets/:key" element={<TicketPage />} />
