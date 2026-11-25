@@ -76,6 +76,9 @@ export function AgencyEmployeesPage() {
     return { assignments: list, queues: Object.fromEntries(queues), requests: requestList }
   }, [])
   const { data: queueData, error: queueError, isLoading: queuesLoading, reload: reloadQueues } = useAsync(loadQueues)
+  // Averages for the Feedback column. A failure only hides the column; the team table never depends on it.
+  const loadFeedbackSummaries = useCallback(() => authService.getFeedbackSummaries().catch(() => null), [])
+  const feedbackSummaries = useAsync(loadFeedbackSummaries).data?.summaries ?? null
   const assignments = queueData?.assignments ?? []
   const requests = queueData?.requests ?? []
   const openRequests = requests.filter((request) => request.status === 'pending' || request.status === 'quoted')
@@ -308,11 +311,13 @@ export function AgencyEmployeesPage() {
           <div className="queue-grid"><Skeleton variant="card" /><Skeleton variant="card" /><Skeleton variant="card" /></div>
         ) : assignments.length > 0 ? (
           <TeamTable
+            feedback={feedbackSummaries}
             rows={assignments.filter((assignment) => queueData.queues[assignment.id]).map((assignment) => ({ id: assignment.id, assignment, queue: queueData.queues[assignment.id] }))}
             onAddTask={(assignmentId) => setTaskForm({ assignmentId })}
             menuItemsFor={(assignment) => [
               { label: 'Open employee', to: `/agency/employees/${assignment.id}` },
               { label: 'View profile', onClick: () => setProfileId(assignment.employee.id) },
+              ...(isOwner ? [{ label: 'Give feedback', to: `/agency/employees/${assignment.id}?tab=feedback` }] : []),
               ...(isOwner ? [{ label: 'Work activity', to: `/agency/employees/${assignment.employee.id}/activity` }] : []),
               { label: 'Request urgent help', onClick: () => openRush(assignment.id) },
               ...(ownerManaged ? [{ label: 'Release employee', danger: true, separator: true, onClick: () => openEndConfirm(assignment) }] : []),

@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { Avatar, Badge, Button, CapacityBar, DropdownMenu, Table } from '../../../components/ui'
 import { formatShortDate } from '../../../lib/format'
+import { StarRating } from '../../feedback'
+import '../../feedback/feedback.css'
 
 // The team as one scannable table: who, what they are on now, what waits, how full today and this week, and when they
 // are free. A row opens the employee's own page; the quick actions sit in the row menu.
 // `rows` are { id, assignment, queue }; `menuItemsFor(assignment)` gives the menu entries.
-export function TeamTable({ rows, menuItemsFor, onAddTask }) {
+export function TeamTable({ rows, menuItemsFor, onAddTask, feedback = null }) {
   const columns = [
     {
       key: 'employee',
@@ -63,6 +65,17 @@ export function TeamTable({ rows, menuItemsFor, onAddTask }) {
         return free ? formatShortDate(free.date) : <span className="queue-muted">No time in 4 months</span>
       },
     },
+    // A small average per employee when the page has loaded the agency's feedback summaries.
+    ...(feedback ? [{
+      key: 'feedback',
+      label: 'Feedback',
+      render: (_value, row) => {
+        const mine = feedback[String(row.assignment.employee.id)]
+        return mine
+          ? <Link className="fb-chip-avg" to={`/agency/employees/${row.assignment.id}?tab=feedback`} aria-label={`Feedback average ${mine.average} out of 5 from ${mine.count} reviews`}><StarRating value={mine.average} size="sm" /><small className="queue-muted">({mine.count})</small></Link>
+          : <Link className="queue-muted" to={`/agency/employees/${row.assignment.id}?tab=feedback`}>No feedback yet</Link>
+      },
+    }] : []),
     {
       key: 'actions',
       label: 'Actions',

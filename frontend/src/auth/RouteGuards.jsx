@@ -92,6 +92,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/my-work/requests', label: 'Requests', icon: 'chat', section: 'My work' },
     { to: '/my-work/week', label: 'Week', icon: 'calendar', section: 'My work' },
     { to: '/my-work/time', label: 'Time', icon: 'clock', section: 'My work' },
+    { to: '/my-feedback', label: 'My feedback', icon: 'chat', section: 'My work' },
   ],
   [ROLES.AGENCY_OWNER]: agencyNav(ROLES.AGENCY_OWNER),
   [ROLES.AGENCY_MEMBER]: [

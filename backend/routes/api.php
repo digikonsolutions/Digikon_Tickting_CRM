@@ -453,6 +453,24 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
 });
 
+// Employee feedback: the agency owner writes (and edits for a few days), clients read, the employee reads and replies once, admins read and may remove.
+Route::middleware(['web', 'auth', 'role:agency_owner,agency_client', 'agency.active'])->prefix('agency')->group(function () {
+    Route::get('/feedback/form', [\App\Http\Controllers\EmployeeFeedbackController::class, 'form']);
+    Route::get('/feedback/summary', [\App\Http\Controllers\EmployeeFeedbackController::class, 'agencySummary']);
+    Route::get('/employees/{employee}/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'agencyIndex'])->whereNumber('employee');
+    Route::post('/employees/{employee}/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'store'])->whereNumber('employee')->middleware(['role:agency_owner', 'throttle:work-order']);
+    Route::patch('/feedback/{id}', [\App\Http\Controllers\EmployeeFeedbackController::class, 'update'])->whereNumber('id')->middleware(['role:agency_owner', 'throttle:work-order']);
+});
+Route::middleware(['web', 'auth', 'role:employee'])->prefix('my')->group(function () {
+    Route::get('/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'mine']);
+    Route::post('/feedback/{id}/reply', [\App\Http\Controllers\EmployeeFeedbackController::class, 'reply'])->whereNumber('id')->middleware('throttle:work-order');
+});
+Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/feedback/summary', [\App\Http\Controllers\EmployeeFeedbackController::class, 'adminSummary']);
+    Route::get('/employees/{id}/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'adminShow'])->whereNumber('id');
+    Route::delete('/feedback/{id}', [\App\Http\Controllers\EmployeeFeedbackController::class, 'remove'])->whereNumber('id')->middleware('throttle:work-order');
+});
+
 // The in-app assistant: role-specific preset questions answered from the database (every role).
 Route::middleware(['web', 'auth', 'throttle:insights'])->prefix('assistant')->group(function () {
     Route::get('/questions', [AssistantController::class, 'questions']);

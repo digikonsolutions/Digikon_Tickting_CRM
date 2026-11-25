@@ -1256,6 +1256,43 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { changed: true }
     return request(`/admin/projects/${encodeURIComponent(projectId)}/hours/move`, { method: 'POST', body: JSON.stringify(data) })
   },
+  // Employee feedback: the agency owner writes, the employee reads and replies once, admins read and remove.
+  async getFeedbackForm() {
+    if (AUTH_MODE === 'mock') return { categories: [], would_again: [], highlights: [], concerns: [], edit_days: 7 }
+    return request('/agency/feedback/form')
+  },
+  async getFeedbackSummaries() {
+    if (AUTH_MODE === 'mock') return { summaries: {} }
+    return request('/agency/feedback/summary')
+  },
+  async getEmployeeFeedback(employeeId) {
+    if (AUTH_MODE === 'mock') return { summary: { count: 0 }, feedback: [], projects: [], can_write: false }
+    return request(`/agency/employees/${encodeURIComponent(employeeId)}/feedback`)
+  },
+  async createFeedback(employeeId, data) {
+    if (AUTH_MODE === 'mock') return { feedback: { id: 0, ...data } }
+    return request(`/agency/employees/${encodeURIComponent(employeeId)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateFeedback(id, data) {
+    if (AUTH_MODE === 'mock') return { feedback: { id, ...data } }
+    return request(`/agency/feedback/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async getMyFeedback() {
+    if (AUTH_MODE === 'mock') return { summary: { count: 0 }, feedback: [] }
+    return request('/my/feedback')
+  },
+  async replyToFeedback(id, body) {
+    if (AUTH_MODE === 'mock') return { feedback: { id } }
+    return request(`/my/feedback/${encodeURIComponent(id)}/reply`, { method: 'POST', body: JSON.stringify({ body }) })
+  },
+  async getAdminEmployeeFeedback(employeeId) {
+    if (AUTH_MODE === 'mock') return { summary: { count: 0 }, per_agency: [], feedback: [] }
+    return request(`/admin/employees/${encodeURIComponent(employeeId)}/feedback`)
+  },
+  async removeFeedback(id, reason) {
+    if (AUTH_MODE === 'mock') return { feedback: { id } }
+    return request(`/admin/feedback/${encodeURIComponent(id)}`, { method: 'DELETE', body: JSON.stringify({ reason }) })
+  },
   async getAdminProject(id) {
     if (AUTH_MODE === 'mock') return { project: null, tickets: [] }
     return request(`/admin/projects/${encodeURIComponent(id)}`)
