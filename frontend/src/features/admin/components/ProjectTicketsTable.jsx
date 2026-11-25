@@ -125,7 +125,7 @@ export function ProjectTicketsTable({ tickets, services = [] }) {
                 <tr className="apt-group">
                   <th scope="rowgroup" colSpan={5}>
                     <span className="apt-group-name">{group.key === 'general' ? group.label : <Badge variant="info">{group.label}</Badge>}</span>
-                    <span className="apt-group-meta">{group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} · {formatHours(hours)}{group.estimate != null ? ` of ${formatHours(group.estimate)} estimated` : ''}</span>
+                    <span className={`apt-group-meta${group.estimate != null && hours > Number(group.estimate) ? ' is-over' : ''}`}>{group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} · {formatHours(hours)}{group.estimate != null ? ` of ${formatHours(group.estimate)} estimated` : ''}</span>
                   </th>
                 </tr>
                 {group.tickets.map((ticket) => <TicketRow key={ticket.id} ticket={ticket} open={openIds.includes(ticket.id)} onToggle={() => toggle(ticket.id)} />)}

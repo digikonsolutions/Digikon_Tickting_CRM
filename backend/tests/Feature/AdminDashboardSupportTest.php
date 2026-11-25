@@ -150,4 +150,15 @@ class AdminDashboardSupportTest extends TestCase
 
         $this->assertSame($before, $measure());
     }
+
+    public function test_the_admin_ticket_directory_lists_project_tickets_not_support_tickets(): void
+    {
+        $project = $this->makeTicket('owner', 'Landing page', 2);
+        $support = $this->support('new');
+
+        $keys = collect($this->actingAs($this->u['admin'])->getJson('/api/admin/tickets')->assertOk()->json('tickets'))->pluck('id')->all();
+
+        $this->assertContains($project->id, $keys);
+        $this->assertNotContains($support->id, $keys);
+    }
 }
