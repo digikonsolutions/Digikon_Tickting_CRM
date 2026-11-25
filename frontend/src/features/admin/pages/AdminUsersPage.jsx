@@ -4,6 +4,7 @@ import { authService } from '../../../auth/authService'
 import { ROLE_LABELS, ROLES } from '../../../auth/roles'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { DropdownMenu, Avatar, Badge, Button, Card, FormActions, FormSection, Input, Modal, PageHeader, Pagination, Table, useToast } from '../../../components/ui'
+import { StarRating } from '../../feedback'
 import { AVAILABILITY, AVAILABILITY_VARIANT, DEPARTMENTS, EMPLOYMENT_STATUSES, STATUS_VARIANT, labelOf } from '../employee/employeeForm'
 import '../employee/employee.css'
 
@@ -23,6 +24,14 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
   const [actionError, setActionError] = useState(null)
   const { showToast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
+  // Average feedback per employee, for the Feedback column. A failure only hides the numbers.
+  const [feedback, setFeedback] = useState({})
+  useEffect(() => {
+    if (role !== ROLES.EMPLOYEE) return undefined
+    let active = true
+    authService.getAdminFeedbackSummaries().then((result) => { if (active) setFeedback(result.summaries ?? {}) }).catch(() => {})
+    return () => { active = false }
+  }, [role])
 
   const loadUsers = useCallback(async (page, query) => {
     setIsLoading(true)
@@ -137,6 +146,14 @@ export function AdminUsersPage({ role, title, createTo, createLabel }) {
         render: (_v, user) => (!user.is_active
           ? <Badge variant="slate">Inactive</Badge>
           : <Badge variant={STATUS_VARIANT[user.profile?.employment_status] ?? 'success'}>{labelOf(EMPLOYMENT_STATUSES, user.profile?.employment_status ?? 'active')}</Badge>),
+      },
+      {
+        key: 'feedback',
+        label: 'Feedback',
+        render: (_v, user) => {
+          const mine = feedback[String(user.id)]
+          return mine ? <Link to={`/admin/employees/${user.id}`} aria-label={`Feedback average ${mine.average} from ${mine.count} reviews`}><StarRating value={mine.average} size="sm" /> <small>({mine.count})</small></Link> : <span className="emp-code">—</span>
+        },
       },
       {
         key: 'completeness',

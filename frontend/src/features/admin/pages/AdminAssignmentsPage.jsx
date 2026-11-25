@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Button, Card, Modal, PageHeader, Pagination, Table } from '../../../components/ui'
+import { Button, Card, DropdownMenu, Modal, PageHeader, Pagination, Table } from '../../../components/ui'
 import { formatShortDate, pluralize } from '../../../lib/format'
 import { EmployeeQueueDrawer } from '../../queue/components/EmployeeQueueDrawer'
 
@@ -47,10 +47,13 @@ export function AdminAssignmentsPage() {
       label: 'Actions',
       render: (_value, assignment) => assignment.status === 'active'
         ? (
-          <>
-            <Button type="button" variant="secondary" size="sm" onClick={() => setQueueFor(assignment.employee)}>View queue</Button>{' '}
-            <Button type="button" variant="danger" size="sm" onClick={() => setConfirm(assignment)}>End assignment</Button>
-          </>
+          <DropdownMenu
+            label={`Actions for ${assignment.employee?.name ?? 'this assignment'}`}
+            items={[
+              { label: 'View queue', onClick: () => setQueueFor(assignment.employee) },
+              { label: 'End assignment', danger: true, separator: true, onClick: () => setConfirm(assignment) },
+            ]}
+          />
         )
         : '—',
     },

@@ -124,3 +124,23 @@
 .sup-saved > summary:hover { color: var(--color-heading); }
 .sup-saved[open] > summary { margin-bottom: var(--space-2); }
 .sup-row-sub { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .25rem; color: var(--color-muted); font-size: var(--text-xs); }
+/* Ticket detail: a one-line summary under the badges, and the rarely used panels folded away. */
+.sup-facts { margin: 0 0 var(--space-3); color: var(--color-muted); font-size: var(--text-sm); white-space: pre-wrap; }
+.sup-facts strong { color: var(--color-heading); }
+.sup-folded { display: grid; gap: var(--space-3); }
+.sup-folded > summary { cursor: pointer; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); color: var(--color-heading); font-size: var(--text-sm); font-weight: 650; }
+.sup-folded[open] > summary { margin-bottom: var(--space-1); }
+.sup-folded > summary:hover { border-color: var(--brand); }
+.sup-folded > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* Reports: wider KPI tiles and the volume charts side by side. */
+.sup-kpis.sup-kpis-wide { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.sup-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); align-items: start; }
+@media (max-width: 60rem) { .sup-grid2 { grid-template-columns: 1fr; } }
+
+/* Settings: room between the fields, working days as one tidy row, and the Save bar always in reach. */
+.sup-settings { display: grid; gap: var(--space-4); }
+.sup-settings .ui-card-body { display: grid; gap: var(--space-4); }
+.sup-settings .ui-checkgroup-options { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.sup-settings .sup-queue td { padding: var(--space-2) var(--space-3) var(--space-2) 0; }
+.sup-settings .ui-form-actions { position: sticky; bottom: 0; z-index: 5; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); box-shadow: 0 -4px 12px rgb(15 23 42 / 6%); }/* Keeps Save clear of the floating Ask button. */
+.sup-settings .ui-form-actions { padding-right: 6.5rem; }

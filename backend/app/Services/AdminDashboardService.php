@@ -80,7 +80,7 @@ class AdminDashboardService
                     'completed' => $projects['completed'],
                     'cancelled' => $projects['cancelled'],
                 ],
-                'tickets' => ['total' => (int) DB::table('tickets')->count()],
+                'tickets' => ['total' => (int) DB::table('tickets')->whereNotNull('work_item_id')->count()],
             ],
         ];
     }

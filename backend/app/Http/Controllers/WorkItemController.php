@@ -593,7 +593,7 @@ class WorkItemController extends Controller
                 'overdue' => $overdueCount,
                 'due_soon' => $dueSoonCount,
             ],
-            'tickets' => ['total' => Ticket::query()->count()],
+            'tickets' => ['total' => Ticket::query()->whereNotNull('work_item_id')->count()],
             'attention_projects' => $attention,
             'scheduled_hours' => $scheduledHours,
             'recent_projects' => $recent,

@@ -1275,6 +1275,10 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { summaries: {} }
     return request('/agency/feedback/summary')
   },
+  async getAdminFeedbackSummaries() {
+    if (AUTH_MODE === 'mock') return { summaries: {} }
+    return request('/admin/feedback/summary')
+  },
   async getEmployeeFeedback(employeeId) {
     if (AUTH_MODE === 'mock') return { summary: { count: 0 }, feedback: [], projects: [], can_write: false }
     return request(`/agency/employees/${encodeURIComponent(employeeId)}/feedback`)

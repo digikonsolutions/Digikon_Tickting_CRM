@@ -28,7 +28,7 @@ function KpiLink({ to, children }) {
   return <Link className="adm-kpi-link" to={to}>{children}</Link>
 }
 
-/** One row of seven KPIs. Work (projects, tickets) is folded in here instead of a separate summary card. */
+/** One row of four KPIs: people, agencies, load and project work. The support tiles above it carry the queue numbers. */
 export function KpiRow({ data }) {
   const { employees, agencies, work_summary: work } = data
   const bookedHours = (data.scheduled_hours ?? []).map((day) => Number(day.hours) || 0)
@@ -39,19 +39,13 @@ export function KpiRow({ data }) {
   return (
     <div className="adm-kpis">
       <KpiLink to="/admin/employees">
-        <KpiCard title="Employees" value={employees.total} subtext={`${employees.active} active · ${employees.inactive} inactive`} icon="users" tone="info" />
-      </KpiLink>
-      <KpiLink to="/admin/employees">
-        <KpiCard title="Available" value={employees.available} subtext="Active, not held by an agency" icon="userPlus" tone="success" />
-      </KpiLink>
-      <KpiLink to="/admin/assignments">
-        <KpiCard title="Held" value={employees.held} subtext="Working for an agency" icon="briefcase" tone="info" />
+        <KpiCard title="Employees" value={employees.total} subtext={`${employees.available} available · ${employees.held} held by agencies`} icon="users" tone={employees.available > 0 ? 'success' : 'info'} />
       </KpiLink>
       <KpiLink to="/admin/agencies">
         <KpiCard title="Agencies" value={agencies.total} subtext={`${agencies.active} active · ${agencies.suspended} suspended`} icon="building" tone={agencies.suspended > 0 ? 'warm' : 'info'} />
       </KpiLink>
       <KpiLink to="/admin/assignments">
-        <KpiCard title="Avg utilization" value={`${employees.avg_utilization_percent}%`} subtext="Of 36 h per active employee this week" icon="chart" tone={KPI_TONE[utilTone]}>
+        <KpiCard title="Utilization" value={`${employees.avg_utilization_percent}%`} subtext="Of 36 h per active employee this week" icon="chart" tone={KPI_TONE[utilTone]}>
           {spark && (
             <svg className="ui-kpi-sparkline" viewBox="0 0 168 24" role="img" aria-label={`Hours booked over the next seven days: ${bookedHours.map((hours) => hours.toFixed(1)).join(', ')}`} preserveAspectRatio="none">
               <path d={spark} />
@@ -60,10 +54,7 @@ export function KpiRow({ data }) {
         </KpiCard>
       </KpiLink>
       <KpiLink to="/admin/projects">
-        <KpiCard title="Projects" value={work.projects.total} subtext={`${activeProjects} active · ${work.projects.completed} completed`} icon="queue" tone="info" />
-      </KpiLink>
-      <KpiLink to="/admin/tickets">
-        <KpiCard title="Tickets" value={work.tickets.total} subtext="Across all projects" icon="ticket" tone="info" />
+        <KpiCard title="Projects" value={work.projects.total} subtext={`${activeProjects} active · ${work.tickets.total} project tickets`} icon="briefcase" tone="info" />
       </KpiLink>
     </div>
   )
