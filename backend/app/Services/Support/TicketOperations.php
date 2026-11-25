@@ -32,6 +32,10 @@ class TicketOperations
     {
         abort_unless(StaffCapability::has($actor, 'builder', 'triage', 'delivery_manager', 'qa'), 403);
         $billing = $data['billing_status'] ?? self::DEFAULT_BILLING[$data['scope_classification']] ?? null;
+        // An included revision past the agency's monthly allowance is billable unless a manager says otherwise.
+        if ($data['scope_classification'] === 'included_revision' && empty($data['billing_status']) && ($info = $this->entitlement($ticket)) && $info['allowed'] !== null && $info['used'] >= $info['allowed']) {
+            $billing = 'billable';
+        }
         if ($billing === 'complimentary' && blank($data['reason'] ?? null)) {
             throw ValidationException::withMessages(['reason' => 'Say why this is complimentary.']);
         }
@@ -99,5 +103,22 @@ class TicketOperations
         abort_unless(in_array($ticket->status, ['resolved', 'closed'], true), 422, 'You can leave feedback once the ticket is resolved.');
         DB::table('ticket_feedback')->updateOrInsert(['ticket_id' => $ticket->id], ['user_id' => $user->id, 'rating' => $rating, 'comment' => $comment, 'created_at' => now(), 'updated_at' => now()]);
         $this->recorder->record($ticket, 'feedback_left', ['rating' => $rating], $user, 'internal');
+    }
+
+    /**
+     * Included revisions an agency has used this month against what its package allows (null allowance means not tracked).
+     *
+     * @return array{allowed: int|null, used: int}|null
+     */
+    public function entitlement(Ticket $ticket): ?array
+    {
+        $row = DB::table('agency_entitlements')->where('agency_id', $ticket->agency_id)->first();
+        if ($row === null) {
+            return null;
+        }
+        $used = Ticket::query()->where('agency_id', $ticket->agency_id)->where('scope_classification', 'included_revision')->where('id', '!=', $ticket->id)
+            ->whereBetween('scope_approved_at', [now()->startOfMonth(), now()->endOfMonth()])->count();
+
+        return ['allowed' => $row->included_revisions_per_month, 'used' => $used];
     }
 }

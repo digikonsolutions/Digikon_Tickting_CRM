@@ -28,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \App\Services\Support\SupportSettings::apply();
         RateLimiter::for('auth-login', function (Request $request) {
             $email = $request->input('email');
             $email = is_string($email) ? Str::lower($email) : '';

@@ -15,8 +15,12 @@ class StoreSupportTicketRequest extends FormRequest
 
     public function rules(): array
     {
-        $agencyId = $this->user()?->agency_id;
-        $type = (string) $this->input('type');
+        return self::rulesFor((string) $this->input('type'), $this->user()?->agency_id);
+    }
+
+    /** @return array<string, mixed> shared with the recurring-ticket form, which needs the same answers */
+    public static function rulesFor(string $type, ?int $agencyId): array
+    {
         $rules = [
             'type' => ['required', Rule::in(array_keys(config('support.types')))],
             'title' => ['required', 'string', 'max:160'],

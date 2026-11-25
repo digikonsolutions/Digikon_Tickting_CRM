@@ -28,3 +28,4 @@ Schedule::command('app:send-work-reminders')->everyThirtyMinutes()->withoutOverl
 
 // Support module: SLA clocks, unassigned escalation, waiting-for-agency reminders and auto-close. Needs `php artisan schedule:work` (or a cron entry).
 Schedule::command('tickets:sla-sweep')->everyMinute()->withoutOverlapping();
+Schedule::command('tickets:run-recurring')->dailyAt('06:00')->timezone(config('support.timezone'))->withoutOverlapping();

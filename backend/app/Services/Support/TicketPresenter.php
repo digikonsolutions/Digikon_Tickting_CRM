@@ -111,6 +111,7 @@ class TicketPresenter
             'allowed_transitions' => app(SupportWorkflow::class)->allowed($t, $viewer),
             'scope_proposal' => $t->scope_proposal ?? null,
             'feedback' => \Illuminate\Support\Facades\DB::table('ticket_feedback')->where('ticket_id', $t->id)->first(['rating', 'comment']),
+            'entitlement' => app(TicketOperations::class)->entitlement($t),
             'converted_to' => $t->converted_to_type ? ['type' => $t->converted_to_type, 'id' => $t->converted_to_id] : null,
             'qa_required' => $t->usesLifecycle() && SupportWorkflow::qaRequired($t),
             'sla' => $t->usesLifecycle() ? app(SlaService::class)->snapshot($t) : null,
