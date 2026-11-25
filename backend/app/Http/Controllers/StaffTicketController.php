@@ -85,7 +85,7 @@ class StaffTicketController extends Controller
         $page = $query->orderByDesc('id')->paginate($f['per_page'] ?? 25);
 
         return response()->json([
-            'tickets' => collect($page->items())->map(fn (Ticket $t): array => TicketPresenter::staffSummary($t))->values(),
+            'tickets' => collect($page->items())->map(fn (Ticket $t): array => TicketPresenter::staffSummary($t, $request->user()))->values(),
             'counts' => $counts,
             'pagination' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'per_page' => $page->perPage(), 'total' => $page->total()],
         ]);

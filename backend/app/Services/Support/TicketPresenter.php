@@ -79,7 +79,7 @@ class TicketPresenter
     }
 
     /** @return array<string, mixed> */
-    public static function staffSummary(Ticket $t): array
+    public static function staffSummary(Ticket $t, ?User $viewer = null): array
     {
         return self::common($t) + [
             'agency' => $t->relationLoaded('agency') ? ['id' => $t->agency_id, 'name' => $t->agency?->name] : null,
@@ -90,13 +90,15 @@ class TicketPresenter
             'scope_classification' => $t->scope_classification,
             'billing_status' => $t->billing_status,
             'sla' => $t->usesLifecycle() ? app(SlaService::class)->snapshot($t) : null,
+            // What this person may do next, so the board can offer exactly those columns.
+            'allowed_to' => $t->usesLifecycle() && $viewer !== null ? array_column(app(SupportWorkflow::class)->allowed($t, $viewer), 'to') : [],
         ];
     }
 
     /** @return array<string, mixed> */
     public static function staff(Ticket $t, User $viewer): array
     {
-        return self::staffSummary($t) + [
+        return self::staffSummary($t, $viewer) + [
             'description' => $t->description,
             'expected_result' => $t->expected_result,
             'details' => $t->details,

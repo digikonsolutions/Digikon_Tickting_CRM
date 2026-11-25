@@ -200,9 +200,18 @@ One ticket entity with a `kind` (`support`, `fulfillment`, `change_request`). Ti
 | POST | `/api/staff/tickets/{ref}/convert` | `{to: project, assignment_id}` or `{to: change_request}`; idempotent, keeps the history, links both ways |
 | GET | `/api/staff/dashboard?from&to` | The KPIs of the spec (managers, finance, admin) |
 | GET / POST / PATCH / DELETE | `/api/staff/canned-responses` | Saved replies |
-| GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
+| GET / POST | `/api/staff/tickets/{ref}/qa` | The QA checklists that suit the ticket (from `qa_checklist_items`), the run history and bug details; record a run: a fail returns the ticket to the builder with the note, a pass resolves it (needs a summary and category). Only QA, and only the assigned reviewer or a delivery manager |
+| PUT | `/api/staff/tickets/{ref}/bug` | Severity, component, bug status |
+| GET / POST | `/api/staff/tickets/{ref}/approvals`, `/approvals/{id}` | Request (scope, quote, delivery, complimentary) and decide; each kind has its own deciding capability |
+| GET / POST / DELETE | `/api/staff/tickets/{ref}/relations`, `/watch` | Related or duplicate tickets; follow or unfollow |
+| GET / PUT | `/api/staff/settings` | Admin: SLA targets, hours, timezone, holidays, windows. Saved in `support_settings` and applied over `config/support.php` |
+| GET / PUT | `/api/staff/agencies/{agency}/entitlement` | Finance or admin: included revisions and support minutes per month. An included revision past the allowance defaults to billable |
+| GET / POST / DELETE | `/api/agency/support/recurring` | The agency's scheduled tickets (weekly or monthly). `tickets:run-recurring` creates them daily |
+| GET | `/api/attachments/{id}/signed-url` | A five-minute link for one person; the signed route checks access again || GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
 
-Not built yet: generic approvals, agency entitlements and the included-revision check, recurring tickets, custom saved views, the workload view, the settings screen (SLA numbers and holidays are edited in `config/support.php` for now), signed short-lived download URLs for attachments, per-type QA checklists and bug QA runs, and ticket relations and watchers.
+Also: the old project-ticket endpoints (`PATCH /api/agency/tickets/{id}`, `/status`, `/transitions`, hours requests, time, `/tickets/key/{key}`) answer 404 for support-module tickets, so nothing can skip `SupportWorkflow`. The scheduled commands are `tickets:sla-sweep` (every minute) and `tickets:run-recurring` (daily 06:00 in the support timezone).
+
+Not built yet: per-agency screens for entitlements and recurring schedules, a workload view, custom saved views and bulk actions on the queue, and the agency-facing approval of a quote.
 
 ### Running the queue worker and scheduler
 

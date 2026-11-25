@@ -291,4 +291,24 @@ class SupportTicketTest extends TestCase
         $this->actingAs($triage)->get("/api/attachments/{$internal}/download")->assertOk();
         // A file cannot be added to a ticket of another agency.
         $this->actingAs($outsider)->post("/api/tickets/{$ticket->id}/attachments", ['files' => [$png('x.png')]], ['Accept' => 'application/json'])->assertNotFound();
+    }
+
+    public function test_signed_download_links_expire_and_belong_to_one_person(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $triage = $this->staff(['triage']);
+        $outsider = $this->outsider();
+        $ticket = $this->newTicket();
+        $png = fn (string $name) => \Illuminate\Http\UploadedFile::fake()->createWithContent($name, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+        $public = $this->actingAs($this->u['client'])->post("/api/tickets/{$ticket->id}/attachments", ['files' => [$png('a.png')]], ['Accept' => 'application/json'])->assertCreated()->json('attachments.0.id');
+        $internal = $this->actingAs($triage)->post("/api/tickets/{$ticket->id}/attachments", ['files' => [$png('b.png')], 'comment' => 'note', 'is_internal' => true], ['Accept' => 'application/json'])->assertCreated()->json('attachments.0.id');
+
+        $url = $this->actingAs($this->u['owner'])->getJson("/api/attachments/{$public}/signed-url")->assertOk()->json('url');
+        $this->actingAs($this->u['owner'])->get($url)->assertOk();
+        $this->actingAs($this->u['owner'])->get($url.'x')->assertForbidden();                    // tampered
+        $this->actingAs($this->u['client'])->get($url)->assertForbidden();                         // made for someone else
+        $this->actingAs($outsider)->getJson("/api/attachments/{$public}/signed-url")->assertNotFound();
+        $this->actingAs($this->u['owner'])->getJson("/api/attachments/{$internal}/signed-url")->assertNotFound();
+        $this->travel(6)->minutes();
+        $this->actingAs($this->u['owner'])->get($url)->assertForbidden();                           // expired
     }}

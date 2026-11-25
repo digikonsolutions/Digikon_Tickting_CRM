@@ -362,6 +362,10 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
     Route::post('/tickets/{ticket}/attachments', [AttachmentController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
+    Route::get('/attachments/{attachment}/signed-url', [AttachmentController::class, 'signedUrl'])->whereNumber('attachment')
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::get('/attachments/{attachment}/signed', [AttachmentController::class, 'signed'])->whereNumber('attachment')->name('attachments.signed')
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'signed']);
     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])

@@ -16,6 +16,7 @@ class HoursRequestController extends Controller
 {
     public function store(Request $request, Ticket $ticket, HoursRequestService $service): JsonResponse
     {
+        abort_if($ticket->usesLifecycle(), 404);
         $user = $request->user();
         abort_unless($ticket->workItem?->employee_id === $user->id, 404);
         $data = $request->validate([

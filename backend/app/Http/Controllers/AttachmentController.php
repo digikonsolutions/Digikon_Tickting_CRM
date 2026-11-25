@@ -192,6 +192,24 @@ class AttachmentController extends Controller
         return $disk->response($attachment->stored_path, $attachment->original_name, $headers, $inline ? 'inline' : 'attachment');
     }
 
+    /** A link that works for five minutes and only for the person it was made for. Access is checked again when it is used. */
+    public function signedUrl(Request $request, TicketAttachment $attachment): JsonResponse
+    {
+        $user = $request->user();
+        $this->access->authorizeView($user, $attachment->ticket);
+        abort_if($attachment->kind === 'link' || ($attachment->is_internal && ! $this->access->canSeeInternal($user, $attachment->ticket)), 404);
+
+        return response()->json(['url' => \Illuminate\Support\Facades\URL::temporarySignedRoute('attachments.signed', now()->addMinutes(5), ['attachment' => $attachment->id, 'for' => $user->id]), 'expires_in' => 300]);
+    }
+
+    public function signed(Request $request, TicketAttachment $attachment): Response
+    {
+        // Someone else's link, even a valid one, gets nothing.
+        abort_unless((int) $request->query('for') === $request->user()->id, 403);
+
+        return $this->download($request, $attachment);
+    }
+
     public function destroy(Request $request, TicketAttachment $attachment): JsonResponse
     {
         $user = $request->user();

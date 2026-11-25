@@ -164,6 +164,7 @@ class TicketController extends Controller
         TicketEventRecorder $recorder
     ): JsonResponse {
         $user = $request->user();
+        $this->refuseSupportTicket($ticket);
         $workItem = $ticket->workItem;
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
         abort_unless(! in_array($ticket->status, ['done', 'cancelled'], true), 422, 'This ticket is already closed.');
@@ -229,6 +230,7 @@ class TicketController extends Controller
         TicketPlanner $planner,
         TicketEventRecorder $recorder
     ): JsonResponse {
+        $this->refuseSupportTicket($ticket);
         $workItem = $ticket->workItem;
         $user = $request->user();
         $this->authorizeProject($user, $workItem, requireOpen: true, requireActiveAssignment: true);
@@ -336,6 +338,7 @@ class TicketController extends Controller
         TicketWorkflow $workflow
     ): JsonResponse {
         $employee = $request->user();
+        $this->refuseSupportTicket($ticket);
         $this->ensureActiveEmployeeAgency($employee);
         $workItem = $ticket->workItem;
         abort_unless($workItem->employee_id === $employee->id, 404);
@@ -371,6 +374,7 @@ class TicketController extends Controller
         Ticket $ticket,
         TicketWorkflow $workflow
     ): JsonResponse {
+        $this->refuseSupportTicket($ticket);
         $data = $request->validate([
             'action' => ['required', 'string'],
             'comment' => ['nullable', 'string', 'max:10000'],
@@ -624,6 +628,8 @@ class TicketController extends Controller
             ->first();
 
         abort_unless($ticket !== null, 404);
+        // Tickets from the support module are opened by their ref, on their own screens.
+        $this->refuseSupportTicket($ticket);
 
         $this->authorizeTicketView($request->user(), $ticket);
 
@@ -979,5 +985,11 @@ class TicketController extends Controller
                     'hours' => $allocation->hours,
                 ])->values(),
         ];
+    }
+
+    /** The project-ticket endpoints do not apply to support-module tickets (no project, a different workflow). */
+    private function refuseSupportTicket(Ticket $ticket): void
+    {
+        abort_if($ticket->usesLifecycle(), 404, 'This ticket is handled in the support area.');
     }
 }
