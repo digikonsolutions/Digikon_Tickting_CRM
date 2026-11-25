@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "apiBase": {
+      "title": "ClientHub API address",
+      "description": "The https address of the ClientHub API, for example https://api.clienthub.example.com/api. Set by the organisation so employees do not type it.",
+      "type": "string"
+    }
+  }
+}

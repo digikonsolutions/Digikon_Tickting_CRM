@@ -62,6 +62,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('heartbeat', fn (Request $request) => Limit::perMinute(6)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         // The extension sends batches of up to 200 events; allow a batch every few seconds, not a flood.
+        // Snapshots are a few a minute at most; the controller also spaces them out.
+        RateLimiter::for('work-snapshots', fn (Request $request) => Limit::perMinute(6)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('browser-history-sync', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('notifications', fn (Request $request) => Limit::perMinute(60)

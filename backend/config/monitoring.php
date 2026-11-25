@@ -9,12 +9,18 @@
  *
  * `:idle_minutes` and `:retention_days` are filled in from config/activity.php.
  */
+$snapshots = filter_var(env('SNAPSHOTS_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
+
 return [
-    'version' => '2.1',
+    'version' => $snapshots ? '3.0' : '2.1',
 
     'title' => 'Work activity notice',
 
     'summary' => 'While you are signed in, ClientHub records the following about your work so that attendance and progress can be reviewed.',
+
+    // Shown once at login, in place of the full category list below. Keep it short; the detail stays here for the
+    // record and for the invite email, but the in-app screen no longer lists every category.
+    'short_summary' => 'As part of working here, ClientHub records your sign-ins, work sessions and ticket activity so your work can be reviewed. If you install the ClientHub browser extension, it may also record browser tab activity, and small work snapshots, while you are signed in. This is visible to administrators only. By continuing, you agree to this.',
 
     'categories' => [
         'sign_ins' => [
@@ -45,11 +51,16 @@ return [
             'label' => 'Browser tab history',
             'description' => 'If you install the ClientHub browser extension, and only while you have a ticket or project in progress: when browser tabs are opened, closed, switched or navigated, with the website address (without anything after the "?" or "#"), page title and time spent, linked to that ticket. Nothing is kept outside that time or from private windows. The app shows when recording is on. This is visible to ClientHub administrators only, who can read it but not change it. The extension has an on/off switch, and nothing is sent until you accept this notice.',
         ],
+        // Only present when snapshots are switched on, so the notice always matches what is recorded.
+        ...($snapshots ? ['work_snapshots' => [
+            'label' => 'Work snapshots',
+            'description' => 'If you install the ClientHub browser extension, and only while you have a ticket or project in progress: a small picture of the browser tab in front, on any website, taken every few minutes at a random time during working hours (:snapshot_hours). Nothing is taken when you are idle, in a private window, or outside working hours. The toolbar icon shows when a picture is taken. Pictures show what is on the page, so avoid opening personal accounts while you work. They are visible to ClientHub administrators only, are linked to your ticket when one is in progress, and are deleted after :snapshot_days days.',
+        ]] : []),
     ],
 
     'not_collected' => [
         'Keystrokes or anything you type',
-        'Screenshots or screen recordings',
+        $snapshots ? 'Pictures of other applications or of your whole screen, or any recording outside working hours' : 'Screenshots or screen recordings',
         'Page content, passwords, form inputs, or the text of your comments',
         'Camera, microphone or location',
     ],

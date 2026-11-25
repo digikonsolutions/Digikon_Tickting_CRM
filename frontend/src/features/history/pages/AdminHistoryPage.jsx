@@ -6,6 +6,7 @@ import { useAsync } from '../../../hooks/useAsync'
 import { todayStr } from '../../../lib/format'
 import { HistoryOverview } from '../components/HistoryOverview'
 import { HistoryTimeline } from '../components/HistoryTimeline'
+import { SnapshotGallery } from '../components/SnapshotGallery'
 import { EVENT_TYPE_OPTIONS, PRESETS, rangeFor } from '../historyData'
 
 // Administrators only, strictly read-only: every request here is a GET and there is no way to change a record.
@@ -102,6 +103,7 @@ export function AdminHistoryPage() {
       )}
       <HistoryOverview summary={summary.data} isLoading={summary.isLoading} />
       <HistoryTimeline data={events.data} error={events.error} isLoading={events.isLoading} reload={events.reload} onPage={setPage} />
+      <SnapshotGallery employeeId={employeeId} ticketId={ticketId} from={ticketId ? '' : range.from} to={ticketId ? '' : range.to} />
     </section>
   )
 }

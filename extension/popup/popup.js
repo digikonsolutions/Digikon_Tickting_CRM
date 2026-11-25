@@ -1,7 +1,10 @@
+import { effectiveApiBase, readManaged } from '../src/config.js'
 const $ = (id) => document.getElementById(id)
 
 async function render() {
-  const { settings = {}, queue = [], status = {} } = await chrome.storage.local.get(['settings', 'queue', 'status'])
+  const { settings: stored = {}, queue = [], status = {}, snapshotLast = null } = await chrome.storage.local.get(['settings', 'queue', 'status', 'snapshotLast'])
+  // A managed install supplies the address; the popup treats it as set.
+  const settings = { ...stored, apiBase: effectiveApiBase(stored, await readManaged()) }
   const enabled = settings.enabled !== false
   $('enabled').checked = enabled
   $('queue').textContent = String(queue.length)
@@ -29,6 +32,10 @@ async function render() {
     state.textContent = work ? `Recording for ${work.ticket_key ? `${work.ticket_key} ` : ''}${work.title}.` : 'Recording.'
     state.className = 'ok'
   }
+  const snap = $('snap')
+  snap.hidden = !(status.snapshots && enabled)
+  const last = snapshotLast ? ` Last: ${new Date(snapshotLast).toLocaleTimeString()}.` : ''
+  snap.textContent = status.snapshots ? `Snapshots on in working hours: a small picture of the tab in front, every ${status.snapshots.min_minutes} to ${status.snapshots.max_minutes} minutes.${last}` : ''
   $('hint').textContent = enabled
     ? 'Records the address (without anything after “?” or “#”), title and time of the tabs you use. Never page content, passwords or private windows.'
     : 'Nothing new is recorded while this is off.'

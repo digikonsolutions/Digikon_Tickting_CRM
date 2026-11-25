@@ -260,12 +260,16 @@ Route::middleware(['web', 'auth', 'role:employee'])->prefix('browser-history')->
     Route::get('/status', [BrowserHistoryController::class, 'status']);
     Route::get('/me', [BrowserHistoryController::class, 'me']);
     Route::post('/sync', [BrowserHistoryController::class, 'sync'])->middleware('throttle:browser-history-sync');
+    Route::post('/snapshots', [\App\Http\Controllers\WorkSnapshotController::class, 'store'])->middleware('throttle:work-snapshots');
+    Route::get('/snapshots/me', [\App\Http\Controllers\WorkSnapshotController::class, 'mine']);
 });
 
 // Admin: read-only across all employees. No create/update/delete route exists for this data at all.
 Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin/browser-history')->group(function () {
     Route::get('/summary', [BrowserHistoryController::class, 'adminSummary']);
     Route::get('/events', [BrowserHistoryController::class, 'adminEvents']);
+    Route::get('/snapshots', [\App\Http\Controllers\WorkSnapshotController::class, 'adminIndex']);
+    Route::get('/snapshots/{id}/image', [\App\Http\Controllers\WorkSnapshotController::class, 'adminImage'])->whereNumber('id');
 });
 
 // Reports: computed in SQL, scoped by the signed-in user. ?format=csv streams an export.

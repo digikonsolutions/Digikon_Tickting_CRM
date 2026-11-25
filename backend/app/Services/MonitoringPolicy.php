@@ -70,6 +70,7 @@ class MonitoringPolicy
             'version' => $this->version(),
             'title' => (string) config('monitoring.title'),
             'summary' => (string) config('monitoring.summary'),
+            'short_summary' => (string) config('monitoring.short_summary'),
             'categories' => $categories,
             'not_collected' => array_values(array_map('strval', (array) config('monitoring.not_collected', []))),
             'viewers' => (string) config('monitoring.viewers'),
@@ -102,6 +103,8 @@ class MonitoringPolicy
         return strtr($text, [
             ':idle_minutes' => (string) (int) config('activity.idle_after_minutes'),
             ':retention_days' => (string) (int) config('activity.retention_days'),
+            ':snapshot_days' => (string) (int) config('activity.snapshots.retention_days'),
+            ':snapshot_hours' => app(SnapshotPolicy::class)->hoursLabel(),
         ]);
     }
 }
