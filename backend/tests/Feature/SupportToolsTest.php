@@ -147,4 +147,54 @@ class SupportToolsTest extends TestCase
         $this->assertCount(1, $this->actingAs($this->u['owner'])->getJson('/api/agency/support/recurring')->json('schedules'));
         $this->actingAs($this->outsider())->deleteJson('/api/agency/support/recurring/'.DB::table('recurring_ticket_schedules')->value('id'))->assertNotFound();
     }
-}
+
+    public function test_saved_views_are_personal_and_capped(): void
+    {
+        $a = $this->staff(['triage']);
+        $b = $this->staff(['triage']);
+        $this->actingAs($a)->postJson('/api/staff/saved-views', ['name' => 'Urgent mine', 'filters' => ['view' => 'critical', 'q' => '']])->assertOk()->assertJsonPath('views.0.filters.view', 'critical');
+        $this->assertCount(0, $this->actingAs($b)->getJson('/api/staff/saved-views')->json('views'));
+        $id = $this->actingAs($a)->getJson('/api/staff/saved-views')->json('views.0.id');
+        $this->actingAs($b)->deleteJson("/api/staff/saved-views/{$id}")->assertOk();
+        $this->assertCount(1, $this->actingAs($a)->getJson('/api/staff/saved-views')->json('views'));
+        $this->actingAs($this->u['client'])->getJson('/api/staff/saved-views')->assertForbidden();
+        $this->actingAs($a)->deleteJson("/api/staff/saved-views/{$id}")->assertOk()->assertJsonCount(0, 'views');
+    }
+
+    public function test_bulk_actions_decide_each_ticket_on_its_own(): void
+    {
+        $manager = $this->staff(['triage']);
+        $builder = $this->staff(['builder']);
+        $one = $this->newTicket();
+        $two = $this->newTicket();
+        $two->forceFill(['status' => 'closed'])->save();
+        $res = $this->actingAs($manager)->postJson('/api/staff/tickets/bulk', ['refs' => [$one->ref, $two->ref, 'DG-9999'], 'action' => 'transition', 'to' => 'triage'])->assertOk();
+        $this->assertSame(1, $res->json('done'));
+        $this->assertSame([true, false, false], array_column($res->json('results'), 'ok'));
+        $this->assertSame('triage', $one->fresh()->status);
+
+        $this->actingAs($manager)->postJson('/api/staff/tickets/bulk', ['refs' => [$one->ref], 'action' => 'assign', 'assigned_to_id' => $builder->id])->assertOk()->assertJsonPath('done', 1);
+        $this->assertSame($builder->id, $one->fresh()->assigned_to_id);
+        $this->actingAs($manager)->postJson('/api/staff/tickets/bulk', ['refs' => [$one->ref], 'action' => 'priority', 'priority' => 'high'])->assertOk()->assertJsonPath('done', 1);
+        // A builder may not re-prioritise or assign in bulk: the ticket stays as it was.
+        $this->actingAs($builder)->postJson('/api/staff/tickets/bulk', ['refs' => [$one->ref], 'action' => 'priority', 'priority' => 'low'])->assertOk()->assertJsonPath('done', 0);
+        $this->assertSame('high', $one->fresh()->priority);
+        $this->actingAs($this->u['client'])->postJson('/api/staff/tickets/bulk', ['refs' => [$one->ref], 'action' => 'priority', 'priority' => 'low'])->assertForbidden();
+    }
+
+    public function test_the_workload_view_counts_open_work_per_person(): void
+    {
+        $manager = $this->staff(['triage'], 'Mia');
+        $builder = $this->staff(['builder'], 'Ben');
+        $a = $this->newTicket();
+        $b = $this->newTicket();
+        $this->newTicket();
+        $a->forceFill(['assigned_to_id' => $builder->id, 'status' => 'in_progress', 'priority' => 'urgent'])->save();
+        $b->forceFill(['assigned_to_id' => $builder->id, 'status' => 'resolved'])->save();
+        $res = $this->actingAs($manager)->getJson('/api/staff/workload')->assertOk();
+        $ben = collect($res->json('people'))->firstWhere('id', $builder->id);
+        $this->assertSame(1, $ben['open']);
+        $this->assertSame(1, $ben['critical']);
+        $this->assertSame(1, $res->json('unassigned'));
+        $this->actingAs($builder)->getJson('/api/staff/workload')->assertForbidden();
+    }}

@@ -238,6 +238,11 @@ Route::middleware(['web', 'auth', 'role:admin,employee'])->prefix('staff')->grou
     Route::post('/tickets/{ref}/relations', [StaffSupportToolsController::class, 'addRelation'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
     Route::delete('/tickets/{ref}/relations/{relation}', [StaffSupportToolsController::class, 'removeRelation'])->where('ref', '[A-Za-z]+-[0-9]+')->whereNumber('relation');
     Route::post('/tickets/{ref}/watch', [StaffSupportToolsController::class, 'watch'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::get('/saved-views', [StaffSupportToolsController::class, 'savedViews']);
+    Route::post('/saved-views', [StaffSupportToolsController::class, 'saveView'])->middleware('throttle:work-order');
+    Route::delete('/saved-views/{view}', [StaffSupportToolsController::class, 'deleteView'])->whereNumber('view');
+    Route::post('/tickets/bulk', [StaffSupportToolsController::class, 'bulk'])->middleware('throttle:work-order');
+    Route::get('/workload', [StaffSupportToolsController::class, 'workload']);
     Route::get('/settings', [StaffSupportToolsController::class, 'settings']);
     Route::put('/settings', [StaffSupportToolsController::class, 'saveSettings'])->middleware('throttle:work-order');
     Route::get('/agencies/{agency}/entitlement', [StaffSupportToolsController::class, 'entitlement'])->whereNumber('agency');

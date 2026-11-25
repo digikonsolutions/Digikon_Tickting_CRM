@@ -1050,6 +1050,46 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { message: 'ok' }
     return request(`/agency/support/tickets/${encodeURIComponent(ref)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
   },
+  async bulkStaffTickets(data) {
+    if (AUTH_MODE === 'mock') return { results: [], done: 0 }
+    return request('/staff/tickets/bulk', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async listSavedViews() {
+    if (AUTH_MODE === 'mock') return { views: [] }
+    return request('/staff/saved-views')
+  },
+  async saveSavedView(data) {
+    if (AUTH_MODE === 'mock') return { views: [] }
+    return request('/staff/saved-views', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async deleteSavedView(id) {
+    if (AUTH_MODE === 'mock') return { views: [] }
+    return request(`/staff/saved-views/${id}`, { method: 'DELETE' })
+  },
+  async getStaffWorkload() {
+    if (AUTH_MODE === 'mock') return { people: [], unassigned: 0 }
+    return request('/staff/workload')
+  },
+  async getAgencyEntitlement(agencyId) {
+    if (AUTH_MODE === 'mock') return { entitlement: null }
+    return request(`/staff/agencies/${agencyId}/entitlement`)
+  },
+  async saveAgencyEntitlement(agencyId, data) {
+    if (AUTH_MODE === 'mock') return { entitlement: data }
+    return request(`/staff/agencies/${agencyId}/entitlement`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+  async listRecurringTickets() {
+    if (AUTH_MODE === 'mock') return { schedules: [] }
+    return request('/agency/support/recurring')
+  },
+  async createRecurringTicket(data) {
+    if (AUTH_MODE === 'mock') return { id: 1 }
+    return request('/agency/support/recurring', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async deleteRecurringTicket(id) {
+    if (AUTH_MODE === 'mock') return { message: 'ok' }
+    return request(`/agency/support/recurring/${id}`, { method: 'DELETE' })
+  },
   async getTicketQa(ref) {
     if (AUTH_MODE === 'mock') return { library: {}, runs: [], bug: {} }
     return request(`/staff/tickets/${encodeURIComponent(ref)}/qa`)

@@ -36,7 +36,8 @@ VITE_AUTH_MODE=api
 - Agency users never receive internal data: the API sends separate payloads, and these screens render only what they are given.
 - The queue has a Table and a Board layout. A card on the board moves to a column the server says it may move to (drag, or the Move to menu on the card), and the move opens the same dialog as the ticket page.
 - The ticket page also has QA and bug, Time, approvals, related tickets, and scope and billing; /staff/settings is for administrators.
-- Not built yet: bulk actions, custom saved views, a workload view, and screens for entitlements and recurring schedules.
+- The queue also has bulk actions (assign, priority, status), personal saved views, and a workload page at `/staff/workload`. Administrators set agency packages on `/staff/settings`; agencies manage recurring tickets at `/agency/support/recurring`.
+- Not built yet: agency-facing approval of a quote.
 ## GoHighLevel brief and ticket work orders
 
 `src/features/workorder` holds everything for the detailed project brief and the ticket work order, so agency, admin and employee views share it.

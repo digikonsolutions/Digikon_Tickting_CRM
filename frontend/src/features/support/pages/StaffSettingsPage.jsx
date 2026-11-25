@@ -2,12 +2,52 @@ import { useCallback, useState } from 'react'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Card, ChipInput, FieldRow, FormActions, Input, PageHeader, Skeleton, useToast } from '../../../components/ui'
+import { Alert, Card, ChipInput, FieldRow, FormActions, Input, PageHeader, Select, Skeleton, useToast } from '../../../components/ui'
 import '../support.css'
 
 const PRIORITIES = [['urgent', 'P1 Critical'], ['high', 'P2 High'], ['normal', 'P3 Normal'], ['low', 'P4 Low']]
 const DAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [7, 'Sun']]
 
+// What an agency's package includes each month. An included revision past the allowance is billable by default.
+function AgencyPackage() {
+  const { showToast } = useToast()
+  const agencies = useAsync(useCallback(() => authService.listAdminAgencies({ perPage: 100 }), []))
+  const [agencyId, setAgencyId] = useState('')
+  const [values, setValues] = useState({ included_revisions_per_month: '', support_minutes_per_month: '' })
+  const [busy, setBusy] = useState(false)
+  async function choose(id) {
+    setAgencyId(id)
+    if (!id) return
+    const { entitlement } = await authService.getAgencyEntitlement(id)
+    setValues({ included_revisions_per_month: entitlement?.included_revisions_per_month ?? '', support_minutes_per_month: entitlement?.support_minutes_per_month ?? '' })
+  }
+  async function save(event) {
+    event.preventDefault()
+    setBusy(true)
+    try {
+      await authService.saveAgencyEntitlement(agencyId, Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value === '' ? null : Number(value)])))
+      showToast('Package saved.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Card title="Agency package">
+      <form className="ui-form" onSubmit={save} noValidate>
+        <Select label="Agency" value={agencyId} onChange={(event) => choose(event.target.value)}>
+          <option value="">Choose an agency…</option>{(agencies.data?.agencies ?? []).map((agency) => <option key={agency.id} value={agency.id}>{agency.name}</option>)}
+        </Select>
+        {agencyId && (
+          <FieldRow>
+            <Input label="Included revisions per month" type="number" min="0" value={values.included_revisions_per_month} onChange={(event) => setValues({ ...values, included_revisions_per_month: event.target.value })} helperText="Leave empty for not tracked." />
+            <Input label="Support minutes per month" type="number" min="0" value={values.support_minutes_per_month} onChange={(event) => setValues({ ...values, support_minutes_per_month: event.target.value })} />
+          </FieldRow>
+        )}
+        {agencyId && <FormActions submitLabel="Save package" loadingLabel="Saving…" loading={busy} />}
+      </form>
+    </Card>
+  )
+}
 // SLA numbers, support hours, holidays and the windows. Admin only. Saved values replace the defaults in config/support.php.
 export function StaffSettingsPage() {
   const { showToast } = useToast()
@@ -75,6 +115,7 @@ export function StaffSettingsPage() {
         <ApiErrorMessage error={failure && !failure.errors ? failure : null} />
         <FormActions submitLabel="Save settings" loadingLabel="Saving…" loading={busy} />
       </form>
+      <AgencyPackage />
     </section>
   )
 }

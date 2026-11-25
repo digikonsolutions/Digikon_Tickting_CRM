@@ -173,4 +173,87 @@ class StaffSupportToolsController extends Controller
 
         return $this->entitlement($request, $agency);
     }
+
+    // Saved views, bulk actions and the workload view
+
+    public function savedViews(Request $request): JsonResponse
+    {
+        abort_unless(StaffCapability::isStaff($request->user()), 403);
+
+        return response()->json(['views' => DB::table('saved_views')->where('user_id', $request->user()->id)->orderBy('name')->get(['id', 'name', 'filters'])->map(fn ($v): array => ['id' => $v->id, 'name' => $v->name, 'filters' => json_decode($v->filters, true)])]);
+    }
+
+    public function saveView(Request $request): JsonResponse
+    {
+        abort_unless(StaffCapability::isStaff($request->user()), 403);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'filters' => ['required', 'array'], 'filters.view' => ['nullable', 'string', 'max:30'], 'filters.q' => ['nullable', 'string', 'max:100'], 'filters.status' => ['nullable', 'string', 'max:30'],
+            'filters.priority' => ['nullable', 'string', 'max:10'], 'filters.type' => ['nullable', 'string', 'max:40'], 'filters.sort' => ['nullable', 'string', 'max:10'], 'filters.layout' => ['nullable', 'string', 'max:10'],
+        ]);
+        abort_if(DB::table('saved_views')->where('user_id', $request->user()->id)->count() >= 20, 422, 'You can keep up to 20 views.');
+        DB::table('saved_views')->updateOrInsert(['user_id' => $request->user()->id, 'name' => $data['name']], ['filters' => json_encode(array_filter($data['filters'], fn ($v) => $v !== null && $v !== '')), 'updated_at' => now(), 'created_at' => now()]);
+
+        return $this->savedViews($request);
+    }
+
+    public function deleteView(Request $request, int $view): JsonResponse
+    {
+        DB::table('saved_views')->where('id', $view)->where('user_id', $request->user()->id)->delete();
+
+        return $this->savedViews($request);
+    }
+
+    /**
+     * Several tickets at once: owner, priority or a status step. Each ticket is decided on its own, so one that cannot move
+     * (wrong status, missing data, no permission) never blocks the others, and the answer says which is which.
+     */
+    public function bulk(Request $request, \App\Services\Support\SupportWorkflow $workflow, \App\Services\Support\SupportTicketService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'refs' => ['required', 'array', 'min:1', 'max:50'], 'refs.*' => ['string', 'max:30'], 'action' => ['required', Rule::in(['assign', 'priority', 'transition'])],
+            'assigned_to_id' => ['required_if:action,assign', 'nullable', 'integer'], 'priority' => ['required_if:action,priority', Rule::in(['low', 'normal', 'high', 'urgent'])],
+            'to' => ['required_if:action,transition', Rule::in(\App\Support\TicketStatus::LIFECYCLE)], 'reason' => ['nullable', 'string', 'max:2000'], 'waiting_reason' => ['nullable', 'string', 'max:500'], 'follow_up_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        abort_unless(StaffCapability::any($request->user()), 403);
+        $results = [];
+        foreach (array_unique($data['refs']) as $ref) {
+            $ticket = Ticket::query()->where('ref', $ref)->first();
+            if ($ticket === null || ! app(TicketAccess::class)->canView($request->user(), $ticket)) {
+                $results[] = ['ref' => $ref, 'ok' => false, 'error' => 'Not found.'];
+
+                continue;
+            }
+            try {
+                match ($data['action']) {
+                    'assign' => $service->assign($ticket, $request->user(), ['assigned_to_id' => $data['assigned_to_id']]),
+                    'priority' => $service->changePriority($ticket, $request->user(), $data['priority']),
+                    'transition' => $workflow->transition($ticket, $data['to'], $request->user(), $data),
+                };
+                $results[] = ['ref' => $ref, 'ok' => true];
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $results[] = ['ref' => $ref, 'ok' => false, 'error' => collect($e->errors())->flatten()->first()];
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                $results[] = ['ref' => $ref, 'ok' => false, 'error' => $e->getMessage() ?: 'Not allowed.'];
+            }
+        }
+
+        return response()->json(['results' => $results, 'done' => collect($results)->where('ok', true)->count()]);
+    }
+
+    /** Open work per person: for spreading the queue fairly. Triage, delivery managers and admins. */
+    public function workload(Request $request): JsonResponse
+    {
+        abort_unless(StaffCapability::manages($request->user()), 403);
+        $open = Ticket::query()->whereNotNull('type')->whereNotIn('status', ['resolved', 'closed', 'rejected'])->whereNotNull('assigned_to_id');
+        $rows = (clone $open)->selectRaw("assigned_to_id, count(*) as open, sum(case when priority = 'urgent' then 1 else 0 end) as critical, min(created_at) as oldest")->groupBy('assigned_to_id')->get()->keyBy('assigned_to_id');
+        $breached = DB::table('ticket_sla_clocks')->join('tickets', 'tickets.id', '=', 'ticket_sla_clocks.ticket_id')->whereNull('met_at')->whereNotNull('breached_at')
+            ->whereNotIn('tickets.status', ['resolved', 'closed', 'rejected'])->selectRaw('tickets.assigned_to_id, count(distinct tickets.id) as n')->groupBy('tickets.assigned_to_id')->pluck('n', 'assigned_to_id');
+        $people = \App\Models\User::query()->whereIn('role', [Role::Admin, Role::Employee])->where('is_active', true)->orderBy('name')->get(['id', 'name', 'role', 'staff_capabilities'])->filter(fn ($u) => StaffCapability::any($u));
+
+        return response()->json([
+            'people' => $people->map(fn ($u): array => ['id' => $u->id, 'name' => $u->name, 'open' => (int) ($rows[$u->id]->open ?? 0), 'critical' => (int) ($rows[$u->id]->critical ?? 0), 'breached' => (int) ($breached[$u->id] ?? 0), 'oldest' => $rows[$u->id]->oldest ?? null])->values(),
+            'unassigned' => Ticket::query()->whereNotNull('type')->whereNull('assigned_to_id')->whereNotIn('status', ['resolved', 'closed', 'rejected'])->count(),
+        ]);
+    }
 }

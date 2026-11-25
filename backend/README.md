@@ -207,11 +207,13 @@ One ticket entity with a `kind` (`support`, `fulfillment`, `change_request`). Ti
 | GET / PUT | `/api/staff/settings` | Admin: SLA targets, hours, timezone, holidays, windows. Saved in `support_settings` and applied over `config/support.php` |
 | GET / PUT | `/api/staff/agencies/{agency}/entitlement` | Finance or admin: included revisions and support minutes per month. An included revision past the allowance defaults to billable |
 | GET / POST / DELETE | `/api/agency/support/recurring` | The agency's scheduled tickets (weekly or monthly). `tickets:run-recurring` creates them daily |
-| GET | `/api/attachments/{id}/signed-url` | A five-minute link for one person; the signed route checks access again || GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
+| GET | `/api/attachments/{id}/signed-url` | A five-minute link for one person; the signed route checks access again || POST | `/api/staff/tickets/bulk` | `{refs[], action: assign\|priority\|transition, ...}`: each ticket is decided on its own; the answer lists which worked and why the others did not |
+| GET / POST / DELETE | `/api/staff/saved-views` | A person's own named queue filters (up to 20) |
+| GET | `/api/staff/workload` | Open, critical and breached tickets per owner, plus the unassigned count (triage, managers, admin) || GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
 
 Also: the old project-ticket endpoints (`PATCH /api/agency/tickets/{id}`, `/status`, `/transitions`, hours requests, time, `/tickets/key/{key}`) answer 404 for support-module tickets, so nothing can skip `SupportWorkflow`. The scheduled commands are `tickets:sla-sweep` (every minute) and `tickets:run-recurring` (daily 06:00 in the support timezone).
 
-Not built yet: per-agency screens for entitlements and recurring schedules, a workload view, custom saved views and bulk actions on the queue, and the agency-facing approval of a quote.
+Not built yet: agency-facing approval of a quote.
 
 ### Running the queue worker and scheduler
 

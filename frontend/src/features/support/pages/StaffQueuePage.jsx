@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
@@ -26,7 +26,38 @@ export function StaffQueuePage() {
   const view = query.view ?? 'all'
   const page = Number(query.page ?? 1)
   const board = query.layout === 'board'
-  const load = useCallback(() => authService.listStaffTickets({ ...query, view, page, ...(board ? { per_page: 100 } : {}) }), [query.q, query.status, query.priority, query.type, query.sort, view, page, board]) // eslint-disable-line react-hooks/exhaustive-deps
+  const load = useCallback(() => authService.listStaffTickets({ ...query, view, page, ...(board ? { per_page: 100 } : {}) }), [query.q, query.status, query.priority, query.type, query.sort, query.assigned_to_id, view, page, board]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [selected, setSelected] = useState([])
+  const [bulk, setBulk] = useState({ action: '', value: '' })
+  const [bulkResult, setBulkResult] = useState(null)
+  const [views, setViews] = useState([])
+  const [viewName, setViewName] = useState('')
+  const [people, setPeople] = useState([])
+  useEffect(() => {
+    authService.listSavedViews().then((result) => setViews(result.views)).catch(() => {})
+    authService.listStaffPeople().then((result) => setPeople(result.people)).catch(() => {})
+  }, [])
+  const toggle = (ref) => setSelected((current) => (current.includes(ref) ? current.filter((item) => item !== ref) : [...current, ref]))
+  async function runBulk() {
+    const body = { refs: selected, action: bulk.action }
+    if (bulk.action === 'assign') body.assigned_to_id = Number(bulk.value)
+    if (bulk.action === 'priority') body.priority = bulk.value
+    if (bulk.action === 'transition') body.to = bulk.value
+    try {
+      const result = await authService.bulkStaffTickets(body)
+      setBulkResult(result)
+      setSelected([])
+      reload()
+    } catch (reason) {
+      setBulkResult({ results: [], done: 0, error: reason.message })
+    }
+  }
+  async function saveView() {
+    const filters = Object.fromEntries(['view', 'q', 'status', 'priority', 'sort', 'layout'].map((key) => [key, query[key] ?? '']))
+    const result = await authService.saveSavedView({ name: viewName.trim(), filters })
+    setViews(result.views)
+    setViewName('')
+  }
   const [moving, setMoving] = useState(null)
   const [moveError, setMoveError] = useState(null)
   // A move (drag or menu) opens the same dialog as the ticket page, with exactly the fields that step needs.
@@ -72,6 +103,24 @@ export function StaffQueuePage() {
         <Select label="Sort" value={query.sort ?? 'updated'} onChange={(event) => set({ sort: event.target.value === 'updated' ? undefined : event.target.value })}><option value="updated">Recently updated</option><option value="sla">Deadline first</option><option value="priority">Priority first</option><option value="created">Newest</option></Select>
       </div>
       <ApiErrorMessage error={error} />
+      <div className="sup-views" role="group" aria-label="Saved filters">
+        {views.length > 0 && <Select label="My views" value="" onChange={(event) => { const found = views.find((item) => String(item.id) === event.target.value); if (found) setParams(new URLSearchParams(Object.entries(found.filters)), { replace: true }) }}><option value="">Apply a saved view…</option>{views.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
+        <Input label="Save these filters as" maxLength={60} value={viewName} onChange={(event) => setViewName(event.target.value)} />
+        <Button type="button" variant="secondary" size="sm" disabled={!viewName.trim()} onClick={saveView}>Save view</Button>
+        {views.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={async () => setViews((await authService.deleteSavedView(views[views.length - 1].id)).views)}>Delete the last saved view</Button>}
+      </div>
+      {selected.length > 0 && (
+        <div className="sup-bulk" role="region" aria-label="Bulk actions">
+          <strong>{selected.length} selected</strong>
+          <Select label="Action" value={bulk.action} onChange={(event) => setBulk({ action: event.target.value, value: "" })}><option value="">Choose…</option><option value="assign">Assign to</option><option value="priority">Change priority</option><option value="transition">Change status</option></Select>
+          {bulk.action === 'assign' && <Select label="Person" value={bulk.value} onChange={(event) => setBulk({ ...bulk, value: event.target.value })}><option value="">Choose…</option>{people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Select>}
+          {bulk.action === 'priority' && <Select label="Priority" value={bulk.value} onChange={(event) => setBulk({ ...bulk, value: event.target.value })}><option value="">Choose…</option>{PRIORITY_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>}
+          {bulk.action === 'transition' && <Select label="New status" value={bulk.value} onChange={(event) => setBulk({ ...bulk, value: event.target.value })}><option value="">Choose…</option>{['triage', 'assigned', 'in_progress', 'qa'].map((value) => <option key={value} value={value}>{LIFECYCLE_STATUSES.find((item) => item.value === value)?.label}</option>)}</Select>}
+          <Button type="button" disabled={!bulk.action || !bulk.value} onClick={runBulk}>Apply to {selected.length}</Button>
+          <Button type="button" variant="ghost" onClick={() => setSelected([])}>Clear</Button>
+        </div>
+      )}
+      {bulkResult && <p className="ui-field-help" role="status">{bulkResult.error ?? `Done for ${bulkResult.done} of ${bulkResult.results.length}.`}{bulkResult.results.filter((item) => !item.ok).map((item) => `${item.ref}: ${item.error}.`).join(' ')}</p>}
       {moveError && <p className="ui-field-error" role="alert">{moveError}</p>}
       {error && <Button type="button" variant="secondary" onClick={reload}>Try again</Button>}
       {isLoading && !data
@@ -82,10 +131,11 @@ export function StaffQueuePage() {
           : (
             <div className="sup-table-scroll"><table className="sup-queue">
               <caption className="visually-hidden">Tickets</caption>
-              <thead><tr><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Agency</th><th scope="col">Type</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">SLA</th><th scope="col">Owner</th><th scope="col">Updated</th></tr></thead>
+              <thead><tr><th scope="col"><span className="visually-hidden">Select</span></th><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Agency</th><th scope="col">Type</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">SLA</th><th scope="col">Owner</th><th scope="col">Updated</th></tr></thead>
               <tbody>
                 {tickets.map((ticket) => (
                   <tr key={ticket.id} className={ticket.priority === 'urgent' ? 'is-critical' : undefined}>
+                    <td><input type="checkbox" aria-label={`Select ${ticket.ref}`} checked={selected.includes(ticket.ref)} disabled={ticket.is_legacy} onChange={() => toggle(ticket.ref)} /></td>
                     <td><Link className="sup-ref" to={`/staff/tickets/${ticket.ref}`}>{ticket.ref}</Link></td>
                     <td><Link className="sup-row-title" to={`/staff/tickets/${ticket.ref}`}>{ticket.title}</Link>{ticket.secret_flagged && <span title="Possible password or key in the text"> <Icon name="shield" size={14} /></span>}</td>
                     <td>{ticket.agency?.name}{ticket.end_client && <><br /><span className="ui-field-help">{ticket.end_client.name}</span></>}</td>
