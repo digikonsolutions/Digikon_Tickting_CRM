@@ -1,0 +1,19 @@
+/* Review package and review thread (rp- prefix). */
+.rp-panel { display: grid; gap: var(--space-4); }
+.rp-list, .rp-reviews { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.rp-submission { border: 1px solid var(--color-border); border-radius: var(--radius-control); padding: var(--space-3); display: grid; gap: var(--space-2); }
+.rp-submission header { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.rp-submission header small { color: var(--color-text-soft); }
+.rp-submission dl { display: grid; gap: .5rem; margin: 0; }
+.rp-submission dl > div { display: grid; grid-template-columns: minmax(8rem, 11rem) 1fr; gap: var(--space-2); font-size: var(--text-sm); }
+.rp-submission dt { color: var(--color-text-soft); }
+.rp-submission dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.rp-submission dd ul { margin: 0; padding-left: 1rem; white-space: normal; }
+.rp-reviews { border-top: 1px dashed var(--color-border); padding-top: var(--space-2); }
+.rp-review p { margin: 0; font-size: var(--text-sm); }
+.rp-feedback { margin-top: .25rem !important; padding-left: .5rem; border-left: 3px solid var(--color-border-strong); white-space: pre-wrap; }
+.rp-form { border: 1px solid var(--brand); border-radius: var(--radius-control); padding: var(--space-3); }
+.rp-form h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.rp-choice { border: 0; padding: 0; margin: 0 0 var(--space-2); display: grid; gap: .25rem; }
+.rp-choice label { display: flex; gap: .5rem; align-items: center; }
+@media (max-width: 40rem) { .rp-submission dl > div { grid-template-columns: 1fr; } }

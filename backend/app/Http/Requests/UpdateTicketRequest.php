@@ -18,6 +18,11 @@ class UpdateTicketRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->inheritServiceType();
+    }
+
     public function rules(): array
     {
         $ticket = $this->route('ticket');
@@ -25,6 +30,7 @@ class UpdateTicketRequest extends FormRequest
         return [
             ...$this->ticketBriefRules($ticket?->work_item_id, $ticket?->id),
             ...$this->serviceDetailsRules('ticket', $ticket?->service_type, creating: false),
+            ...$this->projectServiceRules($ticket?->work_item_id),
             ...TicketWorkOrder::rules('work_order', $ticket?->work_item_id, $ticket?->id),
             ...TicketWorkOrder::agencyProhibited(),
             'title' => ['sometimes', 'required', 'string', 'max:160'],

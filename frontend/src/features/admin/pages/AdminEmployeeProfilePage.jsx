@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
+import { AdminFeedbackPanel } from '../../feedback'
 import { Alert, Avatar, Badge, Button, Card, FormActions, Modal, PageHeader, Skeleton, Tabs, useToast } from '../../../components/ui'
 import { AccountPanel, EmploymentPanel, PersonalPanel, ProfessionalPanel } from '../employee/EmployeeFormPanels'
 import { SavedDocuments } from '../employee/DocumentsPanel'
@@ -12,8 +13,8 @@ import {
 } from '../employee/employeeForm'
 import '../employee/employee.css'
 
-const TAB_IDS = ['account', 'personal', 'professional', 'employment', 'documents']
-const TAB_LABELS = { account: 'Account', personal: 'Personal', professional: 'Professional', employment: 'Employment', documents: 'Documents' }
+const TAB_IDS = ['account', 'personal', 'professional', 'employment', 'documents', 'feedback']
+const TAB_LABELS = { account: 'Account', personal: 'Personal', professional: 'Professional', employment: 'Employment', documents: 'Documents', feedback: 'Feedback' }
 const REVEAL_SECONDS = 30
 
 export function AdminEmployeeProfilePage() {
@@ -204,6 +205,7 @@ function ProfileEditor({ initial }) {
             {tab === 'personal' && <PersonalPanel {...panelProps} onReveal={() => setReveal({ stage: 'confirm' })} />}
             {tab === 'professional' && <ProfessionalPanel {...panelProps} />}
             {tab === 'employment' && <EmploymentPanel {...panelProps} />}
+            {tab === 'feedback' && <AdminFeedbackPanel employeeId={employee.id} employeeName={employee.name} />}
             {tab === 'documents' && (
               <SavedDocuments
                 employeeId={employee.id}

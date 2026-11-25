@@ -21,6 +21,7 @@ import {
 } from '../features/admin'
 import {
   AgencyBrandingPage,
+  AgencyProjectCreatePage,
   AgencyProjectsPage,
   AgencyDirectoryPage,
   AgencyEmployeePage,
@@ -36,6 +37,7 @@ import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeli
 import { AdminHistoryPage } from '../features/history'
 import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
+import { MyFeedbackPage } from '../features/feedback'
 import { AgencyRecurringPage, AgencySupportHelpPage, AgencySupportDetailPage, AgencySupportListPage, AgencySupportNewPage, StaffQueuePage, StaffReportsPage, StaffSettingsPage, StaffTicketPage, StaffWorkloadPage } from '../features/support'
 import { AdminReportsPage, AgencyReportsPage } from '../features/reports'
 import {
@@ -127,6 +129,7 @@ export function AppRoutes() {
               <Route path="time" element={<TimePage />} />
             </Route>
             <Route path="/my-work/timeline/:id" element={<TimelineReviewPage />} />
+            <Route path="/my-feedback" element={<MyFeedbackPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_MEMBER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/dashboard" element={<AgencyDashboard />} />
@@ -143,6 +146,7 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/reports" element={<AgencyReportsPage />} />
             <Route path="/agency/projects" element={<AgencyProjectsPage />} />
+            <Route path="/agency/projects/new" element={<AgencyProjectCreatePage />} />
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/agency/tickets" element={<AgencyTicketsPage />} />
             <Route path="/agency/support" element={<AgencySupportListPage />} />

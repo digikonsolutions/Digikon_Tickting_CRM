@@ -3,7 +3,7 @@ import { Input, Select, Textarea } from '../../components/ui'
 import { fieldsFor, typeOf } from './serviceCatalog'
 
 // One answer, drawn by its type: a choice, several choices, a link, or a short line of text.
-function Answer({ field, value, error, onChange, idPrefix }) {
+export function Answer({ field, value, error, onChange, idPrefix }) {
   const id = `${idPrefix}-${field.key}`
   if (field.type === 'select') {
     return (

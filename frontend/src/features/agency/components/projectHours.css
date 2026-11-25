@@ -1,0 +1,19 @@
+/* Project hours panel (ph- prefix). */
+.ph-bar { position: relative; height: .625rem; border-radius: 999px; background: var(--color-border); overflow: hidden; margin-bottom: var(--space-3); }
+.ph-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--brand-soft); border-right: 2px solid var(--brand); }
+.ph-bar-logged { position: absolute; inset: 0 auto 0 0; background: var(--brand); opacity: .85; }
+.ph-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-3); margin: 0 0 var(--space-3); }
+.ph-figures div { display: grid; gap: .125rem; }
+.ph-figures dt { font-size: var(--text-xs); color: var(--color-text-soft); }
+.ph-figures dd { margin: 0; font-size: var(--text-lg); font-weight: 700; }
+.ph-none { color: var(--color-danger, #b42318); }
+.ph-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); margin-top: var(--space-3); }
+.ph-table caption { text-align: left; font-weight: 700; padding-bottom: var(--space-2); }
+.ph-table th, .ph-table td { text-align: left; padding: .5rem; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+.ph-table thead th { font-size: var(--text-xs); color: var(--color-text-soft); font-weight: 600; }
+.ph-table tbody th { font-weight: 500; }
+.ph-key { font-weight: 700; margin-right: .25rem; }
+.ph-muted { color: var(--color-text-soft); }
+.tk-service-answers { margin: var(--space-2) 0; }
+.tk-service-answers summary { cursor: pointer; font-size: var(--text-sm); color: var(--brand-hover); }
+@media (max-width: 40rem) { .ph-table { display: block; overflow-x: auto; } }

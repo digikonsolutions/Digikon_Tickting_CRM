@@ -281,6 +281,9 @@ Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->whereNumber('
     // Internal notes (visible to administrators and the assigned employee only).
     Route::patch('/projects/{workItem}/brief/internal-notes', [ProjectBriefController::class, 'updateInternalNotes']);
     Route::patch('/tickets/{ticket}/internal-notes', [TicketDetailsController::class, 'updateInternalNotes'])->whereNumber('ticket');
+    // Ticket hours: change one ticket's hours, or move hours between two tickets of a project (a reason is required).
+    Route::patch('/tickets/{ticket}/hours', [\App\Http\Controllers\AdminTicketHoursController::class, 'update'])->whereNumber('ticket')->middleware('throttle:work-order');
+    Route::post('/projects/{workItem}/hours/move', [\App\Http\Controllers\AdminTicketHoursController::class, 'move'])->middleware('throttle:work-order');
 });
 Route::middleware(['web', 'auth', 'role:employee'])->prefix('work-items')->whereNumber('workItem')->group(function () {
     Route::get('/awaiting-timeline', [TimelineController::class, 'employeeAwaiting']);
@@ -364,6 +367,10 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth']);
     Route::post('/tickets/{ticket}/transitions', [TicketController::class, 'transition'])
         ->middleware(['auth']);
+    // Review package (employee), the two reviews (our admin, then the agency) and the thread of both.
+    Route::get('/tickets/{ticket}/submissions', [\App\Http\Controllers\TicketReviewController::class, 'index'])->whereNumber('ticket')->middleware(['auth']);
+    Route::post('/tickets/{ticket}/submissions', [\App\Http\Controllers\TicketReviewController::class, 'submit'])->whereNumber('ticket')->middleware(['auth', 'role:employee', 'throttle:work-order']);
+    Route::post('/tickets/{ticket}/reviews', [\App\Http\Controllers\TicketReviewController::class, 'review'])->whereNumber('ticket')->middleware(['auth', 'role:admin,agency_owner,agency_client', 'throttle:work-order']);
     Route::get('/tickets/{ticket}/attachments', [AttachmentController::class, 'index'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::post('/tickets/{ticket}/links', [AttachmentController::class, 'storeLink'])->whereNumber('ticket')
@@ -444,6 +451,24 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
     Route::delete('/project-attachments/{attachment}', [ProjectAttachmentController::class, 'destroy'])
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member,employee,admin']);
+});
+
+// Employee feedback: the agency owner writes (and edits for a few days), clients read, the employee reads and replies once, admins read and may remove.
+Route::middleware(['web', 'auth', 'role:agency_owner,agency_client', 'agency.active'])->prefix('agency')->group(function () {
+    Route::get('/feedback/form', [\App\Http\Controllers\EmployeeFeedbackController::class, 'form']);
+    Route::get('/feedback/summary', [\App\Http\Controllers\EmployeeFeedbackController::class, 'agencySummary']);
+    Route::get('/employees/{employee}/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'agencyIndex'])->whereNumber('employee');
+    Route::post('/employees/{employee}/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'store'])->whereNumber('employee')->middleware(['role:agency_owner', 'throttle:work-order']);
+    Route::patch('/feedback/{id}', [\App\Http\Controllers\EmployeeFeedbackController::class, 'update'])->whereNumber('id')->middleware(['role:agency_owner', 'throttle:work-order']);
+});
+Route::middleware(['web', 'auth', 'role:employee'])->prefix('my')->group(function () {
+    Route::get('/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'mine']);
+    Route::post('/feedback/{id}/reply', [\App\Http\Controllers\EmployeeFeedbackController::class, 'reply'])->whereNumber('id')->middleware('throttle:work-order');
+});
+Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/feedback/summary', [\App\Http\Controllers\EmployeeFeedbackController::class, 'adminSummary']);
+    Route::get('/employees/{id}/feedback', [\App\Http\Controllers\EmployeeFeedbackController::class, 'adminShow'])->whereNumber('id');
+    Route::delete('/feedback/{id}', [\App\Http\Controllers\EmployeeFeedbackController::class, 'remove'])->whereNumber('id')->middleware('throttle:work-order');
 });
 
 // The in-app assistant: role-specific preset questions answered from the database (every role).

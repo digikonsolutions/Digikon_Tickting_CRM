@@ -30,7 +30,9 @@ const SIDE_STATES = {
 }
 
 export function StatusStepper({ status, className = '' }) {
-  const currentStatus = String(status ?? 'todo').toLowerCase()
+  // Our own check sits on the review step.
+  const raw = String(status ?? 'todo').toLowerCase()
+  const currentStatus = raw === 'in_internal_review' ? 'in_review' : raw
   const sideState = SIDE_STATES[currentStatus]
 
   const activeIndex = sideState

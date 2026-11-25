@@ -32,6 +32,7 @@ class Ticket extends Model
         'due_preference',
         'related_ticket_ids',
         'service_type',
+        'project_service_id',
         'details',
         'kind', 'ref', 'type', 'end_client_id', 'related_project_id', 'service', 'submitted_by_id', 'assigned_to_id', 'assigned_team', 'reviewer_id',
         'requested_deadline', 'impact', 'issue_started_at', 'scope_classification', 'billing_status', 'waiting_reason', 'waiting_kind', 'follow_up_date',
@@ -94,6 +95,11 @@ class Ticket extends Model
                 return ($prefix && $this->number) ? "{$prefix}-{$this->number}" : null;
             }
         );
+    }
+
+    public function projectService(): BelongsTo
+    {
+        return $this->belongsTo(ProjectService::class);
     }
 
     public function agency(): BelongsTo

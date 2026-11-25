@@ -100,6 +100,7 @@ class TicketController extends Controller
             'estimated_hours' => $input['estimated_hours'] ?? $ticket->estimated_hours,
             'priority' => $ticket->priority,
             'service_type' => $ticket->service_type,
+            'project_service_id' => $ticket->project_service_id,
             'details' => $ticket->details,
         ], $details->copyOrder($ticket), $planner, $recorder);
     }
@@ -409,7 +410,7 @@ class TicketController extends Controller
                 } elseif ($waitingOn === 'employee') {
                     $query->whereIn('status', ['todo', 'in_progress', 'changes_requested']);
                 } elseif ($waitingOn === 'team') {
-                    $query->where('status', 'blocked');
+                    $query->whereIn('status', ['blocked', 'in_internal_review']);
                 }
             })
             ->when($filters['search'] ?? null, function ($query, $search): void {
@@ -476,7 +477,7 @@ class TicketController extends Controller
                 ->when(! $isOwner, fn ($q) => $q->where('client_id', $user->id))
                 ->when(($filters['project_id'] ?? null) !== null, fn ($q) => $q->whereKey($filters['project_id']))
                 ->when($isOwner && ($filters['client_id'] ?? null) !== null, fn ($q) => $q->where('client_id', $filters['client_id'])))
-            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['status'] ?? null, fn ($query, $status) => $status === 'in_progress' ? $query->whereIn('status', ['in_progress', 'in_internal_review']) : $query->where('status', $status))
             ->when($filters['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
             ->when(($filters['waiting'] ?? null) === 'you', fn ($query) => $query->whereIn('status', ['in_review', 'waiting_on_client']))
             ->when($search !== '', function ($query) use ($search): void {
@@ -899,7 +900,7 @@ class TicketController extends Controller
      */
     private function ticketPayload(Ticket $ticket, ?User $viewer = null): array
     {
-        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent', 'pendingHoursRequest']);
+        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent', 'pendingHoursRequest', 'projectService']);
 
         $loggedMinutes = array_key_exists('logged_minutes', $ticket->getAttributes())
             ? (int) $ticket->logged_minutes
@@ -910,7 +911,7 @@ class TicketController extends Controller
         $waitingOn = match ($ticket->status) {
             'in_review', 'waiting_on_client' => 'client',
             'todo', 'in_progress', 'changes_requested' => 'employee',
-            'blocked' => 'team',
+            'blocked', 'in_internal_review' => 'team',
             default => null,
         };
 
@@ -941,6 +942,9 @@ class TicketController extends Controller
             'estimated_hours' => $ticket->estimated_hours,
             'priority' => $ticket->priority,
             'service_type' => $ticket->service_type,
+            'project_service_id' => $ticket->project_service_id,
+            'service' => $ticket->projectService ? ['id' => $ticket->projectService->id, 'key' => $ticket->projectService->service_key, 'label' => $ticket->projectService->label()] : null,
+            'remaining_hours' => round(max(0, (float) $ticket->estimated_hours - TimeTracker::hours($loggedMinutes)), 2),
             'details' => $ticket->details,
             'details_summary' => app(TicketDetailsService::class)->summary($ticket),
             'brief' => [
@@ -953,7 +957,9 @@ class TicketController extends Controller
                 'due_preference' => $ticket->due_preference,
                 'related_ticket_ids' => $ticket->related_ticket_ids ?? [],
             ],
-            'status' => $ticket->status,
+            // The agency does not see our own check: to them the ticket is still being worked on.
+            'status' => $ticket->status === 'in_internal_review' && $viewer?->role?->isAgencyRole() ? 'in_progress' : $ticket->status,
+            'in_internal_review' => $ticket->status === 'in_internal_review',
             'timeline_status' => $ticket->timeline_status,
             'position' => $ticket->position,
             'start_date' => $ticket->start_date?->toDateString(),

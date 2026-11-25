@@ -5,6 +5,7 @@ import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Alert, FieldRow, FormActions, FormSection, Input, Modal, Select, Textarea } from '../../../components/ui'
 import { BRIEF_LIMITS, FilePicker, readTicketBrief, TicketBriefFields, uploadErrorMessage } from '../../briefs'
 import { PRIORITIES } from '../../briefs/briefData'
+import { ProjectServicesView } from './projectCreate/ProjectServicesView'
 import { ServiceFields } from '../../services/ServiceFields'
 import { buildFromAnswers, cleanDetails, typeOf } from '../../services/serviceCatalog'
 import { WorkOrderFields, WorkTypeField } from '../../workorder/WorkOrderFields'
@@ -21,6 +22,9 @@ export function TicketForm({ project, tickets = [], ticket, onClose, onSaved }) 
   const loadCatalog = useCallback(() => authService.getServiceCatalog(), [])
   const catalog = useAsync(loadCatalog).data
   const [service, setService] = useState({ serviceType: ticket?.service_type ?? null, details: ticket?.details ?? {} })
+  const projectServices = project?.services ?? []
+  const [serviceId, setServiceId] = useState(ticket?.project_service_id ? String(ticket.project_service_id) : '')
+  const chosenService = projectServices.find((item) => String(item.id) === serviceId)
   const [text, setText] = useState({ title: ticket?.title ?? '', description: ticket?.description ?? '' })
   const [touched, setTouched] = useState({ title: editing, description: editing })
   const [files, setFiles] = useState([])
@@ -41,6 +45,12 @@ export function TicketForm({ project, tickets = [], ticket, onClose, onSaved }) 
     const written = buildFromAnswers(typeOf(catalog, next.serviceType), next.details, 'ticket')
     setText((current) => ({ title: touched.title ? current.title : written.title, description: touched.description ? current.description : written.description }))
   }
+  // Choosing one of the project's services also picks that service's light questions below.
+  function chooseProjectService(value) {
+    setServiceId(value)
+    const picked = projectServices.find((item) => String(item.id) === value)
+    changeService({ serviceType: picked ? picked.key : service.serviceType, details: {} })
+  }
   const serviceError = (key) => error?.errors?.[key === 'service_type' ? key : `details.${key}`]?.[0]
 
   async function submit(event) {
@@ -55,6 +65,9 @@ export function TicketForm({ project, tickets = [], ticket, onClose, onSaved }) 
       ...readTicketBrief(formData),
     }
     const cleaned = cleanDetails(ticketType, service.details, 'ticket')
+    // The link only counts while the chosen type still matches that service.
+    const linkedId = chosenService && chosenService.key === service.serviceType ? chosenService.id : null
+    if (!editing ? linkedId : linkedId !== (ticket.project_service_id ?? null)) payload.project_service_id = linkedId
     if (!editing || service.serviceType !== (ticket.service_type ?? null)) payload.service_type = service.serviceType
     if (!editing || JSON.stringify(cleaned) !== JSON.stringify(ticket.details ?? null)) payload.details = cleaned
     const order = details.payload({ replaceAll: details.hadOrder })
@@ -80,6 +93,18 @@ export function TicketForm({ project, tickets = [], ticket, onClose, onSaved }) 
     <Modal open onClose={() => !saving && onClose()} title={editing ? 'Edit ticket' : 'Create ticket'} className="client-modal tk-modal" footer={null}>
       <form id={FORM_ID} className="ui-form" onSubmit={submit} noValidate>
         <FormSection title="What is this about?" description="Optional. Pick a service to get a few quick questions; the title and description are written for you.">
+          {projectServices.length > 0 && (
+            <>
+              <Select label="Which service of this project is it for?" value={serviceId} onChange={(event) => chooseProjectService(event.target.value)} error={error?.errors?.project_service_id?.[0]}
+                helperText="The project's own answers for it stay on the project page; here you only add what is new.">
+                <option value="">General project work</option>
+                {projectServices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </Select>
+              {chosenService && (chosenService.answers > 0 || chosenService.details) && (
+                <details className="tk-service-answers"><summary>What the project says about {chosenService.label}</summary><ProjectServicesView services={[chosenService]} /></details>
+              )}
+            </>
+          )}
           <ServiceFields catalog={catalog} scope="ticket" serviceType={service.serviceType} details={service.details} onChange={changeService} errors={serviceError} />
         </FormSection>
         <FormSection title="Basics">

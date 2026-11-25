@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/useAuth'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
@@ -30,7 +30,8 @@ export function AgencyProjectsPage({ viewAs }) {
   const mine = isClient && params.get('mine') === '1'
   const page = Math.max(1, Number(params.get('page')) || 1)
   const [searchInput, setSearchInput] = useState(search)
-  const [form, setForm] = useState({ open: params.get('new') === '1', project: null })
+  const navigate = useNavigate()
+  const [form, setForm] = useState({ open: false, project: null })
   const [opening, setOpening] = useState(false)
   const [openError, setOpenError] = useState(null)
   const [rush, setRush] = useState(null)
@@ -89,13 +90,16 @@ export function AgencyProjectsPage({ viewAs }) {
     else projectsState.reload()
   }
 
+  // Old links ("?new=1") open the full new-project page.
+  if (params.get('new') === '1') return <Navigate to="/agency/projects/new" replace />
+
   return (
     <section className="page agency-projects-page">
       <PageHeader
         eyebrow="Agency workspace"
         title="Projects"
         subtitle={isClient ? 'Everything your agency is working on. Switch to "Created by me" to see only your own requests.' : 'Select a project to see its tickets, hours and files.'}
-        action={<Button type="button" onClick={() => setForm({ open: true, project: null })}>Create project</Button>}
+        action={<Button type="button" onClick={() => navigate('/agency/projects/new')}>Create project</Button>}
       />
       <ApiErrorMessage error={openError} />
       <div className="client-filters" role="search">

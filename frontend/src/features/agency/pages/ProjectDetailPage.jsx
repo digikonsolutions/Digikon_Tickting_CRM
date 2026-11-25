@@ -12,11 +12,14 @@ import { WaitingChip } from '../../tickets'
 import { ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief } from '../../briefs'
 import { ActivityTimeline } from '../../activity'
 import { TimelinePanel } from '../../timeline'
+import { ProjectServicesView } from '../components/projectCreate/ProjectServicesView'
 import { BriefForm } from '../../workorder/BriefForm'
 import { GhlBriefView } from '../../workorder/BriefView'
 import { useProjectBrief } from '../../workorder/useProjectBrief'
 import { WorkOrderBadges } from '../../workorder/WorkOrderView'
 import { TicketForm } from '../components/TicketForm'
+import { ProjectHoursPanel } from '../components/ProjectHoursPanel'
+import { ProjectEmployee } from '../components/ProjectEmployee'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 
 
@@ -236,10 +239,7 @@ export function ProjectDetailPage() {
               <div>
                 <dt>Employee</dt>
                 <dd>
-                  {project.employee?.name ?? '—'}
-                  {project.employee && (
-                    <button type="button" className="project-profile-link" onClick={() => setProfileId(project.employee.id)}>View profile</button>
-                  )}
+                  <ProjectEmployee employee={project.employee} onProfile={() => setProfileId(project.employee.id)} feedbackTo={isOwner && project.assignment_id ? `/agency/employees/${project.assignment_id}?tab=feedback` : null} />
                 </dd>
               </div>
               <div><dt>Estimated hours</dt><dd>{Number(project.estimated_hours) > 0 ? formatHours(project.estimated_hours) : 'Not given'}</dd></div>
@@ -258,6 +258,8 @@ export function ProjectDetailPage() {
           </div>
         </div>
       </Card>
+      <ProjectServicesView services={project.services} />
+      <ProjectHoursPanel hours={project.hours} />
       <ProjectBriefView brief={project.brief} />
       {(project.ghl_brief || canEdit) && (
         <Card title="GoHighLevel brief" description="Give this once; every ticket starts from it." header={(

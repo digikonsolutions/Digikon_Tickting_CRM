@@ -40,6 +40,7 @@ export function AdminTimelineReviewsPage() {
   const columns = [
     { key: 'title', label: 'Project', render: (title, row) => <><Link to={`/admin/timeline-reviews/${row.id}`}>{title}</Link>{row.priority_urgent && <> <Badge variant="danger">Urgent</Badge></>}{row.awaiting_schedule && <small className="ui-muted"> No days planned yet</small>}</> },
     { key: 'agency_name', label: 'Agency' },
+    { key: 'services', label: 'Services', render: (services) => (services?.length ? <span className="tl-service-chips">{services.slice(0, 3).map((label) => <Badge key={label} variant="info">{label}</Badge>)}{services.length > 3 && <small className="ui-muted"> +{services.length - 3} more</small>}</span> : <span className="ui-muted">—</span>) },
     { key: 'requester', label: 'Requested by', render: (requester) => requester ? <span className="tl-requester"><strong>{requester.name}</strong><small>{requester.is_reply ? `${requesterLabel(requester)} reply` : requesterLabel(requester)}</small></span> : <span className="ui-muted">System update</span> },
     { key: 'employee_name', label: 'Employee', render: (value) => value ?? '—' },
     { key: 'estimated_hours', label: 'Proposed hours', render: (value) => hrs(value) },

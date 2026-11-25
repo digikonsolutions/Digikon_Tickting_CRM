@@ -32,6 +32,8 @@ class StoreWorkItemRequest extends FormRequest
         return [
             ...$this->projectBriefRules(),
             ...$this->serviceDetailsRules('project'),
+            // Several services, each with its own answers. A request that sends only service_type and details still works.
+            ...\App\Support\ServiceCatalog::servicesRules($this->input('services')),
             ...GhlBrief::rules(),
             ...GhlBrief::agencyProhibited(),
             'title' => ['required', 'string', 'max:160'],

@@ -18,6 +18,11 @@ class StoreTicketRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->inheritServiceType();
+    }
+
     public function rules(): array
     {
         $project = $this->route('workItem');
@@ -25,6 +30,7 @@ class StoreTicketRequest extends FormRequest
         return [
             ...$this->ticketBriefRules($project?->id),
             ...$this->serviceDetailsRules('ticket'),
+            ...$this->projectServiceRules($project?->id),
             ...TicketWorkOrder::rules('work_order', $project?->id),
             ...TicketWorkOrder::agencyProhibited(),
             'title' => ['required', 'string', 'max:160'],

@@ -1,0 +1,6 @@
+.pe-card { display: flex; gap: var(--space-3); align-items: flex-start; }
+.pe-body { display: grid; gap: .25rem; min-width: 0; }
+.pe-name { font-size: var(--text-md); }
+.pe-title { color: var(--color-text-soft); font-size: var(--text-sm); }
+.pe-skills { list-style: none; margin: .25rem 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
+.pe-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .25rem; }

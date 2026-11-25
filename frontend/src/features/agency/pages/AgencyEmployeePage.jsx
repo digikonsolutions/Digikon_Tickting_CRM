@@ -9,6 +9,7 @@ import { addDays, formatDate, formatDateRange, formatShortDate, mondayOf, toDate
 import { QueueCard } from '../../queue/components/QueueCard'
 import { RushRequestModal } from '../../queue/components/RushRequestModal'
 import { plannedRange } from '../../queue/queueFormat'
+import { AgencyFeedbackPanel } from '../../feedback'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import '../../queue/queue.css'
@@ -22,7 +23,7 @@ export function AgencyEmployeePage() {
   const { showToast } = useToast()
   const [params, setParams] = useSearchParams()
   const requested = params.get('tab')
-  const tab = ['queue', 'schedule', 'profile', 'activity'].includes(requested) && (requested !== 'activity' || isOwner) ? requested : 'overview'
+  const tab = ['queue', 'schedule', 'profile', 'feedback', 'activity'].includes(requested) && (requested !== 'activity' || isOwner) ? requested : 'overview'
   const [week, setWeek] = useState(() => toDateStr(mondayOf()))
   const [taskForm, setTaskForm] = useState(false)
   const [rush, setRush] = useState(false)
@@ -41,6 +42,7 @@ export function AgencyEmployeePage() {
     { id: 'queue', label: 'Queue', count: data?.queue.up_next?.length ?? undefined },
     { id: 'schedule', label: 'Schedule' },
     { id: 'profile', label: 'Profile' },
+    { id: 'feedback', label: 'Feedback' },
     ...(isOwner ? [{ id: 'activity', label: 'Activity' }] : []),
   ]
   const setTab = (id) => setParams(id === 'overview' ? {} : { tab: id }, { replace: true })
@@ -163,6 +165,8 @@ export function AgencyEmployeePage() {
             </div>
           </Card>
         )}
+
+        {tab === 'feedback' && <AgencyFeedbackPanel employeeId={employee.id} employeeName={employee.name} />}
 
         {tab === 'activity' && isOwner && (
           <Card title="Work activity" description="When this employee worked, and on what.">

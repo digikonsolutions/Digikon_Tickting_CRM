@@ -92,6 +92,7 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/my-work/requests', label: 'Requests', icon: 'chat', section: 'My work' },
     { to: '/my-work/week', label: 'Week', icon: 'calendar', section: 'My work' },
     { to: '/my-work/time', label: 'Time', icon: 'clock', section: 'My work' },
+    { to: '/my-feedback', label: 'My feedback', icon: 'chat', section: 'My work' },
   ],
   [ROLES.AGENCY_OWNER]: agencyNav(ROLES.AGENCY_OWNER),
   [ROLES.AGENCY_MEMBER]: [
@@ -164,6 +165,8 @@ export function AppLayout() {
       ? 'Employee activity'
       : /^\/agency\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
+      : location.pathname === '/agency/projects/new'
+      ? 'New project'
       : /^\/(agency\/support|staff\/tickets)\/[A-Za-z]+-\d+$/.test(location.pathname)
       ? 'Ticket'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/') || location.pathname.startsWith('/my-work/projects/')

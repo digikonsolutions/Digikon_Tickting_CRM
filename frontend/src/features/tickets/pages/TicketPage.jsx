@@ -12,6 +12,7 @@ import { getAgencyLabels } from '../../../lib/labels'
 import { getWaitingLabel } from '../../../lib/ticketStatus'
 import { FilesTab } from '../components/FilesTab'
 import { HoursRequestPanel } from '../components/HoursRequestPanel'
+import { ReviewPanel, SubmitPackageDialog } from '../components/ReviewPanel'
 import { TicketBriefView } from '../../briefs'
 import { GhlBriefView } from '../../workorder/BriefView'
 import { WorkOrderBadges, WorkOrderPanel } from '../../workorder/WorkOrderView'
@@ -20,6 +21,7 @@ import { TimeProgress, TimeTab, TimerButton, useTimerChanged } from '../../time'
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'activity', label: 'Activity' },
+  { id: 'review', label: 'Review' },
   { id: 'files', label: 'Files' },
   { id: 'time', label: 'Time' },
   { id: 'schedule', label: 'Schedule' },
@@ -47,6 +49,8 @@ function describeBanner(ticket, role) {
   const hasActions = ticket.allowed_actions.length > 0
   if (hasActions) {
     switch (ticket.status) {
+      case 'in_internal_review':
+        return { title: `${ticket.key} is waiting for our review`, body: 'Check the package on the Review tab, then approve it for the agency or send it back.', variant: 'warning' }
       case 'in_review':
         return { title: `${ticket.key} is waiting for your review`, body: 'Approve it if it looks right, or tell us what should change.', variant: 'warning' }
       case 'waiting_on_client':
@@ -96,7 +100,9 @@ function ActionDialog({ ticket, action, onClose, onDone }) {
     setIsSending(true)
     setError(null)
     try {
-      await authService.transitionTicket(ticket.id, action.action, comment.trim())
+      // The agency's decision is kept as a review of the latest package; every other action is a plain step.
+      if (action.action === 'request_changes') await authService.reviewTicket(ticket.id, { stage: 'agency', decision: 'changes_requested', feedback: comment.trim() })
+      else await authService.transitionTicket(ticket.id, action.action, comment.trim())
       await onDone(action)
     } catch (reason) {
       setError(reason)
@@ -182,6 +188,7 @@ export function TicketPage() {
   const [version, setVersion] = useState(0)
   const [busyAction, setBusyAction] = useState(null)
   const [dialogAction, setDialogAction] = useState(null)
+  const [packageOpen, setPackageOpen] = useState(false)
   const [actionError, setActionError] = useState(null)
   const load = useCallback(() => authService.getTicketByKey(key), [key])
   const { data, error, isLoading, reload } = useAsync(load)
@@ -227,8 +234,18 @@ export function TicketPage() {
   const banner = describeBanner(ticket, user.role)
   const waitingLabel = getWaitingLabel(ticket.waiting_on, user.role)
   const isAssignedEmployee = user.role === 'employee' && project.employee?.id === user.id
+  const isAgencyUser = user.role === 'agency_owner' || user.role === 'agency_client'
 
   async function runAction(action) {
+    // Sending for review always comes with a review package; our own review happens on the Review tab.
+    if (action.action === 'send_to_review') {
+      setPackageOpen(true)
+      return
+    }
+    if (action.action === 'internal_review') {
+      setTab('review')
+      return
+    }
     if (action.requires_comment) {
       setDialogAction(action)
       return
@@ -236,7 +253,8 @@ export function TicketPage() {
     setBusyAction(action.action)
     setActionError(null)
     try {
-      await authService.transitionTicket(ticket.id, action.action)
+      if (action.action === 'approve' && isAgencyUser) await authService.reviewTicket(ticket.id, { stage: 'agency', decision: 'approved' })
+      else await authService.transitionTicket(ticket.id, action.action)
       showToast(`${ticket.key}: ${action.label.toLowerCase()} done.`)
       await refresh()
     } catch (reason) {
@@ -332,6 +350,7 @@ export function TicketPage() {
                 {project.ghl_brief && <details className="tk-context"><summary>Project brief</summary><GhlBriefView brief={project.ghl_brief} /></details>}
               </div>
             )}
+            {tab === 'review' && <ReviewPanel key={version} ticket={ticket} role={user.role} onChanged={refresh} />}
             {tab === 'activity' && <TicketActivity key={version} ticket={ticket} role={user.role} onPosted={commentPosted} />}
             {tab === 'files' && <FilesTab ticket={ticket} readOnly={['done', 'cancelled'].includes(ticket.status)} onChanged={() => setVersion((value) => value + 1)} />}
             {tab === 'time' && <TimeTab ticket={ticket} role={user.role} isAssignedEmployee={isAssignedEmployee} version={version} onChanged={refresh} />}
@@ -364,6 +383,7 @@ export function TicketPage() {
         </aside>
       </div>
 
+      {packageOpen && <SubmitPackageDialog ticket={ticket} onClose={() => setPackageOpen(false)} onDone={async () => { setPackageOpen(false); showToast('Sent for review.'); await refresh() }} />}
       {dialogAction && (
         <ActionDialog ticket={ticket} action={dialogAction} onClose={() => setDialogAction(null)} onDone={dialogDone} />
       )}

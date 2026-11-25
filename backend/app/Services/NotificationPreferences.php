@@ -68,6 +68,12 @@ class NotificationPreferences
             'email_default' => true,
             'locked' => false,
         ],
+        'feedback' => [
+            'label' => 'Feedback',
+            'description' => 'Feedback about an employee, and the employee reply.',
+            'email_default' => false,
+            'locked' => false,
+        ],
         'reminder' => [
             'label' => 'Work reminders',
             'description' => 'Work that should start today, and deadlines that are close or missed.',

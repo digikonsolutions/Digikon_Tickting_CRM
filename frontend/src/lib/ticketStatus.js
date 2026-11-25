@@ -6,6 +6,7 @@ import { isAgencyRole } from '../auth/roles'
 export const TICKET_STATUSES = Object.freeze({
   todo: { label: 'To do', variant: 'slate', stepIndex: 0 },
   in_progress: { label: 'In progress', variant: 'primary', stepIndex: 1 },
+  in_internal_review: { label: 'In our review', variant: 'violet', stepIndex: 2 },
   in_review: { label: 'In review', variant: 'violet', stepIndex: 2 },
   done: { label: 'Done', variant: 'success', stepIndex: 3 },
   blocked: { label: 'Blocked', variant: 'danger', isSideState: true },

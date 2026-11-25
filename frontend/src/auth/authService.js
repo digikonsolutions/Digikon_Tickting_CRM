@@ -1206,6 +1206,19 @@ export const authService = {
       body: JSON.stringify({ action, ...(comment ? { comment } : {}) }),
     })
   },
+  // Review package, the thread of packages and reviews, and a review decision (stage internal = our team, agency = the client).
+  async getTicketSubmissions(id) {
+    if (AUTH_MODE === 'mock') return { submissions: [] }
+    return request(`/tickets/${encodeURIComponent(id)}/submissions`)
+  },
+  async submitTicketForReview(id, data) {
+    if (AUTH_MODE === 'mock') return { submission: { id, version: 1 } }
+    return request(`/tickets/${encodeURIComponent(id)}/submissions`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async reviewTicket(id, data) {
+    if (AUTH_MODE === 'mock') return { review: { id } }
+    return request(`/tickets/${encodeURIComponent(id)}/reviews`, { method: 'POST', body: JSON.stringify(data) })
+  },
   // Agency: tickets waiting on the client, longest-waiting first ({ tickets, total }).
   async getAgencyAttention() {
     if (AUTH_MODE === 'mock') return { tickets: [], total: 0 }
@@ -1233,6 +1246,52 @@ export const authService = {
     if (search) query.set('search', search)
     if (status) query.set('status', status)
     return request(`/admin/projects?${query.toString()}`)
+  },
+  // An administrator changes one ticket's hours (with a reason), or moves hours between two tickets of a project.
+  async adminSetTicketHours(ticketId, data) {
+    if (AUTH_MODE === 'mock') return { changed: true }
+    return request(`/admin/tickets/${encodeURIComponent(ticketId)}/hours`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async adminMoveTicketHours(projectId, data) {
+    if (AUTH_MODE === 'mock') return { changed: true }
+    return request(`/admin/projects/${encodeURIComponent(projectId)}/hours/move`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  // Employee feedback: the agency owner writes, the employee reads and replies once, admins read and remove.
+  async getFeedbackForm() {
+    if (AUTH_MODE === 'mock') return { categories: [], would_again: [], highlights: [], concerns: [], edit_days: 7 }
+    return request('/agency/feedback/form')
+  },
+  async getFeedbackSummaries() {
+    if (AUTH_MODE === 'mock') return { summaries: {} }
+    return request('/agency/feedback/summary')
+  },
+  async getEmployeeFeedback(employeeId) {
+    if (AUTH_MODE === 'mock') return { summary: { count: 0 }, feedback: [], projects: [], can_write: false }
+    return request(`/agency/employees/${encodeURIComponent(employeeId)}/feedback`)
+  },
+  async createFeedback(employeeId, data) {
+    if (AUTH_MODE === 'mock') return { feedback: { id: 0, ...data } }
+    return request(`/agency/employees/${encodeURIComponent(employeeId)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateFeedback(id, data) {
+    if (AUTH_MODE === 'mock') return { feedback: { id, ...data } }
+    return request(`/agency/feedback/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async getMyFeedback() {
+    if (AUTH_MODE === 'mock') return { summary: { count: 0 }, feedback: [] }
+    return request('/my/feedback')
+  },
+  async replyToFeedback(id, body) {
+    if (AUTH_MODE === 'mock') return { feedback: { id } }
+    return request(`/my/feedback/${encodeURIComponent(id)}/reply`, { method: 'POST', body: JSON.stringify({ body }) })
+  },
+  async getAdminEmployeeFeedback(employeeId) {
+    if (AUTH_MODE === 'mock') return { summary: { count: 0 }, per_agency: [], feedback: [] }
+    return request(`/admin/employees/${encodeURIComponent(employeeId)}/feedback`)
+  },
+  async removeFeedback(id, reason) {
+    if (AUTH_MODE === 'mock') return { feedback: { id } }
+    return request(`/admin/feedback/${encodeURIComponent(id)}`, { method: 'DELETE', body: JSON.stringify({ reason }) })
   },
   async getAdminProject(id) {
     if (AUTH_MODE === 'mock') return { project: null, tickets: [] }
