@@ -38,6 +38,26 @@
 .ui-kpi-warm::before { background: var(--color-warning-500) !important; }
 .ui-kpi-warm .ui-kpi-icon { background: var(--color-warning-50); color: var(--color-warning-700); }
 
+/* Support band: four live tiles above the main KPI row. */
+.adm-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
+.adm-section-head h2 { margin: 0; color: var(--color-heading); font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+.adm-kpis.adm-kpis-support,
+.adm-kpis.adm-kpis-support > :last-child:nth-child(odd) { grid-column: auto; }
+@media (min-width: 720px) { .adm-kpis.adm-kpis-support { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1380px) { .adm-kpis.adm-kpis-support { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Latest support events: one line each, newest first. */
+.adm-feed { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.adm-feed li + li { border-top: 1px solid var(--color-border); }
+.adm-feed a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-1); color: var(--color-heading); text-decoration: none; border-radius: var(--radius-control); }
+.adm-feed a:hover { background: var(--color-surface-hover); }
+.adm-feed a:focus-visible { outline: 2px solid var(--color-accent-700); outline-offset: 2px; }
+.adm-feed-dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--color-accent-700); }
+.adm-feed-body { display: grid; gap: .15rem; min-width: 0; }
+.adm-feed-body strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.adm-feed-body span { color: var(--color-muted); font-size: .8rem; }
+.adm-feed-when { color: var(--color-muted); font-size: .75rem; white-space: nowrap; }
+
 /* Rows: a wide card on the left, a narrower one (or a stack) on the right. */
 .adm-row { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr); gap: var(--space-4); align-items: start; }
 .adm-row > * { min-width: 0; }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import {
-  Avatar, Badge, Button, CapacityBar, Card, DueText, EmptyState, FilterChips, Icon, KpiCard, Skeleton, StatusBadge, Table,
+  Avatar, Badge, Button, CapacityBar, Card, DueText, EmptyState, FilterChips, Icon, KpiCard, RelativeTime, Skeleton, StatusBadge, Table,
 } from '../../../../../components/ui'
 import { formatDate, formatDateRange } from '../../../../../lib/format'
 import { agencyColumns } from '../../../../admin/agencies/agencyColumns'
@@ -69,6 +69,70 @@ export function KpiRow({ data }) {
   )
 }
 
+/**
+ * Support at a glance: four live tiles, each opening the matching view of the support queue. The first thing an
+ * administrator sees, because a waiting agency is the most time-sensitive thing in the product.
+ */
+export function SupportBand({ support }) {
+  const hot = (count) => (count > 0 ? 'danger' : 'success')
+  const tiles = [
+    { title: 'Open tickets', value: support.open, subtext: `${support.resolved_today} resolved today`, icon: 'inbox', tone: 'info', to: '/staff/tickets' },
+    { title: 'Unassigned', value: support.unassigned, subtext: support.unassigned > 0 ? 'Waiting for an owner' : 'Everything has an owner', icon: 'userPlus', tone: support.unassigned > 0 ? 'warm' : 'success', to: '/staff/tickets?view=unassigned' },
+    { title: 'Critical', value: support.critical, subtext: support.critical > 0 ? 'P1 tickets still open' : 'No P1 tickets open', icon: 'alert', tone: hot(support.critical), to: '/staff/tickets?view=critical' },
+    { title: 'SLA overdue', value: support.breached_sla, subtext: support.breached_sla > 0 ? 'Past their deadline' : 'All within their deadlines', icon: 'clock', tone: hot(support.breached_sla), to: '/staff/tickets?sort=sla' },
+  ]
+
+  return (
+    <section aria-label="Support at a glance">
+      <div className="adm-section-head"><h2>Support</h2><Link className="adm-link" to="/staff/tickets">Open the queue</Link></div>
+      <div className="adm-kpis adm-kpis-support">
+        {tiles.map((tile) => (
+          <KpiLink key={tile.title} to={tile.to}>
+            <KpiCard title={tile.title} value={tile.value} subtext={tile.subtext} icon={tile.icon} tone={tile.tone} />
+          </KpiLink>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** The latest changes across all support tickets, newest first; each line opens its ticket. */
+export function SupportActivityCard({ support }) {
+  const items = support.recent_activity ?? []
+
+  return (
+    <Card>
+      <div className="adm-card-body">
+        <div className="adm-card-head">
+          <div>
+            <h2>Support activity</h2>
+            <p>{items.length ? 'The latest changes across all support tickets' : 'Nothing has happened yet'}</p>
+          </div>
+          <Link className="adm-link" to="/staff/tickets">Open queue</Link>
+        </div>
+        {items.length === 0 ? (
+          <EmptyState icon={<Icon name="inbox" size={22} />} title="No support activity yet">New tickets, status changes and overdue deadlines show up here.</EmptyState>
+        ) : (
+          <ul className="adm-feed" aria-label="Recent support activity">
+            {items.map((item) => (
+              <li key={item.id}>
+                <Link to={`/staff/tickets/${item.ticket_ref}`}>
+                  <span className="adm-feed-dot" aria-hidden="true" />
+                  <span className="adm-feed-body">
+                    <strong>{item.ticket_ref} · {item.ticket_title}</strong>
+                    <span>{item.text}{item.agency_name ? ` · ${item.agency_name}` : ''}{item.actor_name ? ` · by ${item.actor_name}` : ''}</span>
+                  </span>
+                  <small className="adm-feed-when"><RelativeTime date={item.created_at} /></small>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 const SEVERITY_ICON = { danger: 'alert', warning: 'alert', info: 'info' }
 const SEVERITY_TEXT = { danger: 'Urgent', warning: 'Warning', info: 'For your information' }
 
@@ -104,10 +168,11 @@ export function AttentionCard({ items, emptyText = 'Employees, agencies and proj
 }
 
 const QUICK_ACTIONS = [
+  { to: '/staff/tickets', icon: 'inbox', label: 'Support queue', hint: 'Triage and answer agency tickets' },
   { to: '/admin/employees/new', icon: 'userPlus', label: 'New employee', hint: 'Add someone to the shared pool' },
   { to: '/admin/agency-owners/new', icon: 'building', label: 'New agency owner', hint: 'Create an agency and send an invitation' },
   { to: '/admin/assignments', icon: 'calendar', label: 'Review assignments', hint: 'Who holds whom, and for how long' },
-  { to: '/admin/reports', icon: 'chart', label: 'Open reports', hint: 'Utilization, agencies, projects and tickets' },
+  { to: '/admin/reports', icon: 'chart', label: 'Business reports', hint: 'Utilization, agencies, projects and tickets' },
 ]
 
 export function QuickActionsCard() {

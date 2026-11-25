@@ -550,6 +550,32 @@
   text-transform: uppercase;
 }
 
+.sidebar-nav-more > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  user-select: none;
+}
+
+.sidebar-nav-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar-more-caret {
+  transition: transform 0.15s ease;
+}
+
+.sidebar-nav-more[open] > summary .sidebar-more-caret {
+  transform: rotate(90deg);
+}
+
+.sidebar-nav-more > summary:hover,
+.sidebar-nav-more > summary:focus-visible {
+  color: var(--color-heading);
+}
+
 .sidebar nav a {
   position: relative;
   display: flex;
