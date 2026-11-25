@@ -5,9 +5,10 @@ import { useAuth } from '../../../auth/useAuth'
 import { useAsync } from '../../../hooks/useAsync'
 import { formatDate, formatShortDate, mondayOf, toDateStr } from '../../../lib/format'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
-import { Alert, Button, Card, Modal, PageHeader, Skeleton, StatusBadge, Textarea, useToast } from '../../../components/ui'
+import { Alert, Button, Card, Modal, PageHeader, Skeleton, Textarea, useToast } from '../../../components/ui'
 import { TIMELINE, TimelineChip } from '../TimelineChip'
 import { TimelineEvents } from '../TimelineEvents'
+import { AskedCard, HoursCard, ReviewStepper } from '../ReviewParts'
 import '../timeline.css'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -45,6 +46,7 @@ export function TimelineReviewPage() {
   const [busy, setBusy] = useState(null)
   const [saveError, setSaveError] = useState(null)
   const [changes, setChanges] = useState(null)
+  const [openWeeks, setOpenWeeks] = useState({})
   const started = useRef(false)
 
   // Fill the editor from the server once, and again after every save.
@@ -135,6 +137,8 @@ export function TimelineReviewPage() {
   if (!data) return <section className="page"><Skeleton variant="card" /></section>
 
   const locked = !timeline.can_edit
+  // A week is open when asked for, when it holds a mistake, or (before any choice) when it is the first or has hours in it.
+  const isOpen = (week) => openWeeks[week.key] ?? (week === weeks[0] || week.days.some((day) => Number(hours[day.date] || 0) > 0 && (Number(hours[day.date]) > day.free_hours || dayError(day.date))))
   const overCap = (week) => week.days.reduce((sum, day) => sum + Number(hours[day.date] || 0) + day.other_booked_hours, 0) > capacity.weekly_hours
 
   return (
@@ -146,6 +150,8 @@ export function TimelineReviewPage() {
         action={<Link className="ui-button ui-button-secondary" to={back}>{scope === 'admin' ? 'All reviews' : 'My work'}</Link>}
       />
       <Card>
+        <div className="tl-band">
+        <ReviewStepper status={timeline.status} />
         <div className="tl-facts">
           <div><small>Status</small><TimelineChip status={timeline.status} overdue={timeline.overdue} urgent={timeline.urgent} /></div>
           <div><small>Proposed hours</small><strong>{hrs(project.estimated_hours)}</strong></div>
@@ -154,6 +160,7 @@ export function TimelineReviewPage() {
           <div><small>Waiting</small><strong>{timeline.status === 'confirmed' ? '—' : `${timeline.age_hours} h`}</strong></div>
           <div><small>Project manager</small><strong>{timeline.project_manager?.name ?? 'Not assigned yet'}</strong></div>
           {timeline.confirmed_at && <div><small>Confirmed</small><strong>{formatShortDate(timeline.confirmed_at)} by {timeline.confirmed_by}</strong></div>}
+        </div>
         </div>
         <p className="tl-explain">{TIMELINE[timeline.status].explain}</p>
         {project.awaiting_schedule && scope === 'admin' && (
@@ -177,6 +184,11 @@ export function TimelineReviewPage() {
       {errors.days && <Alert variant="error" title="A limit would be exceeded">{errors.days[0]}</Alert>}
       {errors.due_date && <Alert variant="error">{errors.due_date[0]}</Alert>}
 
+      <div className="tl-top">
+        <AskedCard project={project} requester={timeline.requester} attachments={data.attachments} downloadUrl={authService.projectAttachmentUrl} />
+        <HoursCard hours={project.hours} tickets={data.tickets} planned={plannedTotal} />
+      </div>
+
       <Card title="Day by day" description={`Up to ${hrs(capacity.daily_hours)} a day and ${hrs(capacity.weekly_hours)} a week. Other bookings of ${project.employee?.name ?? 'the employee'} are shown so you can see what is free.`}>
         <div className="tl-summary" aria-live="polite">
           <span className="is-ok">Planned {hrs(planned)} · proposed {hrs(project.estimated_hours)}</span>
@@ -189,8 +201,12 @@ export function TimelineReviewPage() {
         )}
         {weeks.map((week) => (
           <div key={week.key} className="tl-week" role="group" aria-label={`Week of ${formatDate(week.key)}`}>
-            <div className="tl-week-head">Week of {formatDate(week.key)}{overCap(week) && <span className="tl-warn"> · over {hrs(capacity.weekly_hours)}</span>}</div>
-            <div className="tl-grid">
+            <button type="button" className="tl-week-toggle" aria-expanded={isOpen(week)} onClick={() => setOpenWeeks((current) => ({ ...current, [week.key]: !isOpen(week) }))}>
+              <span><strong>Week of {formatDate(week.key)}</strong>{overCap(week) && <span className="tl-warn"> · over {hrs(capacity.weekly_hours)}</span>}</span>
+              <span className="tl-week-mini" aria-hidden="true">{week.days.map((day) => <i key={day.date} style={{ height: `${Math.min(100, (Number(hours[day.date] || 0) / capacity.daily_hours) * 100)}%` }} />)}</span>
+              <span>{hrs(week.days.reduce((sum, day) => sum + Number(hours[day.date] || 0), 0))} {isOpen(week) ? '▴' : '▾'}</span>
+            </button>
+            {isOpen(week) && <div className="tl-grid">
               {WEEKDAYS.map((name, slot) => {
                 const day = week.days.find((item) => item.slot === slot)
                 if (!day) return <div key={name} className="tl-cell is-empty"><span className="tl-name">{name}</span></div>
@@ -212,13 +228,13 @@ export function TimelineReviewPage() {
                   </div>
                 )
               })}
-            </div>
+            </div>}
           </div>
         ))}
         {!locked && (
           <>
             <Textarea id="tl-note" label="Note or reason (optional)" rows={2} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} helperText={hoursDiffer ? 'Shown in the activity thread and to the agency as the reason for the different hours.' : 'Shown in the activity thread.'} />
-            <div className="tl-actions">
+            <div className="tl-actions tl-sticky">
               <Button type="button" variant="secondary" loading={busy === 'save'} loadingText="Saving…" disabled={!dirty || busy !== null} onClick={save}>Save draft</Button>
               {timeline.can_request_changes && <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => setChanges({ message: '' })}>Request changes</Button>}
               {timeline.can_confirm && <Button type="button" loading={busy === 'confirm'} loadingText="Confirming…" disabled={busy !== null} onClick={confirm}>Confirm timeline</Button>}
@@ -227,25 +243,6 @@ export function TimelineReviewPage() {
         )}
       </Card>
 
-      <div className="tl-cols">
-        <Card title="Tickets" description="Planned across the days above, in this order.">
-          {data.tickets.length === 0 ? <p className="ui-muted">No tickets yet.</p> : (
-            <ol className="tl-tickets">
-              {data.tickets.map((ticket) => (
-                <li key={ticket.id}>
-                  <span><strong>{ticket.key ?? 'Ticket'}</strong> {ticket.title}</span>
-                  <small>{hrs(ticket.estimated_hours)}{ticket.start_date ? ` · ${formatShortDate(ticket.start_date)}${ticket.due_date && ticket.due_date !== ticket.start_date ? ` – ${formatShortDate(ticket.due_date)}` : ''}` : ''}</small>
-                  <span><StatusBadge status={ticket.status} />{ticket.timeline_status !== 'confirmed' && <TimelineChip status={ticket.timeline_status} />}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Card>
-        <Card title="Owner's notes and files">
-          <p className="tl-notes">{project.description || 'No notes.'}</p>
-          {data.attachments.length > 0 && <ul className="tl-files">{data.attachments.map((file) => <li key={file.id}><a href={authService.projectAttachmentUrl(file.id)}>{file.name}</a></li>)}</ul>}
-        </Card>
-      </div>
       <Card title="Activity"><TimelineEvents events={data.events} /></Card>
 
       <Modal open={Boolean(changes)} onClose={() => busy === null && setChanges(null)} title="Request changes"

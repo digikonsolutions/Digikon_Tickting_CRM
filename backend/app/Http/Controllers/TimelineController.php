@@ -49,7 +49,7 @@ class TimelineController extends Controller
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
 
-        $rows = $this->pendingQuery()->with(['agency', 'client', 'employee', 'latestTimelineRequest'])
+        $rows = $this->pendingQuery()->with(['agency', 'client', 'employee', 'latestTimelineRequest', 'services'])
             ->withCount(['tickets as pending_tickets' => fn ($q) => $q->whereIn('timeline_status', TimelineReview::PENDING)])
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('timeline_status', $status))
             ->when($filters['agency'] ?? null, fn ($q, $agency) => $q->where('agency_id', $agency))
@@ -67,7 +67,7 @@ class TimelineController extends Controller
         return response()->json([
             'reviews' => collect($rows->items())->map(fn (WorkItem $p): array => [
                 'id' => $p->id, 'title' => $p->title, 'agency_name' => $p->agency?->name, 'client_name' => $p->client?->name,
-                'employee_name' => $p->employee?->name, 'estimated_hours' => (float) $p->estimated_hours, 'awaiting_schedule' => $p->isAwaitingSchedule(),
+                'employee_name' => $p->employee?->name, 'services' => $p->services->map(fn (\App\Models\ProjectService $s): string => $s->label())->values(), 'estimated_hours' => (float) $p->estimated_hours, 'awaiting_schedule' => $p->isAwaitingSchedule(),
                 'priority_urgent' => $p->brief_priority === 'urgent' || $p->tickets()->where('priority', 'urgent')->whereIn('timeline_status', TimelineReview::PENDING)->exists(),
                 'start_date' => $p->start_date?->toDateString(), 'due_date' => $p->due_date?->toDateString(),
                 'timeline_status' => $p->timeline_status, 'pending_tickets' => (int) $p->pending_tickets,
@@ -265,7 +265,7 @@ class TimelineController extends Controller
     /** @return array<string, mixed> */
     public function payload(WorkItem $project, User $viewer): array
     {
-        $project->loadMissing(['agency', 'client', 'employee', 'latestTimelineRequest']);
+        $project->loadMissing(['agency', 'client', 'employee', 'latestTimelineRequest', 'services']);
         $employee = $project->employee;
         $own = collect($this->review->days($project))->keyBy('date');
         $from = collect([$project->start_date?->toDateString(), $own->keys()->first()])->filter()->min() ?? now()->toDateString();
@@ -301,6 +301,9 @@ class TimelineController extends Controller
                 'start_date' => $project->start_date?->toDateString(), 'due_date' => $project->due_date?->toDateString(),
                 'agency' => ['id' => $project->agency_id, 'name' => $support && $project->agency ? \App\Services\AgencyBrandingPresenter::displayName($project->agency) : $project->agency?->name], 'client' => $project->client ? ['id' => $project->client->id, 'name' => $project->client->name] : null,
                 'employee' => $employee ? ['id' => $employee->id, 'name' => $employee->name] : null,
+                // What was asked for (each service with how many questions were answered) and the hours against the tickets.
+                'services' => $project->services->map(fn (\App\Models\ProjectService $s): array => ['id' => $s->id, 'key' => $s->service_key, 'label' => $s->label(), 'estimated_hours' => $s->estimated_hours !== null ? (float) $s->estimated_hours : null, 'details' => $s->details ?? []])->values(),
+                'hours' => app(\App\Services\ProjectHours::class)->summary($project),
             ],
             'timeline' => [
                 'status' => $project->timeline_status, 'pending' => $pending, 'proposed_at' => $project->timeline_proposed_at?->toISOString(),
@@ -315,8 +318,8 @@ class TimelineController extends Controller
             ],
             'capacity' => WorkItemScheduler::capacity(),
             'days' => $days,
-            'tickets' => $project->tickets()->orderBy('position')->orderBy('id')->get()->map(fn (Ticket $t): array => [
-                'id' => $t->id, 'key' => $t->key, 'title' => $t->title, 'status' => $t->status, 'timeline_status' => $t->timeline_status,
+            'tickets' => $project->tickets()->with('projectService')->orderBy('position')->orderBy('id')->get()->map(fn (Ticket $t): array => [
+                'id' => $t->id, 'key' => $t->key, 'title' => $t->title, 'status' => $t->status, 'timeline_status' => $t->timeline_status, 'service' => $t->projectService?->label(),
                 'estimated_hours' => (float) $t->estimated_hours, 'start_date' => $t->start_date?->toDateString(), 'due_date' => $t->due_date?->toDateString(),
             ])->values(),
             'attachments' => $project->attachments()->orderBy('id')->get()->map(fn (Attachment $a): array => [
