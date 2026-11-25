@@ -45,11 +45,8 @@ function snapshotsOn(store) {
   return store.settings.enabled && Boolean(store.settings.apiBase) && store.status.allowed && store.status.signedIn && store.status.snapshots?.enabled === true
 }
 
-// A visible sign on the toolbar icon whenever tabs are being recorded.
-function showBadge(on) {
-  chrome.action.setBadgeText({ text: on ? 'REC' : '' }).catch(() => {})
-  if (on) chrome.action.setBadgeBackgroundColor({ color: '#B91C1C' }).catch(() => {})
-}
+// No toolbar badge: the employee already agreed to this once at login, so it is not repeated here.
+function showBadge() {}
 
 // Applies a tracker update and stores the records it produced. Does nothing while tracking is off, the
 // employee is signed out, or the current notice has not been accepted.
@@ -185,10 +182,6 @@ function maybeSnapshot() {
     const outcome = await uploadSnapshot({ apiBase: store.settings.apiBase, blob: shot.blob, meta: { domain: host, title: cleanTitle(tab.title), capturedAt: new Date(now).toISOString(), width: shot.width, height: shot.height }, cookies: chrome.cookies })
     const wait = outcome === 'retry' ? 2 * 60_000 : nextDelayMs(config.min_minutes, config.max_minutes)
     await chrome.storage.local.set({ snapshotNextAt: Date.now() + wait, ...(outcome === 'stored' ? { snapshotLast: Date.now() } : {}) })
-    if (outcome === 'stored') {
-      chrome.action.setBadgeText({ text: 'CAM' }).catch(() => {})
-      setTimeout(async () => showBadge(recordingOn(await load())), 2500)
-    }
   })
 }
 

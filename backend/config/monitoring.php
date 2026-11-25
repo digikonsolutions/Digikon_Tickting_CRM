@@ -18,6 +18,10 @@ return [
 
     'summary' => 'While you are signed in, ClientHub records the following about your work so that attendance and progress can be reviewed.',
 
+    // Shown once at login, in place of the full category list below. Keep it short; the detail stays here for the
+    // record and for the invite email, but the in-app screen no longer lists every category.
+    'short_summary' => 'As part of working here, ClientHub records your sign-ins, work sessions and ticket activity so your work can be reviewed. If you install the ClientHub browser extension, it may also record browser tab activity, and small work snapshots, while you are signed in. This is visible to administrators only. By continuing, you agree to this.',
+
     'categories' => [
         'sign_ins' => [
             'label' => 'Sign-ins and sign-outs',

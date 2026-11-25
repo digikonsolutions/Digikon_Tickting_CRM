@@ -70,6 +70,7 @@ class MonitoringPolicy
             'version' => $this->version(),
             'title' => (string) config('monitoring.title'),
             'summary' => (string) config('monitoring.summary'),
+            'short_summary' => (string) config('monitoring.short_summary'),
             'categories' => $categories,
             'not_collected' => array_values(array_map('strval', (array) config('monitoring.not_collected', []))),
             'viewers' => (string) config('monitoring.viewers'),

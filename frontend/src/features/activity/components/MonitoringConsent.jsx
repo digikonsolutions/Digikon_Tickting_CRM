@@ -39,22 +39,10 @@ export function MonitoringConsent() {
         {policy && (
           <div className="monitoring-consent-body">
             <h1 id="monitoring-consent-title">{policy.title}</h1>
-            <p>{policy.summary}</p>
-            <h2>What is recorded</h2>
-            <ul>
-              {policy.categories.map((category) => (
-                <li key={category.key}><strong>{category.label}.</strong> {category.description}</li>
-              ))}
-            </ul>
-            <h2>What is never recorded</h2>
-            <ul>{policy.not_collected.map((item) => <li key={item}>{item}</li>)}</ul>
-            <h2>Who can see it</h2>
-            <p>{policy.viewers}</p>
-            <p>{policy.retention}</p>
-            <p className="monitoring-consent-version">Notice version {policy.version}</p>
+            <p>{policy.short_summary}</p>
             {saveError && <Alert variant="error">{saveError.message}</Alert>}
             <div className="monitoring-consent-actions">
-              <Button type="button" loading={saving} loadingText="Saving…" onClick={accept}>I understand and accept</Button>
+              <Button type="button" loading={saving} loadingText="Saving…" onClick={accept}>Continue</Button>
               <Button type="button" variant="secondary" disabled={saving} onClick={() => signOut()}>Sign out</Button>
             </div>
           </div>
