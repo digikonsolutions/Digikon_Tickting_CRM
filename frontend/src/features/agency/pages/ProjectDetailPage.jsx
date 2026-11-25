@@ -18,6 +18,7 @@ import { GhlBriefView } from '../../workorder/BriefView'
 import { useProjectBrief } from '../../workorder/useProjectBrief'
 import { WorkOrderBadges } from '../../workorder/WorkOrderView'
 import { TicketForm } from '../components/TicketForm'
+import { ProjectHoursPanel } from '../components/ProjectHoursPanel'
 import { EmployeeProfileDrawer } from '../components/EmployeeProfileDrawer'
 
 
@@ -260,6 +261,7 @@ export function ProjectDetailPage() {
         </div>
       </Card>
       <ProjectServicesView services={project.services} />
+      <ProjectHoursPanel hours={project.hours} />
       <ProjectBriefView brief={project.brief} />
       {(project.ghl_brief || canEdit) && (
         <Card title="GoHighLevel brief" description="Give this once; every ticket starts from it." header={(

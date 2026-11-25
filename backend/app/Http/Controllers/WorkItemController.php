@@ -605,7 +605,7 @@ class WorkItemController extends Controller
         $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief', 'services']);
 
         $tickets = $workItem->tickets()
-            ->with(['agency', 'allocations', 'creator', 'detail'])
+            ->with(['agency', 'allocations', 'creator', 'detail', 'projectService'])
             ->withCount('comments')
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy('position')
@@ -619,6 +619,9 @@ class WorkItemController extends Controller
                 'created_by' => $ticket->created_by,
                 'creator' => $ticket->creator ? ['id' => $ticket->creator->id, 'name' => $ticket->creator->name] : null,
                 'logged_hours' => round(((int) $ticket->logged_minutes) / 60, 2),
+                'project_service_id' => $ticket->project_service_id,
+                'service' => $ticket->projectService ? ['id' => $ticket->projectService->id, 'key' => $ticket->projectService->service_key, 'label' => $ticket->projectService->label()] : null,
+                'remaining_hours' => round(max(0, (float) $ticket->estimated_hours - ((int) $ticket->logged_minutes) / 60), 2),
                 'over_estimate' => (float) $ticket->estimated_hours > 0 && ((int) $ticket->logged_minutes) / 60 > (float) $ticket->estimated_hours,
                 'title' => $ticket->title,
                 'description' => $ticket->description,
@@ -808,6 +811,8 @@ class WorkItemController extends Controller
                 'details' => $withDetails ? $s->details : null,
             ])->values(),
             'estimated_hours' => $item->estimated_hours,
+            // Total / given to tickets / left. The detailed show pages add logged time and a line per service.
+            'hours' => app(\App\Services\ProjectHours::class)->summary($item, (float) $item->hours_allocated, $withDetails),
             'start_date' => $item->start_date->toDateString(),
             'due_date' => $item->due_date->toDateString(),
             'status' => $item->status,

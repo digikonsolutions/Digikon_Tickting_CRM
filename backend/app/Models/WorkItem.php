@@ -162,6 +162,12 @@ class WorkItem extends Model
         );
     }
 
+    /** Hours already given to tickets (cancelled ones give theirs back). @return array<string, \Closure> */
+    private static function allocatedHours(): array
+    {
+        return ['tickets as hours_allocated' => fn ($query) => $query->where('status', '!=', 'cancelled')];
+    }
+
     /**
      * @return array<string, \Closure>
      */
@@ -179,7 +185,7 @@ class WorkItem extends Model
      */
     public function scopeWithTicketProgress(Builder $query): Builder
     {
-        return $query->withCount(self::ticketProgressCounts())->with(['nextTicket.agency']);
+        return $query->withCount(self::ticketProgressCounts())->withSum(self::allocatedHours(), 'estimated_hours')->with(['nextTicket.agency']);
     }
 
     /**
@@ -189,12 +195,12 @@ class WorkItem extends Model
     {
         $this->unsetRelation('nextTicket');
 
-        return $this->loadCount(self::ticketProgressCounts())->load(['nextTicket.agency']);
+        return $this->loadCount(self::ticketProgressCounts())->loadSum(self::allocatedHours(), 'estimated_hours')->load(['nextTicket.agency']);
     }
 
     public function hasTicketProgress(): bool
     {
-        return array_key_exists('tickets_total', $this->attributes) && $this->relationLoaded('nextTicket');
+        return array_key_exists('tickets_total', $this->attributes) && array_key_exists('hours_allocated', $this->attributes) && $this->relationLoaded('nextTicket');
     }
 
     /** The detailed GoHighLevel brief; absent for projects created without one. */

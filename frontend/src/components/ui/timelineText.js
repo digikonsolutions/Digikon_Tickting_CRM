@@ -28,6 +28,8 @@ export function describeTimelineItem(item, viewerRole) {
       return `${actor} moved this to ${getTicketStatusLabel(payload.to, viewerRole)}`
     case 'rescheduled':
       return payload.reason ?? 'Schedule recalculated'
+    case 'hours_adjusted':
+      return `${actor} changed the hours from ${payload.from} to ${payload.to}${payload.reason ? ` (${payload.reason})` : ''}`
     case 'reordered':
       return `${actor} changed this ticket's priority order`
     case 'cancelled':

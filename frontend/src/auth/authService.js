@@ -1234,6 +1234,15 @@ export const authService = {
     if (status) query.set('status', status)
     return request(`/admin/projects?${query.toString()}`)
   },
+  // An administrator changes one ticket's hours (with a reason), or moves hours between two tickets of a project.
+  async adminSetTicketHours(ticketId, data) {
+    if (AUTH_MODE === 'mock') return { changed: true }
+    return request(`/admin/tickets/${encodeURIComponent(ticketId)}/hours`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async adminMoveTicketHours(projectId, data) {
+    if (AUTH_MODE === 'mock') return { changed: true }
+    return request(`/admin/projects/${encodeURIComponent(projectId)}/hours/move`, { method: 'POST', body: JSON.stringify(data) })
+  },
   async getAdminProject(id) {
     if (AUTH_MODE === 'mock') return { project: null, tickets: [] }
     return request(`/admin/projects/${encodeURIComponent(id)}`)

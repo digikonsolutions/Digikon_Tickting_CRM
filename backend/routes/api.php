@@ -281,6 +281,9 @@ Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->whereNumber('
     // Internal notes (visible to administrators and the assigned employee only).
     Route::patch('/projects/{workItem}/brief/internal-notes', [ProjectBriefController::class, 'updateInternalNotes']);
     Route::patch('/tickets/{ticket}/internal-notes', [TicketDetailsController::class, 'updateInternalNotes'])->whereNumber('ticket');
+    // Ticket hours: change one ticket's hours, or move hours between two tickets of a project (a reason is required).
+    Route::patch('/tickets/{ticket}/hours', [\App\Http\Controllers\AdminTicketHoursController::class, 'update'])->whereNumber('ticket')->middleware('throttle:work-order');
+    Route::post('/projects/{workItem}/hours/move', [\App\Http\Controllers\AdminTicketHoursController::class, 'move'])->middleware('throttle:work-order');
 });
 Route::middleware(['web', 'auth', 'role:employee'])->prefix('work-items')->whereNumber('workItem')->group(function () {
     Route::get('/awaiting-timeline', [TimelineController::class, 'employeeAwaiting']);

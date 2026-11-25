@@ -8,6 +8,7 @@ import { formatDateRange, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
 import { GhlBriefView } from '../../workorder/BriefView'
 import { WorkOrderBadges } from '../../workorder/WorkOrderView'
+import { ProjectHoursPanel } from '../../agency/components/ProjectHoursPanel'
 import { ProjectServicesView } from '../../agency/components/projectCreate/ProjectServicesView'
 
 export function AdminProjectDetailPage() {
@@ -86,6 +87,7 @@ export function AdminProjectDetailPage() {
       </Card>
 
       <ProjectServicesView services={project.services} />
+      <ProjectHoursPanel hours={project.hours} tickets={tickets} admin projectId={project.id} onChanged={reload} />
       {project.ghl_brief && <Card title="GoHighLevel brief" description="Read-only. Internal notes are shown to staff only."><GhlBriefView brief={project.ghl_brief} /></Card>}
 
       <Card

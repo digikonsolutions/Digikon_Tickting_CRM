@@ -100,6 +100,7 @@ class TicketController extends Controller
             'estimated_hours' => $input['estimated_hours'] ?? $ticket->estimated_hours,
             'priority' => $ticket->priority,
             'service_type' => $ticket->service_type,
+            'project_service_id' => $ticket->project_service_id,
             'details' => $ticket->details,
         ], $details->copyOrder($ticket), $planner, $recorder);
     }
@@ -899,7 +900,7 @@ class TicketController extends Controller
      */
     private function ticketPayload(Ticket $ticket, ?User $viewer = null): array
     {
-        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent', 'pendingHoursRequest']);
+        $ticket->loadMissing(['agency', 'allocations', 'creator', 'workItem.assignment', 'latestStatusEvent', 'pendingHoursRequest', 'projectService']);
 
         $loggedMinutes = array_key_exists('logged_minutes', $ticket->getAttributes())
             ? (int) $ticket->logged_minutes
@@ -941,6 +942,9 @@ class TicketController extends Controller
             'estimated_hours' => $ticket->estimated_hours,
             'priority' => $ticket->priority,
             'service_type' => $ticket->service_type,
+            'project_service_id' => $ticket->project_service_id,
+            'service' => $ticket->projectService ? ['id' => $ticket->projectService->id, 'key' => $ticket->projectService->service_key, 'label' => $ticket->projectService->label()] : null,
+            'remaining_hours' => round(max(0, (float) $ticket->estimated_hours - TimeTracker::hours($loggedMinutes)), 2),
             'details' => $ticket->details,
             'details_summary' => app(TicketDetailsService::class)->summary($ticket),
             'brief' => [

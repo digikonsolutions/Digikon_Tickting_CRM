@@ -45,4 +45,21 @@ trait ServiceDetailsRules
 
         return $rules;
     }
+
+    /** The project service a ticket is for; it must belong to the ticket's own project. */
+    protected function projectServiceRules(?int $workItemId): array
+    {
+        return ['project_service_id' => ['nullable', 'integer', Rule::exists('project_services', 'id')->where('work_item_id', $workItemId ?? 0)]];
+    }
+
+    /** Picking a project service without a service type sets the type from it, so older screens keep working. */
+    protected function inheritServiceType(): void
+    {
+        if ($this->filled('project_service_id') && ! $this->filled('service_type') && is_numeric($this->input('project_service_id'))) {
+            $key = \App\Models\ProjectService::query()->whereKey((int) $this->input('project_service_id'))->value('service_key');
+            if ($key) {
+                $this->merge(['service_type' => $key]);
+            }
+        }
+    }
 }

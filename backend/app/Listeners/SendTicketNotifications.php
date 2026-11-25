@@ -163,6 +163,14 @@ class SendTicketNotifications
                     'body' => $payload['reason'] ?? "The schedule of {$key} changed.",
                 ];
 
+            case 'hours_adjusted':
+                return [
+                    'class' => TicketRescheduled::class,
+                    'recipients' => $this->creatorAndOwners($ticket)->push($ticket->workItem?->employee),
+                    'title' => 'Ticket hours changed',
+                    'body' => "{$key} now has ".($payload['to'] ?? '?').' h (was '.($payload['from'] ?? '?').' h). '.($payload['reason'] ?? ''),
+                ];
+
             case 'cancelled':
                 return [
                     'class' => TicketCancelled::class,
