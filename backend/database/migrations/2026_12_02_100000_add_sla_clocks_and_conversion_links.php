@@ -15,8 +15,9 @@ return new class extends Migration
             $table->foreignId('ticket_id')->constrained()->cascadeOnDelete();
             $table->string('kind', 12); // response | resolution
             $table->unsignedInteger('target_minutes');
-            $table->timestamp('started_at');
-            $table->timestamp('due_at');
+            // dateTime, not timestamp: MySQL gives a first NOT NULL timestamp an invalid default.
+            $table->dateTime('started_at');
+            $table->dateTime('due_at');
             $table->timestamp('paused_at')->nullable();
             $table->unsignedInteger('remaining_minutes')->nullable(); // set while paused
             $table->timestamp('met_at')->nullable();
