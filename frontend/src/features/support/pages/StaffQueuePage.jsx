@@ -8,18 +8,19 @@ import { StaffBoard } from '../components/StaffBoard'
 import { TransitionModal } from '../components/TransitionModal'
 import '../support.css'
 
-const VIEWS = [
-  { id: 'my', label: 'My tickets' }, { id: 'new', label: 'New' }, { id: 'unassigned', label: 'Unassigned' }, { id: 'critical', label: 'Critical' },
-  { id: 'waiting_agency', label: 'Waiting for agency' }, { id: 'waiting_third_party', label: 'Waiting for third party' }, { id: 'qa', label: 'In QA' },
-  { id: 'resolved', label: 'Resolved' }, { id: 'reopened', label: 'Recently reopened' }, { id: 'all', label: 'All' },
+// The tabs people use all day. Every other view is one click away in the "More views" menu, and shows as a tab while it is open.
+const PRIMARY_VIEWS = [
+  { id: 'all', label: 'All' }, { id: 'my', label: 'My tickets' }, { id: 'unassigned', label: 'Unassigned' }, { id: 'critical', label: 'Critical' }, { id: 'waiting_agency', label: 'Waiting for agency' },
 ]
-const KPIS = [['all', 'All tickets'], ['unassigned', 'Unassigned'], ['critical', 'Critical'], ['waiting_agency', 'Waiting for agency'], ['waiting_third_party', 'Waiting for third party'], ['qa', 'In QA'], ['reopened', 'Reopened']]
+const MORE_VIEWS = [
+  { id: 'new', label: 'New' }, { id: 'waiting_third_party', label: 'Waiting for third party' }, { id: 'qa', label: 'In QA' }, { id: 'resolved', label: 'Resolved' }, { id: 'reopened', label: 'Recently reopened' },
+]
 
 // The clock that matters next: the response clock until a first reply is sent, then the resolution clock.
 const nextClock = (sla) => (sla.response && sla.response.state !== 'met' ? { clock: sla.response, kind: 'response' } : { clock: sla.resolution, kind: 'resolution' })
 
-// The staff queue: KPI cards that apply a view, saved views with live counts, filters kept in the address, sortable table
-// that turns into cards on a phone.
+// The staff queue: view tabs with live counts, filters kept in the address, and a table that turns into cards on a phone.
+// Saved filters live in a collapsed section so the page opens on the tickets, not on controls.
 export function StaffQueuePage() {
   const [params, setParams] = useSearchParams()
   const query = Object.fromEntries(params.entries())
@@ -80,18 +81,18 @@ export function StaffQueuePage() {
   }, { replace: true })
   const tickets = data?.tickets ?? []
   const counts = data?.counts ?? {}
+  const tabViews = MORE_VIEWS.some((item) => item.id === view) ? [...PRIMARY_VIEWS, MORE_VIEWS.find((item) => item.id === view)] : PRIMARY_VIEWS
 
   return (
     <section className="page">
       <PageHeader eyebrow="Staff" title="Support queue" subtitle="Everything your agencies have asked for, in one place." />
-      <div className="sup-kpis" role="group" aria-label="Quick filters">
-        {KPIS.map(([id, label]) => (
-          <button key={id} type="button" className="sup-kpi" aria-pressed={view === id} onClick={() => set({ view: id === 'all' ? undefined : id })}>
-            <strong>{counts[id] ?? 0}</strong><span>{label}</span>
-          </button>
-        ))}
+      <div className="sup-tabbar">
+        <SavedViewTabs views={tabViews} active={view} onChange={(next) => set({ view: next === 'all' ? undefined : next })} counts={counts} label="Ticket views" />
+        <Select label="More views" className="sup-more-views" value="" onChange={(event) => event.target.value && set({ view: event.target.value })}>
+          <option value="">More views…</option>
+          {MORE_VIEWS.map((item) => <option key={item.id} value={item.id}>{item.label} ({counts[item.id] ?? 0})</option>)}
+        </Select>
       </div>
-      <SavedViewTabs views={VIEWS} active={view} onChange={(next) => set({ view: next === 'all' ? undefined : next })} counts={counts} label="Saved views" />
       <div className="sup-filters" role="search">
         <Input label="Search" type="search" placeholder="ID, title or text (notes too)" defaultValue={query.q ?? ''} onChange={(event) => set({ q: event.target.value || undefined })} />
         <Select label="Status" value={query.status ?? ''} onChange={(event) => set({ status: event.target.value })}><option value="">Any status</option>{LIFECYCLE_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
@@ -103,12 +104,15 @@ export function StaffQueuePage() {
         <Select label="Sort" value={query.sort ?? 'updated'} onChange={(event) => set({ sort: event.target.value === 'updated' ? undefined : event.target.value })}><option value="updated">Recently updated</option><option value="sla">Deadline first</option><option value="priority">Priority first</option><option value="created">Newest</option></Select>
       </div>
       <ApiErrorMessage error={error} />
-      <div className="sup-views" role="group" aria-label="Saved filters">
-        {views.length > 0 && <Select label="My views" value="" onChange={(event) => { const found = views.find((item) => String(item.id) === event.target.value); if (found) setParams(new URLSearchParams(Object.entries(found.filters)), { replace: true }) }}><option value="">Apply a saved view…</option>{views.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
-        <Input label="Save these filters as" maxLength={60} value={viewName} onChange={(event) => setViewName(event.target.value)} />
-        <Button type="button" variant="secondary" size="sm" disabled={!viewName.trim()} onClick={saveView}>Save view</Button>
-        {views.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={async () => setViews((await authService.deleteSavedView(views[views.length - 1].id)).views)}>Delete the last saved view</Button>}
-      </div>
+      <details className="sup-saved">
+        <summary>Saved filters{views.length > 0 ? ` (${views.length})` : ''}</summary>
+        <div className="sup-views" role="group" aria-label="Saved filters">
+          {views.length > 0 && <Select label="My views" value="" onChange={(event) => { const found = views.find((item) => String(item.id) === event.target.value); if (found) setParams(new URLSearchParams(Object.entries(found.filters)), { replace: true }) }}><option value="">Apply a saved view…</option>{views.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
+          <Input label="Save these filters as" maxLength={60} value={viewName} onChange={(event) => setViewName(event.target.value)} />
+          <Button type="button" variant="secondary" size="sm" disabled={!viewName.trim()} onClick={saveView}>Save view</Button>
+          {views.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={async () => setViews((await authService.deleteSavedView(views[views.length - 1].id)).views)}>Delete the last saved view</Button>}
+        </div>
+      </details>
       {selected.length > 0 && (
         <div className="sup-bulk" role="region" aria-label="Bulk actions">
           <strong>{selected.length} selected</strong>
@@ -131,15 +135,16 @@ export function StaffQueuePage() {
           : (
             <div className="sup-table-scroll"><table className="sup-queue">
               <caption className="visually-hidden">Tickets</caption>
-              <thead><tr><th scope="col"><span className="visually-hidden">Select</span></th><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Agency</th><th scope="col">Type</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">SLA</th><th scope="col">Owner</th><th scope="col">Updated</th></tr></thead>
+              <thead><tr><th scope="col"><span className="visually-hidden">Select</span></th><th scope="col">ID</th><th scope="col">Ticket</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">SLA</th><th scope="col">Owner</th><th scope="col">Updated</th></tr></thead>
               <tbody>
                 {tickets.map((ticket) => (
                   <tr key={ticket.id} className={ticket.priority === 'urgent' ? 'is-critical' : undefined}>
                     <td><input type="checkbox" aria-label={`Select ${ticket.ref}`} checked={selected.includes(ticket.ref)} disabled={ticket.is_legacy} onChange={() => toggle(ticket.ref)} /></td>
                     <td><Link className="sup-ref" to={`/staff/tickets/${ticket.ref}`}>{ticket.ref}</Link></td>
-                    <td><Link className="sup-row-title" to={`/staff/tickets/${ticket.ref}`}>{ticket.title}</Link>{ticket.secret_flagged && <span title="Possible password or key in the text"> <Icon name="shield" size={14} /></span>}</td>
-                    <td>{ticket.agency?.name}{ticket.end_client && <><br /><span className="ui-field-help">{ticket.end_client.name}</span></>}</td>
-                    <td><TypeBadge label={ticket.type_label ?? 'Project work'} /></td>
+                    <td>
+                      <Link className="sup-row-title" to={`/staff/tickets/${ticket.ref}`}>{ticket.title}</Link>{ticket.secret_flagged && <span title="Possible password or key in the text"> <Icon name="shield" size={14} /></span>}
+                      <span className="sup-row-sub">{ticket.agency?.name}{ticket.end_client ? ` · ${ticket.end_client.name}` : ''} <TypeBadge label={ticket.type_label ?? 'Project work'} /></span>
+                    </td>
                     <td><LifecyclePriorityBadge priority={ticket.priority} label={ticket.priority_label} /></td>
                     <td><LifecycleStatusBadge status={ticket.status} label={ticket.status_label} /></td>
                     <td>{ticket.sla ? <SlaIndicator clock={nextClock(ticket.sla).clock} kind={nextClock(ticket.sla).kind} /> : null}</td>

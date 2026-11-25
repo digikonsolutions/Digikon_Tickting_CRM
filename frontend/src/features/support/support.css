@@ -114,3 +114,13 @@
 .sup-choices a:hover, .sup-choices a:focus-visible { border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px var(--brand-soft); }
 .sup-choices span { font-size: var(--text-sm); color: var(--color-text-soft); }
 .sup-tips { margin: 0; padding-left: 1.1rem; display: grid; gap: .375rem; }
+
+/* Queue chrome: one tab strip, a "More views" menu and collapsed saved filters. */
+.sup-tabbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.sup-tabbar .sup-view-tabs { flex: 1 1 auto; margin-bottom: 0; }
+.sup-more-views { min-width: 11rem; }
+.sup-saved { margin-bottom: var(--space-3); }
+.sup-saved > summary { cursor: pointer; width: max-content; color: var(--color-muted); font-size: var(--text-sm); font-weight: 600; }
+.sup-saved > summary:hover { color: var(--color-heading); }
+.sup-saved[open] > summary { margin-bottom: var(--space-2); }
+.sup-row-sub { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .25rem; color: var(--color-muted); font-size: var(--text-xs); }

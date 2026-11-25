@@ -81,8 +81,8 @@ export const AdminDashboard = () => {
           <KpiRow data={data} />
           <div className="adm-cols">
             <div className="adm-col">
-              <AttentionCard items={data.attention} />
               {data.support && <SupportActivityCard support={data.support} />}
+              <AttentionCard items={data.attention} />
               <AgenciesCard data={data} onToggle={setAgencyAction} />
               <RecentProjectsCard projects={data.recent_projects ?? []} />
             </div>
