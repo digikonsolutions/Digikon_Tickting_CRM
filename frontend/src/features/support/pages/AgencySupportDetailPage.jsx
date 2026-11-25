@@ -48,6 +48,45 @@ function FeedbackCard({ ticket, onSent }) {
   )
 }
 
+// A price we put to the agency. Everyone in the agency can read it; only the account owner can answer.
+function QuoteCard({ ticket, onAnswered }) {
+  const { showToast } = useToast()
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const quote = ticket.quote
+  async function answer(accept) {
+    setBusy(true)
+    setError(null)
+    try {
+      await authService.answerSupportQuote(ticket.ref, { accept, note: note.trim() || undefined })
+      showToast(accept ? 'Quote accepted.' : 'Quote declined.')
+      onAnswered()
+    } catch (reason) {
+      setError(reason)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className={`sup-banner${quote.status === 'pending' ? ' is-waiting' : ''}`} role="region" aria-label="Quote">
+      <strong>Quote: {new Intl.NumberFormat(undefined, { style: 'currency', currency: quote.currency }).format(quote.amount)}</strong>
+      <PlainText text={quote.description} />
+      {quote.valid_until && <span>Valid until {formatDate(quote.valid_until)}.</span>}
+      {quote.status !== 'pending' && <span>Status: {quote.status}.</span>}
+      {ticket.can_answer_quote && (
+        <>
+          <Textarea label="Note (optional)" rows={2} maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} />
+          <ApiErrorMessage error={error && !error.errors ? error : null} />
+          {error?.errors?.quote && <p className="ui-field-error" role="alert">{error.errors.quote[0]}</p>}
+          <div><Button type="button" loading={busy} onClick={() => answer(true)}>Accept the quote</Button> <Button type="button" variant="secondary" disabled={busy} onClick={() => answer(false)}>Decline</Button></div>
+        </>
+      )}
+      {quote.status === 'pending' && !ticket.can_answer_quote && <span className="ui-field-help">Only the account owner can answer a quote.</span>}
+    </div>
+  )
+}
+
 // One ticket as the agency sees it: status and what happens next on top, only public conversation, files and activity.
 export function AgencySupportDetailPage() {
   const { ref } = useParams()
@@ -110,6 +149,7 @@ export function AgencySupportDetailPage() {
         </div>
       )}
       <ApiErrorMessage error={error && !error.errors ? error : null} />
+      {ticket.quote && <QuoteCard ticket={ticket} onAnswered={reload} />}
       {['resolved', 'closed'].includes(ticket.status) && !ticket.feedback_given && <FeedbackCard ticket={ticket} onSent={reload} />}
 
       <div className="sup-detail">

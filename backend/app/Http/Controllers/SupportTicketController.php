@@ -134,6 +134,16 @@ class SupportTicketController extends Controller
         return response()->json(['message' => 'Thank you for your feedback.']);
     }
 
+    /** The account owner accepts or declines the quote on this ticket. */
+    public function answerQuote(Request $request, string $ref, \App\Services\Support\TicketQuotes $quotes): JsonResponse
+    {
+        $data = $request->validate(['accept' => ['required', 'boolean'], 'note' => ['nullable', 'string', 'max:1000']]);
+        $ticket = $this->find($request, $ref);
+        $quotes->decide($ticket, $request->user(), (bool) $data['accept'], $data['note'] ?? null);
+
+        return response()->json(['ticket' => TicketPresenter::agency($this->load($ticket->fresh()), $request->user())]);
+    }
+
     public function endClients(Request $request): JsonResponse
     {
         return response()->json(['end_clients' => EndClient::query()->where('agency_id', $request->user()->agency_id)->orderBy('name')->get(['id', 'name', 'contact_name', 'contact_email'])]);

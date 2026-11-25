@@ -19,6 +19,8 @@ const ICONS = {
   reassigned: 'users',
   status_detail: 'lock',
   secret_flagged: 'shield',
+  quote_sent: 'file',
+  quote_decided: 'check',
 }
 
 // Vertical activity list. Each item is `{id, type, actor:{name, role}, created_at, payload, comment?, visibility?}`.

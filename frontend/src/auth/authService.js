@@ -1050,6 +1050,18 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { message: 'ok' }
     return request(`/agency/support/tickets/${encodeURIComponent(ref)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
   },
+  async sendTicketQuote(ref, data) {
+    if (AUTH_MODE === 'mock') return { quotes: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/quote`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async withdrawTicketQuote(ref) {
+    if (AUTH_MODE === 'mock') return { quotes: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/quote`, { method: 'DELETE' })
+  },
+  async answerSupportQuote(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/quote`, { method: 'POST', body: JSON.stringify(data) })
+  },
   async bulkStaffTickets(data) {
     if (AUTH_MODE === 'mock') return { results: [], done: 0 }
     return request('/staff/tickets/bulk', { method: 'POST', body: JSON.stringify(data) })

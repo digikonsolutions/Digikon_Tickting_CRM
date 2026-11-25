@@ -46,6 +46,12 @@ export function describeTimelineItem(item, viewerRole) {
       return `${actor} removed ${payload.name ?? 'a file'}`
     case 'priority_changed':
       return `${actor} changed the priority to ${payload.to_label ?? payload.to}`
+    case 'quote_sent':
+      return 'A quote was sent'
+    case 'quote_decided':
+      return payload.accepted ? 'The quote was accepted' : 'The quote was declined'
+    case 'quote_note':
+      return 'Note on the quote answer'
     case 'reassigned':
       return `${actor} reassigned this ticket`
     case 'status_detail':

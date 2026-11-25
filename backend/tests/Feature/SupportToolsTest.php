@@ -197,4 +197,42 @@ class SupportToolsTest extends TestCase
         $this->assertSame(1, $ben['critical']);
         $this->assertSame(1, $res->json('unassigned'));
         $this->actingAs($builder)->getJson('/api/staff/workload')->assertForbidden();
+    }
+
+    public function test_a_quote_is_sent_by_staff_and_answered_only_by_the_account_owner(): void
+    {
+        $manager = $this->staff(['delivery_manager']);
+        $builder = $this->staff(['builder']);
+        $ticket = $this->newTicket();
+        $this->actingAs($builder)->postJson("/api/staff/tickets/{$ticket->ref}/quote", ['amount' => 500, 'description' => 'Five new pages'])->assertForbidden();
+        $this->actingAs($manager)->postJson("/api/staff/tickets/{$ticket->ref}/quote", ['amount' => 0, 'description' => 'x'])->assertUnprocessable();
+        $this->actingAs($manager)->postJson("/api/staff/tickets/{$ticket->ref}/quote", ['amount' => 500, 'currency' => 'usd', 'description' => 'Five new pages', 'valid_until' => now()->addDays(7)->toDateString()])->assertCreated();
+
+        $seen = $this->actingAs($this->u['client'])->getJson('/api/agency/support/tickets/'.$ticket->ref)->assertOk();
+        $this->assertSame('Five new pages', $seen->json('ticket.quote.description'));
+        $this->assertFalse($seen->json('ticket.can_answer_quote'));
+        $this->assertTrue($this->actingAs($this->u['owner'])->getJson('/api/agency/support/tickets/'.$ticket->ref)->json('ticket.can_answer_quote'));
+        $this->assertTrue(\Illuminate\Notifications\DatabaseNotification::query()->where('notifiable_id', $this->u['owner']->id)->get()->contains(fn ($n) => str_contains($n->data['title'] ?? '', 'quote')));
+
+        $this->actingAs($this->u['client'])->postJson('/api/agency/support/tickets/'.$ticket->ref.'/quote', ['accept' => true])->assertForbidden();
+        $this->actingAs($this->outsider())->postJson('/api/agency/support/tickets/'.$ticket->ref.'/quote', ['accept' => true])->assertNotFound();
+        $this->actingAs($this->u['owner'])->postJson('/api/agency/support/tickets/'.$ticket->ref.'/quote', ['accept' => true, 'note' => 'INTERNAL-ISH NOTE'])->assertOk()->assertJsonPath('ticket.quote.status', 'accepted');
+        $this->assertSame('billable', $ticket->fresh()->billing_status);
+        $this->actingAs($this->u['owner'])->postJson('/api/agency/support/tickets/'.$ticket->ref.'/quote', ['accept' => false])->assertUnprocessable(); // already answered
+
+        // The note the owner wrote is for staff; staff see the answer, and the agency payload carries no staff-side fields.
+        $this->assertSame('accepted', $this->actingAs($manager)->getJson('/api/staff/tickets/'.$ticket->ref)->json('ticket.quotes.0.status'));
+        $this->assertStringNotContainsString('quotes', $this->actingAs($this->u['owner'])->getJson('/api/agency/support/tickets/'.$ticket->ref)->getContent());
+    }
+
+    public function test_an_expired_quote_cannot_be_accepted(): void
+    {
+        $manager = $this->staff(['delivery_manager']);
+        $ticket = $this->newTicket();
+        $this->actingAs($manager)->postJson("/api/staff/tickets/{$ticket->ref}/quote", ['amount' => 100, 'description' => 'x', 'valid_until' => now()->addDay()->toDateString()])->assertCreated();
+        $this->travel(3)->days();
+        $this->actingAs($this->u['owner'])->postJson('/api/agency/support/tickets/'.$ticket->ref.'/quote', ['accept' => true])->assertUnprocessable()->assertJsonValidationErrors(['quote']);
+        $this->actingAs($manager)->postJson("/api/staff/tickets/{$ticket->ref}/quote", ['amount' => 90, 'description' => 'y'])->assertCreated();
+        $this->actingAs($manager)->deleteJson("/api/staff/tickets/{$ticket->ref}/quote")->assertOk();
+        $this->assertNull($this->actingAs($this->u['owner'])->getJson('/api/agency/support/tickets/'.$ticket->ref)->json('ticket.quote'));
     }}

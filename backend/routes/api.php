@@ -175,6 +175,7 @@ Route::middleware('web')->prefix('agency')->group(function () {
         Route::post('/tickets/{ref}/reopen', [SupportTicketController::class, 'reopen'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
         Route::post('/tickets/{ref}/confirm', [SupportTicketController::class, 'confirm'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
         Route::post('/tickets/{ref}/feedback', [SupportTicketController::class, 'feedback'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::post('/tickets/{ref}/quote', [SupportTicketController::class, 'answerQuote'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
         Route::get('/recurring', [RecurringTicketController::class, 'index']);
         Route::post('/recurring', [RecurringTicketController::class, 'store'])->middleware('throttle:work-order');
         Route::delete('/recurring/{schedule}', [RecurringTicketController::class, 'destroy'])->whereNumber('schedule');
@@ -238,6 +239,8 @@ Route::middleware(['web', 'auth', 'role:admin,employee'])->prefix('staff')->grou
     Route::post('/tickets/{ref}/relations', [StaffSupportToolsController::class, 'addRelation'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
     Route::delete('/tickets/{ref}/relations/{relation}', [StaffSupportToolsController::class, 'removeRelation'])->where('ref', '[A-Za-z]+-[0-9]+')->whereNumber('relation');
     Route::post('/tickets/{ref}/watch', [StaffSupportToolsController::class, 'watch'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/quote', [StaffSupportToolsController::class, 'sendQuote'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::delete('/tickets/{ref}/quote', [StaffSupportToolsController::class, 'withdrawQuote'])->where('ref', '[A-Za-z]+-[0-9]+');
     Route::get('/saved-views', [StaffSupportToolsController::class, 'savedViews']);
     Route::post('/saved-views', [StaffSupportToolsController::class, 'saveView'])->middleware('throttle:work-order');
     Route::delete('/saved-views/{view}', [StaffSupportToolsController::class, 'deleteView'])->whereNumber('view');

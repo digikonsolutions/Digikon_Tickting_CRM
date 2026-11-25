@@ -174,6 +174,23 @@ class StaffSupportToolsController extends Controller
         return $this->entitlement($request, $agency);
     }
 
+    public function sendQuote(Request $request, string $ref, \App\Services\Support\TicketQuotes $quotes): JsonResponse
+    {
+        $data = $request->validate(['amount' => ['required', 'numeric', 'min:0.01', 'max:10000000'], 'currency' => ['nullable', 'alpha', 'size:3'], 'description' => ['required', 'string', 'max:5000'], 'valid_until' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:today']]);
+        $ticket = $this->ticket($request, $ref);
+        $quotes->send($ticket, $request->user(), $data);
+
+        return response()->json(['quotes' => $quotes->forStaff($ticket)], 201);
+    }
+
+    public function withdrawQuote(Request $request, string $ref, \App\Services\Support\TicketQuotes $quotes): JsonResponse
+    {
+        $ticket = $this->ticket($request, $ref);
+        $quotes->withdraw($ticket, $request->user());
+
+        return response()->json(['quotes' => $quotes->forStaff($ticket)]);
+    }
+
     // Saved views, bulk actions and the workload view
 
     public function savedViews(Request $request): JsonResponse

@@ -209,11 +209,12 @@ One ticket entity with a `kind` (`support`, `fulfillment`, `change_request`). Ti
 | GET / POST / DELETE | `/api/agency/support/recurring` | The agency's scheduled tickets (weekly or monthly). `tickets:run-recurring` creates them daily |
 | GET | `/api/attachments/{id}/signed-url` | A five-minute link for one person; the signed route checks access again || POST | `/api/staff/tickets/bulk` | `{refs[], action: assign\|priority\|transition, ...}`: each ticket is decided on its own; the answer lists which worked and why the others did not |
 | GET / POST / DELETE | `/api/staff/saved-views` | A person's own named queue filters (up to 20) |
-| GET | `/api/staff/workload` | Open, critical and breached tickets per owner, plus the unassigned count (triage, managers, admin) || GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
+| GET | `/api/staff/workload` | Open, critical and breached tickets per owner, plus the unassigned count (triage, managers, admin) || POST / DELETE | `/api/staff/tickets/{ref}/quote` | Delivery manager or finance send a quote (`amount`, `currency`, `description`, `valid_until`) or withdraw the open one. One open quote at a time |
+| POST | `/api/agency/support/tickets/{ref}/quote` | `{accept, note?}`: only the agency's account owner answers. Accepting marks the ticket new scope and billable; an expired or already answered quote is refused. The agency sees the latest quote only || GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
 
 Also: the old project-ticket endpoints (`PATCH /api/agency/tickets/{id}`, `/status`, `/transitions`, hours requests, time, `/tickets/key/{key}`) answer 404 for support-module tickets, so nothing can skip `SupportWorkflow`. The scheduled commands are `tickets:sla-sweep` (every minute) and `tickets:run-recurring` (daily 06:00 in the support timezone).
 
-Not built yet: agency-facing approval of a quote.
+Everything in the module spec is now built. Not planned: payment collection (a quote records the agency's answer; invoicing happens elsewhere).
 
 ### Running the queue worker and scheduler
 

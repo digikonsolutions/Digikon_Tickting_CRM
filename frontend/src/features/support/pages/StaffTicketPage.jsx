@@ -11,6 +11,7 @@ import { TicketActivityTab } from '../components/TicketActivityTab'
 import { TicketConversation } from '../components/TicketConversation'
 import { ConvertModal } from '../components/ConvertModal'
 import { QaTab } from '../components/QaTab'
+import { QuotePanel } from '../components/QuotePanel'
 import { ScopePanel } from '../components/ScopePanel'
 import { ApprovalsPanel, RelationsPanel } from '../components/SidePanels'
 import { TimeTab } from '../components/TimeTab'
@@ -113,6 +114,7 @@ export function StaffTicketPage() {
             </Select>
           </Card>
           {!ticket.is_legacy && <ScopePanel key={`${ticket.id}-${ticket.scope_classification}-${ticket.scope_proposal ? 'p' : 'n'}`} ticket={ticket} canDecide={user.role === 'admin' || myCapabilities.includes('delivery_manager')} onChanged={reload} />}
+          {!ticket.is_legacy && <QuotePanel key={'q' + ticket.id + (ticket.quotes?.length ?? 0)} ticket={ticket} canSend={user.role === 'admin' || myCapabilities.some((name) => ['delivery_manager', 'finance'].includes(name))} onChanged={reload} />}
           {!ticket.is_legacy && <ApprovalsPanel key={'a' + ticket.id} ticket={ticket} />}
           {!ticket.is_legacy && <RelationsPanel key={'r' + ticket.id} ticket={ticket} />}
           <Card title="Details">

@@ -70,6 +70,12 @@ class SupportNotificationPlanner
                     default => [],
                 };
 
+            case 'quote_sent':
+                return [['class' => TicketNeedsYourInput::class, 'recipients' => $agency, 'title' => 'A quote is waiting for you', 'body' => "{$ref}: we sent you a quote for the new work. The account owner can accept or decline it on the ticket."]];
+
+            case 'quote_decided':
+                return [['class' => TicketStatusChanged::class, 'recipients' => $staff, 'title' => ! empty($payload['accepted']) ? 'Quote accepted' : 'Quote declined', 'body' => "{$ref} was answered by the agency."]];
+
             case 'reassigned':
                 return [['class' => TicketAssigned::class, 'recipients' => $owner, 'title' => 'Ticket assigned to you', 'body' => "{$ref}: {$ticket->title}"]];
 
