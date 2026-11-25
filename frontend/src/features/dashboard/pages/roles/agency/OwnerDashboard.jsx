@@ -244,6 +244,7 @@ export function OwnerDashboard() {
         </div>
         <div className="od-top-actions">
           <Link className={`ui-button ui-button-primary ui-button-sm${projectsFull || hoursUsedUp ? ' is-disabled' : ''}`} to="/agency/projects?new=1" aria-disabled={projectsFull || hoursUsedUp} title={projectsFull ? 'Open project limit reached' : hoursUsedUp ? 'All included hours are used' : undefined}>Create project</Link>
+          <Link className="ui-button ui-button-secondary ui-button-sm" to="/agency/support/help">Get support</Link>
           <Link className="ui-button ui-button-secondary ui-button-sm" to="/agency/tickets?new=1">Create ticket</Link>
           <Button type="button" variant="secondary" size="sm" onClick={() => setRequestType('more_hours')}>Request more hours</Button>
         </div>

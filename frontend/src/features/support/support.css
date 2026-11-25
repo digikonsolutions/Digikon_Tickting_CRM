@@ -105,3 +105,12 @@
 
 .sup-views { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; margin-bottom: var(--space-3); }
 .sup-bulk { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; padding: var(--space-3); border: 1px solid var(--brand); border-radius: var(--radius-control); background: var(--brand-soft); margin-bottom: var(--space-3); position: sticky; top: var(--space-2); z-index: 2; }
+
+.sup-urgent { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-4); border: 1px solid #fecaca; border-left: 4px solid #b91c1c; border-radius: var(--radius-control); background: #fef2f2; margin-bottom: var(--space-3); }
+.sup-urgent > div { flex: 1 1 18rem; display: grid; gap: .25rem; }
+.sup-urgent span { font-size: var(--text-sm); color: var(--color-text-soft); }
+.sup-choices { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-2); }
+.sup-choices a { display: grid; gap: .25rem; padding: var(--space-3); min-height: 4.5rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-card); text-decoration: none; color: inherit; }
+.sup-choices a:hover, .sup-choices a:focus-visible { border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px var(--brand-soft); }
+.sup-choices span { font-size: var(--text-sm); color: var(--color-text-soft); }
+.sup-tips { margin: 0; padding-left: 1.1rem; display: grid; gap: .375rem; }

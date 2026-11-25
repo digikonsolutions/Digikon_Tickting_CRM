@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { authService } from '../../../auth/authService'
 import { useAsync } from '../../../hooks/useAsync'
 import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
@@ -17,7 +17,9 @@ const BLANK = { type: '', title: '', description: '', expected_result: '', servi
 export function AgencySupportNewPage() {
   const loadForm = useCallback(() => authService.getSupportForm(), [])
   const form = useAsync(loadForm)
-  const [values, setValues] = useState(() => ({ ...BLANK, ...(readDraft() ?? {}) }))
+  const [params] = useSearchParams()
+  // A choice on the help page arrives with its type; it wins over an old saved draft's type.
+  const [values, setValues] = useState(() => ({ ...BLANK, ...(readDraft() ?? {}), ...(params.get('type') ? { type: params.get('type'), details: {} } : {}) }))
   const [files, setFiles] = useState([])
   const [fileNotice, setFileNotice] = useState(null)
   const [link, setLink] = useState('')

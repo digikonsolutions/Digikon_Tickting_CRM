@@ -194,6 +194,7 @@ export function AppLayout() {
       '/agency/tickets': 'Project tickets',
       '/agency/support': 'Support',
       '/agency/support/new': 'New ticket',
+      '/agency/support/help': 'Get support',
       '/staff/tickets': 'Support queue',
       '/staff/reports': 'Support reports',
       '/staff/settings': 'Support settings',

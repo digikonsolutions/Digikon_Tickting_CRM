@@ -26,7 +26,7 @@ export function AgencySupportListPage() {
 
   return (
     <section className="page">
-      <PageHeader eyebrow="Support" title="Your tickets" subtitle="Ask for help, report a problem or request work. We show you the status and what happens next." action={<span className="sup-detail-head"><Link className="ui-button ui-button-secondary" to="/agency/support/recurring">Recurring</Link><Link className="ui-button ui-button-primary" to="/agency/support/new">New ticket</Link></span>} />
+      <PageHeader eyebrow="Support" title="Your tickets" subtitle="Ask for help, report a problem or request work. We show you the status and what happens next." action={<span className="sup-detail-head"><Link className="ui-button ui-button-secondary" to="/agency/support/recurring">Recurring</Link><Link className="ui-button ui-button-primary" to="/agency/support/help">Get support</Link></span>} />
       <SavedViewTabs views={TABS} active={tab} onChange={(next) => set({ tab: next === 'open' ? undefined : next })} counts={data?.counts ?? {}} label="Ticket groups" />
       <div className="sup-filters" role="search">
         <Input label="Search" type="search" placeholder="ID, title or text" defaultValue={query.q ?? ''} onChange={(event) => set({ q: event.target.value || undefined })} />
