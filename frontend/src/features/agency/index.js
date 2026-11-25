@@ -9,3 +9,4 @@ export {
 export { AgencyClientsPage } from './pages/AgencyClientsPage'
 export { AgencyTicketsPage } from './pages/AgencyTicketsPage'
 export { ProjectDetailPage } from './pages/ProjectDetailPage'
+export { AgencyProjectCreatePage } from './pages/AgencyProjectCreatePage'

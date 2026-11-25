@@ -8,6 +8,7 @@ import { formatDateRange, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
 import { GhlBriefView } from '../../workorder/BriefView'
 import { WorkOrderBadges } from '../../workorder/WorkOrderView'
+import { ProjectServicesView } from '../../agency/components/projectCreate/ProjectServicesView'
 
 export function AdminProjectDetailPage() {
   const { id } = useParams()
@@ -84,6 +85,7 @@ export function AdminProjectDetailPage() {
         </div>
       </Card>
 
+      <ProjectServicesView services={project.services} />
       {project.ghl_brief && <Card title="GoHighLevel brief" description="Read-only. Internal notes are shown to staff only."><GhlBriefView brief={project.ghl_brief} /></Card>}
 
       <Card

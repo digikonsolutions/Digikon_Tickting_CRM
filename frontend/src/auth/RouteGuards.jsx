@@ -164,6 +164,8 @@ export function AppLayout() {
       ? 'Employee activity'
       : /^\/agency\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
+      : location.pathname === '/agency/projects/new'
+      ? 'New project'
       : /^\/(agency\/support|staff\/tickets)\/[A-Za-z]+-\d+$/.test(location.pathname)
       ? 'Ticket'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/') || location.pathname.startsWith('/my-work/projects/')

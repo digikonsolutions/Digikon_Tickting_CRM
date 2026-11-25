@@ -12,6 +12,7 @@ import { WaitingChip } from '../../tickets'
 import { ProjectBriefFields, ProjectBriefView, ProjectFiles, readProjectBrief } from '../../briefs'
 import { ActivityTimeline } from '../../activity'
 import { TimelinePanel } from '../../timeline'
+import { ProjectServicesView } from '../components/projectCreate/ProjectServicesView'
 import { BriefForm } from '../../workorder/BriefForm'
 import { GhlBriefView } from '../../workorder/BriefView'
 import { useProjectBrief } from '../../workorder/useProjectBrief'
@@ -258,6 +259,7 @@ export function ProjectDetailPage() {
           </div>
         </div>
       </Card>
+      <ProjectServicesView services={project.services} />
       <ProjectBriefView brief={project.brief} />
       {(project.ghl_brief || canEdit) && (
         <Card title="GoHighLevel brief" description="Give this once; every ticket starts from it." header={(

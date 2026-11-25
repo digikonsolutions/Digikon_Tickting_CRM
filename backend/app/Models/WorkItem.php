@@ -202,4 +202,10 @@ class WorkItem extends Model
     {
         return $this->hasOne(WorkItemBrief::class);
     }
+
+    /** The GoHighLevel services this project asks for (several), in the order the agency listed them. */
+    public function services(): HasMany
+    {
+        return $this->hasMany(ProjectService::class)->orderBy('position');
+    }
 }

@@ -21,6 +21,7 @@ import {
 } from '../features/admin'
 import {
   AgencyBrandingPage,
+  AgencyProjectCreatePage,
   AgencyProjectsPage,
   AgencyDirectoryPage,
   AgencyEmployeePage,
@@ -143,6 +144,7 @@ export function AppRoutes() {
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/reports" element={<AgencyReportsPage />} />
             <Route path="/agency/projects" element={<AgencyProjectsPage />} />
+            <Route path="/agency/projects/new" element={<AgencyProjectCreatePage />} />
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/agency/tickets" element={<AgencyTicketsPage />} />
             <Route path="/agency/support" element={<AgencySupportListPage />} />
