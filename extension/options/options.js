@@ -1,3 +1,4 @@
+import { effectiveApiBase, readManaged } from '../src/config.js'
 import { normalizeApiBase } from '../src/sync.js'
 
 const form = document.getElementById('form')
@@ -9,7 +10,16 @@ function say(text, bad = false) {
   message.className = bad ? 'bad' : ''
 }
 
-chrome.storage.local.get('settings').then(({ settings }) => { input.value = settings?.apiBase ?? '' })
+chrome.storage.local.get('settings').then(async ({ settings }) => {
+  const managed = await readManaged()
+  input.value = effectiveApiBase(settings, managed)
+  // Set by the organisation: show it, but it cannot be changed here.
+  if (managed.apiBase) {
+    input.disabled = true
+    form.querySelector('button[type=submit]')?.setAttribute('disabled', 'true')
+    say('This address is set by your organisation.')
+  }
+})
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault()

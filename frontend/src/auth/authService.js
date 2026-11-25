@@ -812,6 +812,16 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { totals: { visits: 0, unique_domains: 0, tabs_opened: 0, seconds: 0 }, top_domains: [], daily: [] }
     return request(`/admin/browser-history/summary?${historyQuery(filters)}`)
   },
+  // Work snapshots (administrators, read-only). The picture itself is loaded with the signed-in session, never cached.
+  async getWorkSnapshots(filters = {}, { page = 1, perPage = 24 } = {}) {
+    if (AUTH_MODE === 'mock') return { snapshots: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
+    const query = new URLSearchParams({ page: String(page), per_page: String(perPage) })
+    Object.entries(filters).forEach(([key, value]) => { if (value) query.set(key, String(value)) })
+    return request(`/admin/browser-history/snapshots?${query.toString()}`)
+  },
+  workSnapshotUrl(id) {
+    return `/admin/browser-history/snapshots/${encodeURIComponent(id)}/image`
+  },
   async getBrowserHistoryEvents(filters = {}, { page = 1, perPage = 50 } = {}) {
     if (AUTH_MODE === 'mock') return { events: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
     return request(`/admin/browser-history/events?${historyQuery(filters)}&page=${page}&per_page=${perPage}`)

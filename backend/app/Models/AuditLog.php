@@ -11,7 +11,7 @@ class AuditLog extends Model
 {
     public const UPDATED_AT = null;
 
-    public const ACTIONS = ['viewed_sensitive', 'downloaded_document', 'updated_profile', 'revealed_cnic', 'removed_feedback'];
+    public const ACTIONS = ['viewed_sensitive', 'downloaded_document', 'updated_profile', 'revealed_cnic', 'removed_feedback', 'viewed_snapshot'];
 
     protected $fillable = ['user_id', 'action', 'subject_type', 'subject_id', 'ip'];
 

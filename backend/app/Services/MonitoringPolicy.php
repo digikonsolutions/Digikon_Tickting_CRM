@@ -102,6 +102,7 @@ class MonitoringPolicy
         return strtr($text, [
             ':idle_minutes' => (string) (int) config('activity.idle_after_minutes'),
             ':retention_days' => (string) (int) config('activity.retention_days'),
+            ':snapshot_days' => (string) (int) config('activity.snapshots.retention_days'),
         ]);
     }
 }

@@ -13,6 +13,8 @@ Schedule::command('time:stop-stale-timers')->hourly();
 
 // Closes work sessions whose heartbeats stopped and prunes old activity rows.
 Schedule::command('activity:maintain')->everyFiveMinutes();
+// Deletes work snapshots past their retention period (files and rows).
+Schedule::command('snapshots:prune')->dailyAt('03:30');
 
 // Emails admins about timelines that have waited 24 h and 48 h for review. Needs `php artisan schedule:work` (or a cron entry).
 Schedule::command('timeline:remind')->hourly();

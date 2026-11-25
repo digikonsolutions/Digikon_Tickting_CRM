@@ -30,7 +30,7 @@ async function csrfHeader(apiBase, cookies, fetchImpl) {
  * `status.allowed` is only true while the signed-in employee has accepted the current notice.
  */
 export async function runSync({ apiBase, queue, cookies, fetchImpl = fetch }) {
-  const status = { signedIn: false, allowed: false, recording: false, activeWork: null, error: null }
+  const status = { signedIn: false, allowed: false, recording: false, activeWork: null, snapshots: null, error: null }
   const stored = new Set()
 
   let check
@@ -48,6 +48,8 @@ export async function runSync({ apiBase, queue, cookies, fetchImpl = fetch }) {
   // The server says when to record: only while the employee has a ticket (or a ticket-less project) in progress.
   status.recording = status.allowed && body.recording === true
   status.activeWork = status.recording ? (body.active_work ?? null) : null
+  // Work snapshots: only offered by the server while recording, with the approved sites and how often to take one.
+  status.snapshots = status.recording && body.snapshots?.enabled === true ? body.snapshots : null
   // Whatever was queued is still sent after work stops: it was recorded while work was in progress.
   if (!status.allowed || queue.length === 0) return { status, stored }
 
@@ -71,4 +73,29 @@ export async function runSync({ apiBase, queue, cookies, fetchImpl = fetch }) {
   }
 
   return { status, stored }
+}
+
+/**
+ * Sends one snapshot. Returns 'stored', 'skip' (the server does not want it: nothing to retry) or 'retry'.
+ * The picture is never queued: a failed upload is simply dropped, so nothing old is ever sent late.
+ */
+export async function uploadSnapshot({ apiBase, blob, meta, cookies, fetchImpl = fetch }) {
+  try {
+    const form = new FormData()
+    form.append('image', blob, 'tab.webp')
+    form.append('domain', meta.domain)
+    if (meta.title) form.append('title', meta.title)
+    form.append('captured_at', meta.capturedAt)
+    if (meta.width) form.append('width', String(meta.width))
+    if (meta.height) form.append('height', String(meta.height))
+    const response = await fetchImpl(`${apiBase}/browser-history/snapshots`, {
+      method: 'POST', credentials: 'include', headers: { Accept: 'application/json', ...(await csrfHeader(apiBase, cookies, fetchImpl)) }, body: form,
+    })
+    if (response.status === 201) return 'stored'
+    if (response.status === 429 || response.status >= 500) return 'retry'
+
+    return 'skip'
+  } catch {
+    return 'retry'
+  }
 }

@@ -1,13 +1,20 @@
 {
   "manifest_version": 3,
   "name": "ClientHub Tab History",
-  "version": "1.0.0",
-  "description": "Reports browser tab activity to ClientHub after you accept the work activity notice. Has an on/off switch.",
+  "version": "1.1.0",
+  "description": "Reports browser tab activity (and, when switched on, small work snapshots) to ClientHub after you accept the work activity notice. Has an on/off switch.",
   "minimum_chrome_version": "110",
   "incognito": "not_allowed",
-  "permissions": ["tabs", "webNavigation", "storage", "alarms", "cookies"],
-  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "permissions": ["tabs", "webNavigation", "storage", "alarms", "cookies", "idle"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*.gohighlevel.com/*",
+    "https://*.leadconnectorhq.com/*",
+    "https://*.msgsndr.com/*"
+  ],
   "optional_host_permissions": ["https://*/*"],
+  "storage": { "managed_schema": "deploy/managed_schema.json" },
   "background": { "service_worker": "src/background.js", "type": "module" },
   "action": { "default_title": "ClientHub Tab History", "default_popup": "popup/popup.html" },
   "options_ui": { "page": "options/options.html", "open_in_tab": true }
