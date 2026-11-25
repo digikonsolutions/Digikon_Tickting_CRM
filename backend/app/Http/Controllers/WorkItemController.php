@@ -14,6 +14,7 @@ use App\Models\WorkItem;
 use App\Models\WorkItemAllocation;
 use App\Services\AdminDashboardService;
 use App\Services\EmployeeQueuePlanner;
+use App\Services\ProjectBriefService;
 use App\Services\QueueConflict;
 use App\Services\TicketEventRecorder;
 use App\Services\TicketPlanner;
@@ -44,7 +45,7 @@ class WorkItemController extends Controller
         ]);
 
         $items = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])
             ->withTicketProgress()
             ->where('agency_id', $agency->id)
             ->when($request->boolean('mine'), fn ($query) => $query->where('client_id', $viewer->id))
@@ -139,7 +140,9 @@ class WorkItemController extends Controller
         abort_unless($workItem->agency_id === $agency->id, 404);
 
         return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: $workItem->canShowAccessDetailsTo($request->user())),
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief']), withAccess: $workItem->canShowAccessDetailsTo($request->user())) + [
+                'ghl_brief' => app(ProjectBriefService::class)->full($workItem, $request->user()),
+            ],
         ]);
     }
 
@@ -220,6 +223,11 @@ class WorkItemController extends Controller
                 ...Arr::only($data, [...WorkItem::BRIEF_FIELDS, 'service_type', 'details']),
             ]);
 
+            // The detailed GoHighLevel brief is stored with the project, in this transaction: a failure below drops it too.
+            if (isset($data['ghl_brief'])) {
+                app(ProjectBriefService::class)->save($item, $data['ghl_brief']);
+            }
+
             // With admin-only scheduling nothing is allocated here: the request waits for an admin to plan its days.
             if (! $adminOnly) {
                 try {
@@ -242,7 +250,7 @@ class WorkItemController extends Controller
         }
 
         return response()->json([
-            'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
+            'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])),
         ], 201);
     }
 
@@ -303,7 +311,7 @@ class WorkItemController extends Controller
         });
 
         return response()->json([
-            'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true),
+            'project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief']), withAccess: true),
         ]);
     }
 
@@ -463,7 +471,7 @@ class WorkItemController extends Controller
         app(WorkflowNotificationService::class)->projectCancelled($workItem->fresh()->load(['employee', 'client']), $user);
 
         return response()->json([
-            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations'])),
+            'project' => $this->payload($workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])),
         ]);
     }
 
@@ -476,7 +484,7 @@ class WorkItemController extends Controller
         ]);
 
         $items = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])
             ->withTicketProgress()
             ->when($filters['search'] ?? null, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
@@ -537,7 +545,7 @@ class WorkItemController extends Controller
             ->whereDate('due_date', '<=', $today->addDays(2)->toDateString())
             ->count();
         $attention = $openProjects()
-            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])
             ->withTicketProgress()
             ->whereDate('due_date', '<=', $today->addDays(2)->toDateString())
             ->orderBy('due_date')
@@ -548,7 +556,7 @@ class WorkItemController extends Controller
             ->values();
 
         $recent = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])
             ->withTicketProgress()
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->orderByDesc('created_at')
@@ -581,10 +589,10 @@ class WorkItemController extends Controller
 
     public function adminShow(WorkItem $workItem): JsonResponse
     {
-        $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations']);
+        $workItem->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief']);
 
         $tickets = $workItem->tickets()
-            ->with(['agency', 'allocations', 'creator'])
+            ->with(['agency', 'allocations', 'creator', 'detail'])
             ->withCount('comments')
             ->withSum(['timeEntries as logged_minutes' => fn ($query) => $query->whereNotNull('minutes')], 'minutes')
             ->orderBy('position')
@@ -608,6 +616,7 @@ class WorkItemController extends Controller
                 'start_date' => $ticket->start_date?->toDateString(),
                 'due_date' => $ticket->due_date?->toDateString(),
                 'comments_count' => (int) $ticket->comments_count,
+                'details_summary' => app(\App\Services\TicketDetailsService::class)->summary($ticket),
                 'schedule' => $ticket->allocations
                     ->sortBy('work_date')
                     ->map(fn ($allocation): array => [
@@ -617,7 +626,7 @@ class WorkItemController extends Controller
             ])->values();
 
         return response()->json([
-            'project' => $this->payload($workItem, withAccess: true),
+            'project' => $this->payload($workItem, withAccess: true) + ['ghl_brief' => app(ProjectBriefService::class)->full($workItem, request()->user())],
             'tickets' => $tickets,
         ]);
     }
@@ -627,7 +636,7 @@ class WorkItemController extends Controller
         $this->ensureActiveEmployeeAgency($request->user());
 
         $items = WorkItem::query()
-            ->with(['agency', 'client', 'employee', 'assignment', 'allocations'])
+            ->with(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief'])
             ->withTicketProgress()
             ->where('employee_id', $request->user()->id)
             ->orderBy('start_date')
@@ -668,7 +677,7 @@ class WorkItemController extends Controller
 
         $this->announceProjectStatus($item, 'scheduled', $user);
 
-        return response()->json(['project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true)]);
+        return response()->json(['project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief']), withAccess: true)]);
     }
 
     /** The assigned employee marks the project done. A project with open tickets finishes when its tickets do. */
@@ -694,7 +703,7 @@ class WorkItemController extends Controller
 
         $this->announceProjectStatus($item, 'in_progress', $user);
 
-        return response()->json(['project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations']), withAccess: true)]);
+        return response()->json(['project' => $this->payload($item->fresh()->load(['agency', 'client', 'employee', 'assignment', 'allocations', 'ghlBrief']), withAccess: true)]);
     }
 
     private function announceProjectStatus(WorkItem $item, string $from, User $actor): void
@@ -779,6 +788,7 @@ class WorkItemController extends Controller
             'service_type' => $item->service_type,
             'details' => $item->details,
             'brief' => $this->briefPayload($item, $withAccess),
+            'brief_summary' => app(ProjectBriefService::class)->summary($item),
             'estimated_hours' => $item->estimated_hours,
             'start_date' => $item->start_date->toDateString(),
             'due_date' => $item->due_date->toDateString(),

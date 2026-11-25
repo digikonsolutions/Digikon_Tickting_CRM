@@ -8,6 +8,7 @@ use App\Models\TicketChecklistItem;
 use App\Models\TicketDetail;
 use App\Models\User;
 use App\Support\TicketWorkOrder;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -28,7 +29,8 @@ class TicketDetailsService
 
     private function row(Ticket $ticket): TicketDetail
     {
-        return TicketDetail::query()->firstOrNew(['ticket_id' => $ticket->id]);
+        // ticket_id is guarded (never mass-assigned), so a new row gets it set explicitly.
+        return TicketDetail::query()->where('ticket_id', $ticket->id)->first() ?? tap(new TicketDetail, fn (TicketDetail $new) => $new->ticket_id = $ticket->id);
     }
 
     /**
@@ -78,7 +80,7 @@ class TicketDetailsService
                 $found->update(['text' => $item['text'], 'position' => $position + 1]);
                 $keep[] = $found->id;
             } else {
-                $keep[] = TicketChecklistItem::create(['ticket_id' => $ticket->id, 'position' => $position + 1, 'text' => $item['text']])->id;
+                $keep[] = $ticket->checklistItems()->create(['position' => $position + 1, 'text' => $item['text']])->id;
             }
         }
         TicketChecklistItem::query()->where('ticket_id', $ticket->id)->whereNotIn('id', $keep)->delete();
@@ -128,6 +130,25 @@ class TicketDetailsService
         $this->refresh($ticket, $row);
 
         return $item;
+    }
+
+    /**
+     * What a duplicate starts with: the agency-written parts of the work order, a fresh undone checklist.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function copyOrder(Ticket $source): ?array
+    {
+        $row = $source->detail;
+        if ($row === null) {
+            return null;
+        }
+        $order = Arr::only(TicketWorkOrder::assemble($row, false), ['work_type', 'brief_section', 'labels', 'requirements', 'ghl', 'inputs', 'dependencies', 'environment', 'testing']);
+        $order['notes'] = ['client' => $row->notes_client];
+        $order['checklist'] = TicketChecklistItem::query()->where('ticket_id', $source->id)->orderBy('position')->get()
+            ->map(fn (TicketChecklistItem $item): array => ['text' => $item->text])->all();
+
+        return $order;
     }
 
     public function saveInternalNotes(Ticket $ticket, ?string $notes): TicketDetail

@@ -18,6 +18,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Swap this binding for a real scanner (ClamAV, a cloud API, ...) without touching the controllers.
         $this->app->bind(\App\Services\Attachments\AttachmentScanner::class, \App\Services\Attachments\NullScanner::class);
+        // Support hours come from config/support.php; AI help is an interface with a null implementation (nothing calls out).
+        $this->app->bind(\App\Services\Support\SlaCalculator::class, fn () => \App\Services\Support\SlaCalculator::fromConfig());
+        $this->app->bind(\App\Services\Support\TicketAssistant::class, \App\Services\Support\NullTicketAssistant::class);
     }
 
     /**
@@ -25,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \App\Services\Support\SupportSettings::apply();
         RateLimiter::for('auth-login', function (Request $request) {
             $email = $request->input('email');
             $email = is_string($email) ? Str::lower($email) : '';
@@ -43,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
         // Queue reorders replan an employee's whole schedule: 20 a minute per signed-in user.
         // Rush requests ask the platform for paid work: 5 a minute per signed-in user.
         // Asking for more hours on a ticket: 10 a minute per signed-in user.
+        RateLimiter::for('work-order', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('hours-request', fn (Request $request) => Limit::perMinute(10)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
         RateLimiter::for('rush-create', fn (Request $request) => Limit::perMinute(5)

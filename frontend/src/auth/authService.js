@@ -969,6 +969,229 @@ export const authService = {
     if (AUTH_MODE === 'mock') return { ticket: null, project: null, timeline: [] }
     return request(`/tickets/key/${encodeURIComponent(key)}`)
   },
+  // Support module: the agency portal (`/agency/support/*`) and the staff console (`/staff/*`). Tickets are addressed by ref (DG-1048).
+  async getSupportForm() {
+    if (AUTH_MODE === 'mock') return { types: [], services: [], priorities: [], end_clients: [], projects: [] }
+    return request('/agency/support/form')
+  },
+  async suggestSupportPriority(data) {
+    if (AUTH_MODE === 'mock') return { priority: 'normal', label: 'P3 Normal' }
+    return request('/agency/support/suggest-priority', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async scanSupportText(text) {
+    if (AUTH_MODE === 'mock') return { found: [] }
+    return request('/support/scan-text', { method: 'POST', body: JSON.stringify({ text }) })
+  },
+  async listSupportTickets(params = {}) {
+    if (AUTH_MODE === 'mock') return { tickets: [], counts: {}, pagination: { current_page: 1, last_page: 1, total: 0 } }
+    return request(`/agency/support/tickets?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value != null))}`)
+  },
+  async createSupportTicket(data) {
+    if (AUTH_MODE === 'mock') return { ticket: { id: Date.now(), ref: 'DG-0000' } }
+    return request('/agency/support/tickets', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getSupportTicket(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: null }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}`)
+  },
+  async reopenSupportTicket(ref, reason) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/reopen`, { method: 'POST', body: JSON.stringify({ reason }) })
+  },
+  async confirmSupportResolution(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/confirm`, { method: 'POST' })
+  },
+  async addTicketLink(ticketId, { url, title, isInternal = false }) {
+    if (AUTH_MODE === 'mock') return { attachment: { id: Date.now(), url, title } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/links`, { method: 'POST', body: JSON.stringify({ url, title: title || undefined, ...(isInternal ? { is_internal: true } : {}) }) })
+  },
+  async listStaffTickets(params = {}) {
+    if (AUTH_MODE === 'mock') return { tickets: [], counts: {}, pagination: { current_page: 1, last_page: 1, total: 0 } }
+    return request(`/staff/tickets?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value != null))}`)
+  },
+  async getStaffTicket(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: null }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}`)
+  },
+  async transitionStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/transition`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async assignStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/assign`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async getStaffTicketTime(ref) {
+    if (AUTH_MODE === 'mock') return { time: { entries: [], actual_minutes: 0, billable_minutes: 0, estimate_hours: null } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/time`)
+  },
+  async logStaffTicketTime(ref, data) {
+    if (AUTH_MODE === 'mock') return { time: { entries: [], actual_minutes: 0, billable_minutes: 0, estimate_hours: null } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/time`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async classifyStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/scope`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async approveStaffTicketScope(ref) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/scope/approve`, { method: 'POST' })
+  },
+  async listCannedResponses() {
+    if (AUTH_MODE === 'mock') return { responses: [] }
+    return request('/staff/canned-responses')
+  },
+  async submitSupportFeedback(ref, data) {
+    if (AUTH_MODE === 'mock') return { message: 'ok' }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/feedback`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async sendTicketQuote(ref, data) {
+    if (AUTH_MODE === 'mock') return { quotes: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/quote`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async withdrawTicketQuote(ref) {
+    if (AUTH_MODE === 'mock') return { quotes: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/quote`, { method: 'DELETE' })
+  },
+  async answerSupportQuote(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref } }
+    return request(`/agency/support/tickets/${encodeURIComponent(ref)}/quote`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async bulkStaffTickets(data) {
+    if (AUTH_MODE === 'mock') return { results: [], done: 0 }
+    return request('/staff/tickets/bulk', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async listSavedViews() {
+    if (AUTH_MODE === 'mock') return { views: [] }
+    return request('/staff/saved-views')
+  },
+  async saveSavedView(data) {
+    if (AUTH_MODE === 'mock') return { views: [] }
+    return request('/staff/saved-views', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async deleteSavedView(id) {
+    if (AUTH_MODE === 'mock') return { views: [] }
+    return request(`/staff/saved-views/${id}`, { method: 'DELETE' })
+  },
+  async getStaffWorkload() {
+    if (AUTH_MODE === 'mock') return { people: [], unassigned: 0 }
+    return request('/staff/workload')
+  },
+  async getAgencyEntitlement(agencyId) {
+    if (AUTH_MODE === 'mock') return { entitlement: null }
+    return request(`/staff/agencies/${agencyId}/entitlement`)
+  },
+  async saveAgencyEntitlement(agencyId, data) {
+    if (AUTH_MODE === 'mock') return { entitlement: data }
+    return request(`/staff/agencies/${agencyId}/entitlement`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+  async listRecurringTickets() {
+    if (AUTH_MODE === 'mock') return { schedules: [] }
+    return request('/agency/support/recurring')
+  },
+  async createRecurringTicket(data) {
+    if (AUTH_MODE === 'mock') return { id: 1 }
+    return request('/agency/support/recurring', { method: 'POST', body: JSON.stringify(data) })
+  },
+  async deleteRecurringTicket(id) {
+    if (AUTH_MODE === 'mock') return { message: 'ok' }
+    return request(`/agency/support/recurring/${id}`, { method: 'DELETE' })
+  },
+  async getTicketQa(ref) {
+    if (AUTH_MODE === 'mock') return { library: {}, runs: [], bug: {} }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/qa`)
+  },
+  async recordTicketQa(ref, data) {
+    if (AUTH_MODE === 'mock') return { status: 'resolved', runs: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/qa`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async saveTicketBug(ref, data) {
+    if (AUTH_MODE === 'mock') return { bug: data }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/bug`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+  async listTicketApprovals(ref) {
+    if (AUTH_MODE === 'mock') return { approvals: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/approvals`)
+  },
+  async requestTicketApproval(ref, data) {
+    if (AUTH_MODE === 'mock') return { approvals: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/approvals`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async decideTicketApproval(ref, id, data) {
+    if (AUTH_MODE === 'mock') return { approvals: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/approvals/${id}`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getTicketRelations(ref) {
+    if (AUTH_MODE === 'mock') return { relations: [], watching: false, watchers: 0 }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/relations`)
+  },
+  async addTicketRelation(ref, data) {
+    if (AUTH_MODE === 'mock') return { relations: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/relations`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async removeTicketRelation(ref, id) {
+    if (AUTH_MODE === 'mock') return { relations: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/relations/${id}`, { method: 'DELETE' })
+  },
+  async watchTicket(ref, on) {
+    if (AUTH_MODE === 'mock') return { watching: on }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/watch`, { method: 'POST', body: JSON.stringify({ on }) })
+  },
+  async getSupportSettings() {
+    if (AUTH_MODE === 'mock') return { settings: {} }
+    return request('/staff/settings')
+  },
+  async saveSupportSettings(data) {
+    if (AUTH_MODE === 'mock') return { settings: data }
+    return request('/staff/settings', { method: 'PUT', body: JSON.stringify(data) })
+  },
+  async listTicketAssignments(ref) {
+    if (AUTH_MODE === 'mock') return { assignments: [] }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/assignments`)
+  },
+  async convertStaffTicket(ref, data) {
+    if (AUTH_MODE === 'mock') return { ticket: { ref }, project: null }
+    return request(`/staff/tickets/${encodeURIComponent(ref)}/convert`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async getStaffDashboard({ from, to } = {}) {
+    if (AUTH_MODE === 'mock') return { kpis: null }
+    return request(`/staff/dashboard?${new URLSearchParams(Object.entries({ from, to }).filter(([, value]) => value))}`)
+  },
+  async listStaffPeople() {
+    if (AUTH_MODE === 'mock') return { people: [] }
+    return request('/staff/people')
+  },
+  // GoHighLevel brief and ticket work orders. The brief replaces whole sections; the checklist and delivery calls
+  // return the refreshed `work_order`.
+  async updateProjectBrief(projectId, ghlBrief) {
+    if (AUTH_MODE === 'mock') return { ghl_brief: ghlBrief }
+    return request(`/agency/projects/${encodeURIComponent(projectId)}/brief`, { method: 'PATCH', body: JSON.stringify({ ghl_brief: ghlBrief }) })
+  },
+  async getTicketTemplates() {
+    if (AUTH_MODE === 'mock') return { templates: [] }
+    return request('/agency/ticket-templates')
+  },
+  async duplicateTicket(projectId, ticketId, data = {}) {
+    if (AUTH_MODE === 'mock') return { ticket: { id: Date.now() } }
+    return request(`/agency/projects/${encodeURIComponent(projectId)}/tickets/${encodeURIComponent(ticketId)}/duplicate`, { method: 'POST', body: JSON.stringify(data) })
+  },
+  async updateTicketDelivery(id, data) {
+    if (AUTH_MODE === 'mock') return { work_order: { delivery: data } }
+    return request(`/tickets/${encodeURIComponent(id)}/delivery`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async updateTicketBlocked(id, data) {
+    if (AUTH_MODE === 'mock') return { work_order: { blocked: data } }
+    return request(`/tickets/${encodeURIComponent(id)}/blocked`, { method: 'PATCH', body: JSON.stringify(data) })
+  },
+  async toggleChecklistItem(ticketId, itemId, done) {
+    if (AUTH_MODE === 'mock') return { work_order: { checklist: [] } }
+    return request(`/tickets/${encodeURIComponent(ticketId)}/checklist/${encodeURIComponent(itemId)}`, { method: 'PATCH', body: JSON.stringify({ done }) })
+  },
   // Cursor-paginated, newest first: { events, next_cursor }.
   async getTicketTimeline(id, { cursor } = {}) {
     if (AUTH_MODE === 'mock') return { events: [], next_cursor: null }

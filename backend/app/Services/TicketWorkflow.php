@@ -142,6 +142,11 @@ class TicketWorkflow
             // Work cannot start (or move on) until an admin or the employee has confirmed the timeline.
             abort_unless(TimelineReview::allowsWork($lockedWorkItem, $lockedTicket), 422, "This timeline hasn't been confirmed yet.");
 
+            // A ticket with a work order needs what was done and a link before it goes to review.
+            if ($action === 'send_to_review') {
+                app(TicketDetailsService::class)->assertDeliverable($lockedTicket);
+            }
+
             // Approval rule check
             $requireApproval = (bool) config('scheduling.require_client_approval', true);
             if ($action === 'approve' && $actor->role === Role::Employee) {

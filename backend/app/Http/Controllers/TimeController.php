@@ -20,6 +20,7 @@ class TimeController extends Controller
 
     public function start(Request $request, Ticket $ticket): JsonResponse
     {
+        abort_if($ticket->usesLifecycle(), 404);
         $user = $request->user();
         $this->access->authorizeView($user, $ticket);
         $result = $this->time->start($user, $ticket);
@@ -76,6 +77,7 @@ class TimeController extends Controller
 
     public function store(Request $request, Ticket $ticket): JsonResponse
     {
+        abort_if($ticket->usesLifecycle(), 404);
         $user = $request->user();
         $this->access->authorizeView($user, $ticket);
         $data = $request->validate([

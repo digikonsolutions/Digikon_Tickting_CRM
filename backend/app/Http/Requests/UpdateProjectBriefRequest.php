@@ -18,6 +18,6 @@ class UpdateProjectBriefRequest extends FormRequest
 
     public function rules(): array
     {
-        return [...GhlBrief::rules(), 'ghl_brief' => ['required', 'array']];
+        return [...GhlBrief::rules(), ...GhlBrief::agencyProhibited(), 'ghl_brief' => ['required', 'array']];
     }
 }

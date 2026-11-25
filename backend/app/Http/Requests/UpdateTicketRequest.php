@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\BriefRules;
 use App\Http\Requests\Concerns\ServiceDetailsRules;
+use App\Support\TicketWorkOrder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,6 +25,8 @@ class UpdateTicketRequest extends FormRequest
         return [
             ...$this->ticketBriefRules($ticket?->work_item_id, $ticket?->id),
             ...$this->serviceDetailsRules('ticket', $ticket?->service_type, creating: false),
+            ...TicketWorkOrder::rules('work_order', $ticket?->work_item_id, $ticket?->id),
+            ...TicketWorkOrder::agencyProhibited(),
             'title' => ['sometimes', 'required', 'string', 'max:160'],
             'description' => ['sometimes', 'required', 'string'],
             'estimated_hours' => ['sometimes', 'required', 'numeric', 'decimal:0,2', 'min:0.01'],

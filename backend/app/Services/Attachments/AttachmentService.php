@@ -61,7 +61,10 @@ class AttachmentService
         if ($file->getSize() === 0) {
             return "{$name} is empty.";
         }
-        $maxKb = (int) config('attachments.max_file_kb', 10240);
+        $ext = strtolower(pathinfo((string) $file->getClientOriginalName(), PATHINFO_EXTENSION));
+        $maxKb = in_array($ext, (array) config('attachments.video_extensions', []), true)
+            ? (int) config('attachments.max_video_kb', 102400)
+            : (int) config('attachments.max_file_kb', 20480);
         if ($file->getSize() > $maxKb * 1024) {
             return "{$name} is larger than ".round($maxKb / 1024, 1).' MB.';
         }

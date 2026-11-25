@@ -53,7 +53,7 @@ class AttachmentController extends Controller
             'comment' => ['nullable', 'string', 'max:10000'],
             'is_internal' => ['sometimes', 'boolean'],
         ]);
-        abort_if(in_array($ticket->status, ['done', 'cancelled'], true), 422, 'Files cannot be added to a done or cancelled ticket.');
+        abort_if(in_array($ticket->status, ['done', 'cancelled', 'closed', 'rejected'], true), 422, 'Files cannot be added to a done or cancelled ticket.');
 
         $files = $request->file('files');
         $perUpload = (int) config('attachments.max_files_per_upload', 10);
@@ -133,11 +133,40 @@ class AttachmentController extends Controller
         ], 201);
     }
 
+    /** A link (Loom, Drive, any web address) as an attachment. Public or internal, like a file. */
+    public function storeLink(Request $request, Ticket $ticket): JsonResponse
+    {
+        $user = $request->user();
+        $this->access->authorizeView($user, $ticket);
+        $data = $request->validate([
+            'url' => ['required', 'string', 'url:http,https', 'max:1000'],
+            'title' => ['nullable', 'string', 'max:160'],
+            'is_internal' => ['sometimes', 'boolean'],
+        ]);
+        abort_if(in_array($ticket->status, ['done', 'cancelled', 'closed', 'rejected'], true), 422, 'Links cannot be added to a closed ticket.');
+        $internal = (bool) ($data['is_internal'] ?? false);
+        if ($internal) {
+            abort_unless($this->access->canSeeInternal($user, $ticket), 403, 'Only staff can add internal links.');
+        }
+        $link = DB::transaction(function () use ($ticket, $user, $data, $internal): TicketAttachment {
+            $row = TicketAttachment::create([
+                'ticket_id' => $ticket->id, 'uploaded_by' => $user->id, 'uploader_name' => $user->name, 'original_name' => $data['title'] ?? 'Link',
+                'kind' => 'link', 'url' => $data['url'], 'title' => $data['title'] ?? null, 'is_internal' => $internal,
+            ]);
+            $this->recorder->record($ticket, 'attachment_added', ['with_comment' => false, 'files' => [['id' => $row->id, 'name' => $row->title ?: parse_url($row->url, PHP_URL_HOST), 'link' => true]]], $user, $internal ? 'internal' : 'public');
+
+            return $row;
+        });
+
+        return response()->json(['attachment' => $this->presenter->payload($link, $user, $ticket)], 201);
+    }
+
     public function download(Request $request, TicketAttachment $attachment): Response
     {
         $user = $request->user();
         $ticket = $attachment->ticket;
         $this->access->authorizeView($user, $ticket);
+        abort_if($attachment->kind === 'link', 404);
         // Internal files do not exist as far as agency users are concerned.
         abort_if($attachment->is_internal && ! $this->access->canSeeInternal($user, $ticket), 404);
 
@@ -161,6 +190,24 @@ class AttachmentController extends Controller
         }
 
         return $disk->response($attachment->stored_path, $attachment->original_name, $headers, $inline ? 'inline' : 'attachment');
+    }
+
+    /** A link that works for five minutes and only for the person it was made for. Access is checked again when it is used. */
+    public function signedUrl(Request $request, TicketAttachment $attachment): JsonResponse
+    {
+        $user = $request->user();
+        $this->access->authorizeView($user, $attachment->ticket);
+        abort_if($attachment->kind === 'link' || ($attachment->is_internal && ! $this->access->canSeeInternal($user, $attachment->ticket)), 404);
+
+        return response()->json(['url' => \Illuminate\Support\Facades\URL::temporarySignedRoute('attachments.signed', now()->addMinutes(5), ['attachment' => $attachment->id, 'for' => $user->id]), 'expires_in' => 300]);
+    }
+
+    public function signed(Request $request, TicketAttachment $attachment): Response
+    {
+        // Someone else's link, even a valid one, gets nothing.
+        abort_unless((int) $request->query('for') === $request->user()->id, 403);
+
+        return $this->download($request, $attachment);
     }
 
     public function destroy(Request $request, TicketAttachment $attachment): JsonResponse

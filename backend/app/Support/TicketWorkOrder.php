@@ -101,6 +101,16 @@ class TicketWorkOrder
         ];
     }
 
+    /**
+     * Server-owned or employee-owned parts of the work order: an agency user cannot send them.
+     *
+     * @return array<string, mixed>
+     */
+    public static function agencyProhibited(string $p = 'work_order'): array
+    {
+        return array_fill_keys(array_map(fn (string $key): string => "$p.$key", ['delivery', 'delivery_submitted_at', 'blocked', 'completeness', 'source', 'checklist_total', 'checklist_done', 'notes.internal']), ['prohibited']);
+    }
+
     /** Rules for what the assigned employee delivers. @return array<string, mixed> */
     public static function deliveryRules(): array
     {

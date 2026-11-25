@@ -54,7 +54,8 @@ const AGENCY_NAV = Object.freeze([
   { to: '/agency/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
   { to: '/agency/clients', label: 'Clients', icon: 'user', section: 'Workspace', roles: [ROLES.AGENCY_OWNER] },
   { to: '/agency/projects', label: 'Projects', icon: 'briefcase', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
-  { to: '/agency/tickets', label: 'Tickets', icon: 'ticket', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], also: ['/tickets/'] },
+  { to: '/agency/tickets', label: 'Project tickets', icon: 'ticket', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], also: ['/tickets/'] },
+  { to: '/agency/support', label: 'Support', icon: 'chat', section: 'Workspace', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
   { to: '/agency/employees', label: 'Employees', icon: 'users', section: 'Manage', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT], badgeKey: 'rush' },
   { to: '/agency/reports', label: 'Reports', icon: 'chart', section: 'Manage', roles: [ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT] },
   { to: '/agency/time', label: 'Time summary', icon: 'clock', section: 'Manage', roles: [ROLES.AGENCY_OWNER] },
@@ -66,6 +67,10 @@ const SIDEBAR_ITEMS = Object.freeze({
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'Work' },
     { to: '/admin/projects', label: 'All projects', icon: 'briefcase', section: 'Work' },
     { to: '/admin/tickets', label: 'All tickets', icon: 'ticket', section: 'Work' },
+    { to: '/staff/tickets', label: 'Support queue', icon: 'inbox', section: 'Work' },
+    { to: '/staff/reports', label: 'Support reports', icon: 'chart', section: 'Work' },
+    { to: '/staff/workload', label: 'Support workload', icon: 'users', section: 'Work' },
+    { to: '/staff/settings', label: 'Support settings', icon: 'settings', section: 'Work' },
     { to: '/admin/reports', label: 'Reports', icon: 'chart', section: 'Work' },
     { to: '/admin/time', label: 'Time report', icon: 'clock', section: 'Work' },
     { to: '/admin/plans', label: 'Plans', icon: 'file', section: 'Work' },
@@ -82,6 +87,7 @@ const SIDEBAR_ITEMS = Object.freeze({
   [ROLES.EMPLOYEE]: [
     { to: '/my-work', label: 'Overview', icon: 'dashboard', section: 'My work', end: true },
     { to: '/my-work/tickets', label: 'Tickets', icon: 'ticket', section: 'My work' },
+    { to: '/staff/tickets', label: 'Support queue', icon: 'inbox', section: 'My work' },
     { to: '/my-work/projects', label: 'Projects', icon: 'briefcase', section: 'My work' },
     { to: '/my-work/requests', label: 'Requests', icon: 'chat', section: 'My work' },
     { to: '/my-work/week', label: 'Week', icon: 'calendar', section: 'My work' },
@@ -98,6 +104,8 @@ const SIDEBAR_ITEMS = Object.freeze({
 // Detail pages show "Parent / Page" in the header; the parent is a link back to the list.
 const BREADCRUMB_PARENTS = [
   [/^\/agency\/projects\/\d+$/, { label: 'Projects', to: '/agency/projects' }],
+  [/^\/agency\/support\/[A-Za-z]+-\d+$/, { label: 'Support', to: '/agency/support' }],
+  [/^\/staff\/tickets\/[A-Za-z]+-\d+$/, { label: 'Support queue', to: '/staff/tickets' }],
   [/^\/agency\/clients\/\d+$/, { label: 'Clients', to: '/agency/clients' }],
   [/^\/agency\/employees\/\d+\/activity$/, { label: 'Employees', to: '/agency/employees' }],
   [/^\/agency\/employees\/\d+$/, { label: 'Employees', to: '/agency/employees' }],
@@ -156,6 +164,8 @@ export function AppLayout() {
       ? 'Employee activity'
       : /^\/agency\/employees\/\d+$/.test(location.pathname)
       ? 'Employee'
+      : /^\/(agency\/support|staff\/tickets)\/[A-Za-z]+-\d+$/.test(location.pathname)
+      ? 'Ticket'
       : location.pathname.startsWith('/admin/projects/') || location.pathname.startsWith('/agency/projects/') || location.pathname.startsWith('/my-work/projects/')
       ? 'Project details'
       : ({
@@ -181,7 +191,15 @@ export function AppLayout() {
       '/agency/reports': 'Reports',
       '/agency/employees': 'Employees',
       '/agency/clients': 'Clients',
-      '/agency/tickets': 'Tickets',
+      '/agency/tickets': 'Project tickets',
+      '/agency/support': 'Support',
+      '/agency/support/new': 'New ticket',
+      '/agency/support/help': 'Get support',
+      '/staff/tickets': 'Support queue',
+      '/staff/reports': 'Support reports',
+      '/staff/settings': 'Support settings',
+      '/staff/workload': 'Support workload',
+      '/agency/support/recurring': 'Recurring tickets',
       '/agency/branding': 'Branding',
       '/agency/directory': 'Agency directory',
     }[location.pathname] ?? 'Workspace'))

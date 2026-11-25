@@ -10,6 +10,8 @@ import { FilePicker, ProjectBriefFields, readProjectBrief, uploadErrorMessage } 
 import { ServiceFields } from '../../services/ServiceFields'
 import { buildFromAnswers, cleanDetails, missingRequired, typeOf } from '../../services/serviceCatalog'
 import { useAsync } from '../../../hooks/useAsync'
+import { BriefForm } from '../../workorder/BriefForm'
+import { useProjectBrief } from '../../workorder/useProjectBrief'
 import { ScheduleFields } from './ScheduleFields'
 import '../../services/services.css'
 
@@ -36,6 +38,7 @@ export function ProjectFormModal({ project, assignments, assignmentsLoading, def
   const [details, setDetails] = useState(project?.details ?? {})
   const [touched, setTouched] = useState({ title: editing, description: editing })
   const [assignmentId, setAssignmentId] = useState(project ? String(project.assignment_id) : (defaultAssignmentId ? String(defaultAssignmentId) : ''))
+  const ghlBrief = useProjectBrief(null)
   const [files, setFiles] = useState([])
   const [fileNotice, setFileNotice] = useState(null)
   const [error, setError] = useState(null)
@@ -110,6 +113,8 @@ export function ProjectFormModal({ project, assignments, assignmentsLoading, def
           service_type: serviceType, details: cleanDetails(type, details, 'project'), ...readProjectBrief(form),
         }
         if (hours !== null) body.estimated_hours = hours
+        const ghl = ghlBrief.payload()
+        if (Object.keys(ghl).length) body.ghl_brief = ghl
         if (canSchedule) Object.assign(body, { start_date: values.start_date, due_date: values.due_date })
         const { project: saved } = await authService.createAgencyProject(body)
         let uploadNotice = null
@@ -152,6 +157,11 @@ export function ProjectFormModal({ project, assignments, assignmentsLoading, def
           <FormSection title="Brief, notes and files" description="Optional. Anything that helps your employee get started.">
             <ProjectBriefFields errors={error?.errors} />
             <FilePicker files={files} onChange={setFiles} notice={fileNotice} onNotice={setFileNotice} disabled={saving} />
+          </FormSection>
+        )}
+        {!editing && (
+          <FormSection title="GoHighLevel brief" description="Optional. Tell us about the account, the scope and your brand once, and every ticket starts from it. You can add or change it later.">
+            <BriefForm brief={ghlBrief} errors={error?.errors} idPrefix="new-brief" />
           </FormSection>
         )}
         {!editing && onRequestUrgent && (

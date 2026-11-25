@@ -36,6 +36,7 @@ import { AdminTimelineReviewsPage, TimelineReviewPage } from '../features/timeli
 import { AdminHistoryPage } from '../features/history'
 import { TimeSummaryPage } from '../features/time'
 import { TicketPage } from '../features/tickets'
+import { AgencyRecurringPage, AgencySupportHelpPage, AgencySupportDetailPage, AgencySupportListPage, AgencySupportNewPage, StaffQueuePage, StaffReportsPage, StaffSettingsPage, StaffTicketPage, StaffWorkloadPage } from '../features/support'
 import { AdminReportsPage, AgencyReportsPage } from '../features/reports'
 import {
   ForgotPasswordPage,
@@ -80,6 +81,13 @@ export function AppRoutes() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
+          <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.EMPLOYEE]} />}>
+            <Route path="/staff/tickets" element={<StaffQueuePage />} />
+            <Route path="/staff/tickets/:ref" element={<StaffTicketPage />} />
+            <Route path="/staff/reports" element={<StaffReportsPage />} />
+            <Route path="/staff/settings" element={<StaffSettingsPage />} />
+            <Route path="/staff/workload" element={<StaffWorkloadPage />} />
+          </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/tickets/:key" element={<TicketPage />} />
           </Route>
@@ -137,6 +145,11 @@ export function AppRoutes() {
             <Route path="/agency/projects" element={<AgencyProjectsPage />} />
             <Route path="/agency/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/agency/tickets" element={<AgencyTicketsPage />} />
+            <Route path="/agency/support" element={<AgencySupportListPage />} />
+            <Route path="/agency/support/help" element={<AgencySupportHelpPage />} />
+            <Route path="/agency/support/new" element={<AgencySupportNewPage />} />
+            <Route path="/agency/support/recurring" element={<AgencyRecurringPage />} />
+            <Route path="/agency/support/:ref" element={<AgencySupportDetailPage />} />
           </Route>
           <Route element={<RoleRoute allowedRoles={[ROLES.AGENCY_OWNER, ROLES.AGENCY_CLIENT]} />}>
             <Route path="/agency/employees" element={<AgencyEmployeesPage />} />

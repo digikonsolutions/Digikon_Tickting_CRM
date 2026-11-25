@@ -20,6 +20,7 @@ class WorkItem extends Model
     ];
 
     protected $fillable = [
+        'created_from_ticket_id',
         'agency_id',
         'client_id',
         'assignment_id',
@@ -194,5 +195,11 @@ class WorkItem extends Model
     public function hasTicketProgress(): bool
     {
         return array_key_exists('tickets_total', $this->attributes) && $this->relationLoaded('nextTicket');
+    }
+
+    /** The detailed GoHighLevel brief; absent for projects created without one. */
+    public function ghlBrief(): HasOne
+    {
+        return $this->hasOne(WorkItemBrief::class);
     }
 }

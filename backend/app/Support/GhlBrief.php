@@ -58,6 +58,16 @@ class GhlBrief
     }
 
     /**
+     * Server-owned fields of the brief and the internal notes: an agency user cannot send them.
+     *
+     * @return array<string, mixed>
+     */
+    public static function agencyProhibited(string $p = 'ghl_brief'): array
+    {
+        return array_fill_keys(array_map(fn (string $key): string => "$p.$key", ['completeness', 'source', 'ghl_synced_at', 'notes.internal']), ['prohibited']);
+    }
+
+    /**
      * Validation rules for `ghl_brief.*`. Unknown keys are dropped by validated(); server-owned columns
      * (completeness, source, ghl_synced_at) have no rule and so can never be set by a client.
      *

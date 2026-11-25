@@ -98,6 +98,14 @@ Available routes:
 | PATCH | `/api/agency/projects/{workItem}/tickets/reorder` | Reorders a project's tickets and recalculates their dates |
 | PATCH | `/api/agency/tickets/{ticket}` | Agency clients and owners update tickets on projects in their agency |
 | DELETE | `/api/agency/tickets/{ticket}` | Agency owner/client cancels a ticket and replans remaining tickets |
+| PATCH | `/api/agency/projects/{workItem}/brief` | `{ghl_brief}`: edit the project's GoHighLevel brief. Whole sections are replaced; sections not sent are kept; `null` clears one. Agency owner/client, own agency, open project, active assignment (same guards as editing a ticket). 422 keys are nested (`ghl_brief.client.email`) |
+| POST | `/api/agency/projects/{workItem}/tickets/{ticket}/duplicate` | `{title?, estimated_hours?}`: copies a ticket and its work order (fresh undone checklist; delivery, blocked and review are not copied). Planned like any new ticket, so project hours and capacity apply |
+| GET | `/api/agency/ticket-templates` | The work-type templates (`key`, `label`, `brief_section`, `recommended`, `acceptance`, `checklist`) from `config/ticket_templates.php` |
+| PATCH | `/api/tickets/{ticket}/delivery` | Assigned employee only, open project: `{done, links[], ghl_changes, maintain, limitations, followups, time_note}`. Returns `{work_order}` |
+| PATCH | `/api/tickets/{ticket}/blocked` | Assigned employee only: `{blocked, reason (required when blocked), waiting_on?}`. A note for the team; it never changes the status |
+| PATCH | `/api/tickets/{ticket}/checklist/{item}` | `{done}`: the assigned employee or the agency ticks or unticks one step. Never changes status, hours or schedule |
+| PATCH | `/api/admin/projects/{workItem}/brief/internal-notes` | Admin only: `{notes}`. Internal notes are read by admins and the assigned employee, never by agency users |
+| PATCH | `/api/admin/tickets/{ticket}/internal-notes` | Admin only, same rule for a ticket |
 | GET | `/api/work-items/mine/tickets` | Employee reads tickets for their assigned projects |
 | PATCH | `/api/tickets/{ticket}/status` | Assigned employee advances a ticket through its status flow |
 | GET | `/api/tickets/{ticket}/comments` | Same access as posting (admin, the ticket's assigned employee, agency owners/clients of its active agency; others 403). Returns `{ comments, total }`: the latest 200 comments oldest first, each with `user: {id, name, role}` |
@@ -144,6 +152,69 @@ Capacity rules live in `config/scheduling.php`: `daily_capacity_hours` (6), `wee
 
 Every ticket has a human key (`PREFIX-n`, for example `NORT-42`): each agency gets an immutable `ticket_prefix` (generated from its name, locked once tickets exist) and a `ticket_sequence`, and numbers are allocated under a row lock inside the ticket-creation transaction. Every change is written to the append-only `ticket_events` timeline (created, updated, status_changed, rescheduled, reordered, cancelled, comment) with actor name and role snapshots, so history survives user deletion; system-triggered changes use a null actor named "System". Events can never be updated or deleted. Comments may be `is_internal` (admin and the assigned employee only; agency roles can neither create nor read them, filtered in SQL). When the planner moves a ticket's dates it records a `rescheduled` event with a plain-English reason, and the `update` and `reorder` responses include `rescheduled: [{key, from, to, reason}]`. Statuses are todo, in_progress, in_review, blocked, waiting_on_client, changes_requested, done and cancelled. `TicketWorkflow` is the single transition table: employees start, send to review, block, ask the client and rework; only the client (an owner or client of the ticket's agency) approves, requests changes or answers questions. With `scheduling.require_client_approval` (default true) the employee can no longer move a ticket from in_review to done (422); set it to false to restore the old behaviour. Ticket payloads carry `key`, `allowed_actions` (computed for the viewer), `waiting_on` (`client` for in_review and waiting_on_client, `employee` for todo, in_progress and changes_requested, `team` for blocked), `waiting_since` and `status_reason`. Blocked and waiting tickets keep their scheduled hours. The admin ticket list accepts `status`, `agency_id`, `employee_id`, `waiting_on` and `search` (key or title).
 Tickets are hour slices of a project's existing schedule and inherit its employee assignment. Agency clients and owners may create, edit, reorder, and cancel tickets for any project in their own agency while its assignment is active and the project remains open. Tickets are planned earliest-first within the project's allocated dates, and their combined hours cannot exceed the project's estimated hours. The assigned employee advances tickets through `todo` → `in_progress` → `in_review` → `done`; ticket progress updates the project status. Project cancellation cancels its tickets and removes all ticket allocations.
+
+### GoHighLevel brief and ticket work orders
+
+Clients describe their GoHighLevel setup once per project (`work_item_briefs`, 1:1 with a project) and each ticket carries only what is specific to that task (`ticket_details`, 1:1, plus `ticket_checklist_items`). Everything is optional and additive: payloads without `ghl_brief` or `work_order` behave exactly as before. The nested keys are `ghl_brief` and `work_order` (not `brief`/`details`, which the older brief fields and the service catalog already use).
+
+- **Create with it**: `POST /api/agency/projects` accepts `ghl_brief`; `POST /api/agency/projects/{id}/tickets` and `PATCH /api/agency/tickets/{id}` accept `work_order`. Both are saved inside the same transaction as the project or ticket (`ProjectBriefService`, `TicketDetailsService`), so a failed plan rolls everything back. `estimated_hours`, `position`, status transitions and `TicketPlanner` never read a work order.
+- **Shape**: a brief has twelve sections (`client`, `ghl`, `scope`, `pipelines`, `data`, `automations`, `funnels`, `communications`, `calendars`, `payments`, `branding`, `handover`) plus `notes.client`; a work order has `work_type`, `brief_section`, `labels`, `requirements`, `ghl` (`location_id`, `refs[{type,name,ghl_id,url}]`), `inputs`, `dependencies` (same-project tickets only), `environment`, `testing`, `checklist`, `notes`, `review`. Caps: 50 checklist items, 30 `ghl_refs`, 50 stages, 100 custom fields. Rules live in `app/Support/GhlBrief.php` and `TicketWorkOrder.php`.
+- **Server-owned fields** (`completeness`, `source`, `ghl_synced_at`, `delivery`, `blocked`, `notes.internal`) are `prohibited` in agency payloads.
+- **Lists stay light**: projects carry `brief_summary`, tickets carry `details_summary` (work type, checklist x/y, completeness, blocked). The full objects are returned only by `GET /api/agency/projects/{id}` and `GET /api/admin/projects/{id}` (`project.ghl_brief`) and `GET /api/tickets/key/{key}` (`work_order`, and `project.ghl_brief`). Both are eager-loaded.
+- **Who sees and writes what**: agency owner/client write the brief and work order (open project, active assignment). The assigned employee writes only delivery, the blocked note and ticks the checklist. Admin reads everything and writes only internal notes. Internal notes are never sent to agency users.
+- **Review gate**: moving a ticket to `in_review` (status route or the `send_to_review` transition) needs `delivery.done` plus at least one link, but only when the ticket has a work order (a work type, checklist, requirements or GHL targets). Tickets without one are never held back.
+- **Completeness** (0-100) is scored against the work type's recommended fields in `config/ticket_templates.php` (the brief's list is `GhlBrief::RECOMMENDED`). It only drives a gentle "Missing: ..." hint and never blocks saving.
+- **No secrets**: briefs and tickets never store passwords or API keys. Unknown keys are dropped by validation, and the brief asks for "credentials shared via" instead. The older encrypted `access_details` is unchanged.
+- **Not built yet**: GoHighLevel API prefill (`GhlGateway`, `ghl_connections`, `/api/agency/ghl/*`), file uploads for briefs and tickets (links only), and "field changed" activity entries.
+### Support module (Digikon tickets)
+
+One ticket entity with a `kind` (`support`, `fulfillment`, `change_request`). Tickets made through the module have a `type` and use the lifecycle statuses; the older hour-slice tickets have no `type`, keep their legacy statuses and the planner, and are shown with a mapped status (`todo` as Assigned, `in_review` as QA, `blocked` as Waiting for third party, `waiting_on_client` as Waiting for agency, `done` as Closed, `cancelled` as Rejected). Support and change-request tickets have no project and never touch `TicketPlanner`. Every ticket has a `ref` such as `DG-1048` (prefix `TICKET_ID_PREFIX`, race-safe counter in `ticket_sequences`); existing tickets were given refs in id order. The old `PREFIX-n` key still works.
+
+- **Statuses**: new, triage, assigned, in_progress, waiting_agency, waiting_third_party, qa, resolved, closed, rejected. `App\Services\Support\SupportWorkflow` is the only place they change: one transaction, the transition table, the data each step needs (waiting needs a reason and a follow-up date, resolve and close need a summary and a category, rejecting and reopening need a reason, a QA fail needs a note), who may do it, the reopen window (14 days) and the rule that on a critical ticket the QA reviewer is not the builder (an admin may override with a reason).
+- **Capabilities**: `users.staff_capabilities` (`triage`, `builder`, `qa`, `delivery_manager`, `finance`). Admins hold all. An employee with none keeps seeing only their own work. Set them with `PATCH /api/staff/people/{user}/capabilities` (admin only).
+- **Visibility**: `TicketPresenter` builds the agency and staff payloads from allow-lists. Agency users never receive internal notes, internal events, internal files, SLA states, time, cost, scope or billing, QA notes or the secret flag; internal items are also filtered in SQL for comments, events, attachments, search and notifications.
+- **SLA**: `config/support.php` holds the targets (business minutes per priority), support hours, `SUPPORT_TIMEZONE` (default `Asia/Karachi`), holidays, the 75% at-risk ratio, the reopen and auto-close windows. `SlaCalculator` does business-time arithmetic (holidays, timezone, daylight saving); `SlaService` runs a response and a resolution clock per ticket and pauses while a ticket waits for the agency. Agency users see only "We aim to respond by ...".
+- **Scheduled**: `php artisan tickets:sla-sweep` every minute (see `routes/console.php`; needs `schedule:work` or a cron entry). It flags at-risk and breached clocks, escalates tickets nobody has picked up (2 business hours, 15 minutes for P1), reminds agencies after 2 business days and escalates after 5, and closes resolved tickets the agency never answered after 7 days. Each step writes an event once, so running twice never notifies twice.
+- **Notifications**: `SupportNotificationPlanner` is the notification matrix (created, critical, assignment, agency reply, status changes, resolved, closed, reopened, SLA, escalation, reminders). Internal events only reach staff.
+- **Secrets**: `SecretScanner` warns (never redacts) on text that looks like a password or key and flags the ticket for staff; `POST /api/support/scan-text` powers the live warning.
+- **Attachments**: files use the existing private-disk upload (content-sniffed, 20 MB; video mp4, mov, webm up to 100 MB with `ATTACHMENTS_MAX_VIDEO_KB`; zip stays off unless `ATTACHMENTS_ALLOW_ARCHIVES=true`); links (Loom, Drive, any URL) are first-class (`POST /api/tickets/{ticket}/links`); each item is public or internal.
+- **AI**: `TicketAssistant` is an interface with `NullTicketAssistant` bound. Nothing calls out.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/agency/support/form` | Types and their questions, services, priorities, the agency's end clients and open projects |
+| POST | `/api/agency/support/suggest-priority` | Priority from the impact answers |
+| GET / POST | `/api/agency/support/tickets` | List (`tab=open\|waiting\|resolved\|all`, `q`, `status`, `priority`, `type`, `end_client_id`, `project_id`, `from`, `to`) with tab counts; submit |
+| GET | `/api/agency/support/tickets/{ref}` | Agency view of one ticket |
+| POST | `/api/agency/support/tickets/{ref}/reopen`, `/confirm`, `/feedback` | Reopen (reason, inside the window), confirm the resolution, 1 to 5 satisfaction |
+| GET / POST | `/api/agency/support/end-clients` | The agency's own customers |
+| POST | `/api/support/scan-text` | Secret warning while typing (agency and staff) |
+| POST | `/api/tickets/{ticket}/comments` | Public reply, or internal note with `is_internal` (staff) |
+| POST | `/api/tickets/{ticket}/links` | Add a link (internal allowed for staff) |
+| GET | `/api/staff/tickets` | Queue: `view` (my, new, unassigned, critical, waiting_agency, waiting_third_party, qa, resolved, reopened, all), filters, `sort=updated\|sla\|priority\|created`, counts per view |
+| GET / PATCH | `/api/staff/tickets/{ref}` | Staff view; priority, kind, service, estimate |
+| POST | `/api/staff/tickets/{ref}/transition` | `{to, ...}` the data the step needs |
+| POST | `/api/staff/tickets/{ref}/assign` | Owner, team, reviewer (triage or delivery manager) |
+| POST | `/api/staff/tickets/{ref}/scope`, `/scope/approve` | Scope and billing: a builder proposes, a delivery manager decides |
+| GET / POST | `/api/staff/tickets/{ref}/time` | Time entries and the estimate-versus-actual rollup |
+| POST | `/api/staff/tickets/{ref}/convert` | `{to: project, assignment_id}` or `{to: change_request}`; idempotent, keeps the history, links both ways |
+| GET | `/api/staff/dashboard?from&to` | The KPIs of the spec (managers, finance, admin) |
+| GET / POST / PATCH / DELETE | `/api/staff/canned-responses` | Saved replies |
+| GET / POST | `/api/staff/tickets/{ref}/qa` | The QA checklists that suit the ticket (from `qa_checklist_items`), the run history and bug details; record a run: a fail returns the ticket to the builder with the note, a pass resolves it (needs a summary and category). Only QA, and only the assigned reviewer or a delivery manager |
+| PUT | `/api/staff/tickets/{ref}/bug` | Severity, component, bug status |
+| GET / POST | `/api/staff/tickets/{ref}/approvals`, `/approvals/{id}` | Request (scope, quote, delivery, complimentary) and decide; each kind has its own deciding capability |
+| GET / POST / DELETE | `/api/staff/tickets/{ref}/relations`, `/watch` | Related or duplicate tickets; follow or unfollow |
+| GET / PUT | `/api/staff/settings` | Admin: SLA targets, hours, timezone, holidays, windows. Saved in `support_settings` and applied over `config/support.php` |
+| GET / PUT | `/api/staff/agencies/{agency}/entitlement` | Finance or admin: included revisions and support minutes per month. An included revision past the allowance defaults to billable |
+| GET / POST / DELETE | `/api/agency/support/recurring` | The agency's scheduled tickets (weekly or monthly). `tickets:run-recurring` creates them daily |
+| GET | `/api/attachments/{id}/signed-url` | A five-minute link for one person; the signed route checks access again || POST | `/api/staff/tickets/bulk` | `{refs[], action: assign\|priority\|transition, ...}`: each ticket is decided on its own; the answer lists which worked and why the others did not |
+| GET / POST / DELETE | `/api/staff/saved-views` | A person's own named queue filters (up to 20) |
+| GET | `/api/staff/workload` | Open, critical and breached tickets per owner, plus the unassigned count (triage, managers, admin) || POST / DELETE | `/api/staff/tickets/{ref}/quote` | Delivery manager or finance send a quote (`amount`, `currency`, `description`, `valid_until`) or withdraw the open one. One open quote at a time |
+| POST | `/api/agency/support/tickets/{ref}/quote` | `{accept, note?}`: only the agency's account owner answers. Accepting marks the ticket new scope and billable; an expired or already answered quote is refused. The agency sees the latest quote only || GET | `/api/staff/people` | Staff, capabilities, resolution categories and teams for the pickers |
+
+Also: the old project-ticket endpoints (`PATCH /api/agency/tickets/{id}`, `/status`, `/transitions`, hours requests, time, `/tickets/key/{key}`) answer 404 for support-module tickets, so nothing can skip `SupportWorkflow`. The scheduled commands are `tickets:sla-sweep` (every minute) and `tickets:run-recurring` (daily 06:00 in the support timezone).
+
+Everything in the module spec is now built. Not planned: payment collection (a quote records the agency's answer; invoicing happens elsewhere).
 
 ### Running the queue worker and scheduler
 

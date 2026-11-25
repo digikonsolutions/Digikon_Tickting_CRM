@@ -7,7 +7,7 @@ import { checkFiles, DEFAULT_LIMITS, fileIconName, formatFileSize } from '../../
 // Files tab: drag-and-drop zone, picker, per-file upload progress and errors, and the list of files
 // with thumbnails for images, download and (confirmed) delete. Each file is its own upload request so
 // progress and errors are per file. `readOnly` blocks uploads (done or cancelled tickets).
-export function FilesTab({ ticket, onChanged, readOnly = false }) {
+export function FilesTab({ ticket, onChanged, readOnly = false, allowInternal = false }) {
   const { showToast } = useToast()
   const load = useCallback(() => authService.listTicketAttachments(ticket.id), [ticket.id])
   const { data, error, isLoading, reload } = useAsync(load)
@@ -17,6 +17,26 @@ export function FilesTab({ ticket, onChanged, readOnly = false }) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const picker = useRef(null)
+  // Links (Loom, Drive, any web address) sit in the same list as files.
+  const [link, setLink] = useState({ url: '', title: '', internal: false })
+  const [linkError, setLinkError] = useState(null)
+  const [linkBusy, setLinkBusy] = useState(false)
+  async function addLink(event) {
+    event.preventDefault()
+    setLinkBusy(true)
+    setLinkError(null)
+    try {
+      await authService.addTicketLink(ticket.id, { url: link.url.trim(), title: link.title.trim(), isInternal: link.internal })
+      setLink({ url: '', title: '', internal: false })
+      showToast('Link added.')
+      await reload()
+      onChanged?.()
+    } catch (reason) {
+      setLinkError(reason)
+    } finally {
+      setLinkBusy(false)
+    }
+  }
   const nextId = useRef(0)
   const attachments = data?.attachments ?? []
   const limits = data?.limits ?? DEFAULT_LIMITS
@@ -125,6 +145,20 @@ export function FilesTab({ ticket, onChanged, readOnly = false }) {
       )}
 
       {error && <Alert variant="error">{error.message} <Button type="button" size="sm" variant="secondary" onClick={reload}>Try again</Button></Alert>}
+      {!readOnly && (
+        <form className="files-link-form" onSubmit={addLink} noValidate>
+          <label className="ui-field-label" htmlFor="files-link-url">Add a link (Loom, Drive or any web address)</label>
+          <div className="files-link-row">
+            <input id="files-link-url" className="ui-input" type="url" inputMode="url" placeholder="https://" value={link.url} onChange={(event) => setLink({ ...link, url: event.target.value })} aria-invalid={Boolean(linkError?.errors?.url)} aria-describedby="files-link-help" />
+            <input className="ui-input" aria-label="Link title (optional)" placeholder="Title (optional)" maxLength={160} value={link.title} onChange={(event) => setLink({ ...link, title: event.target.value })} />
+            <Button type="submit" variant="secondary" size="sm" loading={linkBusy} disabled={!link.url.trim()}>Add link</Button>
+          </div>
+          {allowInternal && <label className="ui-checkgroup-option"><input type="checkbox" checked={link.internal} onChange={(event) => setLink({ ...link, internal: event.target.checked })} /><span>Staff only (the agency cannot see this)</span></label>}
+          <p className="ui-field-help" id="files-link-help">Do not share screenshots or recordings that show passwords or customer data.</p>
+          {linkError && <p className="ui-field-error" role="alert">{linkError.errors?.url?.[0] ?? linkError.message}</p>}
+        </form>
+      )}
+
       {isLoading && !data
         ? <div role="status" aria-label="Loading files"><Skeleton variant="row" /><Skeleton variant="row" /></div>
         : attachments.length === 0
@@ -133,7 +167,7 @@ export function FilesTab({ ticket, onChanged, readOnly = false }) {
             <ul className="files-list" aria-label="Files">
               {attachments.map((file) => (
                 <li className="files-item" key={file.id}>
-                  <a className="files-thumb" href={authService.attachmentUrl(file.id)} aria-label={`Download ${file.name}`}>
+                  <a className="files-thumb" href={file.kind === 'link' ? file.url : authService.attachmentUrl(file.id)} {...(file.kind === 'link' ? { target: '_blank', rel: 'noopener noreferrer' } : {})} aria-label={file.kind === 'link' ? `Open ${file.name}` : `Download ${file.name}`}>
                     {file.is_image
                       ? <img src={authService.attachmentUrl(file.id, { inline: true })} alt="" loading="lazy" />
                       : <Icon name={fileIconName(file.name, file.mime_type)} size={26} />}
@@ -141,12 +175,14 @@ export function FilesTab({ ticket, onChanged, readOnly = false }) {
                   <div className="files-meta">
                     <strong>{file.name}</strong>
                     <span>
-                      {formatFileSize(file.size_bytes)} · {file.uploader.name} · <RelativeTime date={file.created_at} />
+                      {file.kind === 'link' ? 'Link' : formatFileSize(file.size_bytes)} · {file.uploader.name} · <RelativeTime date={file.created_at} />
                       {file.is_internal && <em className="files-internal"> Internal</em>}
                     </span>
                   </div>
                   <div className="files-actions">
-                    <a className="ui-button ui-button-secondary ui-button-sm" href={authService.attachmentUrl(file.id)}><Icon name="download" size={15} /> Download</a>
+                    {file.kind === 'link'
+                      ? <a className="ui-button ui-button-secondary ui-button-sm" href={file.url} target="_blank" rel="noopener noreferrer"><Icon name="arrow" size={15} /> Open link</a>
+                      : <a className="ui-button ui-button-secondary ui-button-sm" href={authService.attachmentUrl(file.id)}><Icon name="download" size={15} /> Download</a>}
                     {file.can_delete && (
                       <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${file.name}`} onClick={() => { setDeleteError(null); setPendingDelete(file) }}>
                         <Icon name="trash" size={15} />

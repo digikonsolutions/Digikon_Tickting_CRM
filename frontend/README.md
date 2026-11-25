@@ -27,6 +27,28 @@ VITE_AUTH_MODE=api
 - `src/hooks/` contains shared hooks.
 - `src/branding/` contains agency white-labelling (see below).
 
+## Support module
+
+`src/features/support` holds the Digikon ticket screens; the shared pieces are in `components/ui` (`LifecycleStatusBadge`, `LifecyclePriorityBadge`, `TypeBadge`, `SavedViewTabs`, `SlaIndicator`).
+
+- Agency: `/agency/support` (tabs with counts, filters kept in the address, cards on a phone), `/agency/support/new` (one page: type cards, the questions each type needs, impact questions that suggest a priority, similar open tickets, files and links, a live password and key warning, a draft kept in `localStorage`) and `/agency/support/:ref` (status and what happens next, public conversation, files, activity, resolution with confirm or reopen, satisfaction). The old project tickets stay at `/agency/tickets`.
+- Staff (admin and employees): `/staff/tickets` (KPI cards, saved views with live counts, filters, SLA column), `/staff/tickets/:ref` (valid next steps only, each opening a dialog that asks for exactly what the step needs; Public reply and Internal note composer that always starts on Public; internal items have amber stripes and a lock; Files, Time, scope and billing, convert to project or change request) and `/staff/reports` (KPIs with the spec's targets and a table under every bar chart).
+- Agency users never receive internal data: the API sends separate payloads, and these screens render only what they are given.
+- The queue has a Table and a Board layout. A card on the board moves to a column the server says it may move to (drag, or the Move to menu on the card), and the move opens the same dialog as the ticket page.
+- The ticket page also has QA and bug, Time, approvals, related tickets, and scope and billing; /staff/settings is for administrators.
+- The queue also has bulk actions (assign, priority, status), personal saved views, and a workload page at `/staff/workload`. Administrators set agency packages on `/staff/settings`; agencies manage recurring tickets at `/agency/support/recurring`.
+- Quotes: staff send them from the ticket page (delivery manager or finance); the agency sees the quote on its ticket and the account owner accepts or declines it.
+## GoHighLevel brief and ticket work orders
+
+`src/features/workorder` holds everything for the detailed project brief and the ticket work order, so agency, admin and employee views share it.
+
+- `briefSchema.js` describes the twelve brief sections as data. `BriefForm` (accordion, collapsed by default, with a live "Brief N% complete"), `BriefView` (read-only, empty sections hidden, copy buttons on ids and links) and the completeness estimate all read it. Adding a field means one line there and one rule in `backend/app/Support/GhlBrief.php`.
+- `useProjectBrief` and `useTicketDetails` hold the form state; `briefToPayload` and `orderToPayload` (in `useProjectBrief.js` and `workOrder.js`) are the only places that map state to the API. Nested 422 keys such as `ghl_brief.client.email` or `work_order.ghl.refs.0.url` are matched to inputs by path, and a section with an error opens itself.
+- `features/agency/components/TicketForm.jsx` is the create and edit dialog for tickets on a project page: core fields (title, hours, priority, work type) on top, then the collapsible work-order sections, with the project brief shown read-only for the work type.
+- The ticket page has a "Work order" tab. The assigned employee gets a tickable checklist, a blocked note and a delivery form there and in the My Work ticket drawer; agency users can tick steps; admin is read-only.
+- Shared inputs added to `components/ui`: `ChipInput`, `MultiSelect`, `RepeatableList`, `ChecklistEditor`, `UrlInput`, `CopyButton`, `ProgressBadge`.
+- The tickets-page dialog (`TicketFormModal`) does not have the work-order sections yet.
+
 ## Agency branding
 
 An agency owner customises the workspace at `/agency/branding`; everyone in that agency (owner, client, legacy member) sees it, and employees and admins keep the default ClientHub look.

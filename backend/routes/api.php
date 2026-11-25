@@ -24,11 +24,18 @@ use App\Http\Controllers\EmployeeHeartbeatController;
 use App\Http\Controllers\BrowserHistoryController;
 use App\Http\Controllers\MonitoringConsentController;
 use App\Http\Controllers\ProjectAttachmentController;
+use App\Http\Controllers\ProjectBriefController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TimeSummaryController;
+use App\Http\Controllers\CannedResponseController;
+use App\Http\Controllers\RecurringTicketController;
+use App\Http\Controllers\StaffSupportToolsController;
+use App\Http\Controllers\StaffTicketController;
+use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketDetailsController;
 use App\Http\Controllers\AdminRushRequestController;
 use App\Http\Controllers\AgencyRushRequestController;
 use App\Http\Controllers\HoursRequestController;
@@ -158,6 +165,30 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client']);
     Route::delete('/tickets/{ticket}', [TicketController::class, 'cancel'])
         ->middleware(['auth', 'role:agency_owner,agency_client']);
+    // Support module (agency portal): submit, list, read, reply (through the shared comment route), confirm or reopen.
+    Route::prefix('support')->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active'])->group(function () {
+        Route::get('/form', [SupportTicketController::class, 'form']);
+        Route::post('/suggest-priority', [SupportTicketController::class, 'suggestPriority']);
+        Route::get('/tickets', [SupportTicketController::class, 'index']);
+        Route::post('/tickets', [SupportTicketController::class, 'store'])->middleware('throttle:project-create');
+        Route::get('/tickets/{ref}', [SupportTicketController::class, 'show'])->where('ref', '[A-Za-z]+-[0-9]+');
+        Route::post('/tickets/{ref}/reopen', [SupportTicketController::class, 'reopen'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::post('/tickets/{ref}/confirm', [SupportTicketController::class, 'confirm'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::post('/tickets/{ref}/feedback', [SupportTicketController::class, 'feedback'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::post('/tickets/{ref}/quote', [SupportTicketController::class, 'answerQuote'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+        Route::get('/recurring', [RecurringTicketController::class, 'index']);
+        Route::post('/recurring', [RecurringTicketController::class, 'store'])->middleware('throttle:work-order');
+        Route::delete('/recurring/{schedule}', [RecurringTicketController::class, 'destroy'])->whereNumber('schedule');
+        Route::get('/end-clients', [SupportTicketController::class, 'endClients']);
+        Route::post('/end-clients', [SupportTicketController::class, 'storeEndClient'])->middleware('throttle:work-order');
+    });
+    // The detailed GoHighLevel brief, ticket work orders and their templates (agency users write; see the README matrix).
+    Route::patch('/projects/{workItem}/brief', [ProjectBriefController::class, 'update'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:work-order']);
+    Route::post('/projects/{workItem}/tickets/{ticket}/duplicate', [TicketController::class, 'duplicate'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active', 'throttle:work-order']);
+    Route::get('/ticket-templates', [TicketDetailsController::class, 'templates'])
+        ->middleware(['auth', 'role:agency_owner,agency_client', 'agency.active']);
     // White-label branding: everyone in the agency reads it; only the owner changes it.
     Route::get('/branding', [AgencyBrandingController::class, 'show'])
         ->middleware(['auth', 'role:agency_owner,agency_client,agency_member', 'agency.active']);
@@ -176,6 +207,51 @@ Route::middleware('web')->prefix('agency')->group(function () {
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
     Route::get('/employees/{id}/performance', [AdminEmployeeActivityController::class, 'performance'])
         ->whereNumber('id')->middleware(['auth', 'role:agency_owner', 'agency.active']);
+});
+
+// Warns while someone types: text that looks like a password or an API key. Agency users and staff both use it.
+Route::post('/support/scan-text', [SupportTicketController::class, 'scanText'])->middleware(['web', 'auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:work-order']);
+// Support module (staff console): the queue, one ticket, transitions, assignment and who is on the team.
+Route::middleware(['web', 'auth', 'role:admin,employee'])->prefix('staff')->group(function () {
+    Route::get('/tickets', [StaffTicketController::class, 'index']);
+    Route::get('/tickets/{ref}', [StaffTicketController::class, 'show'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/transition', [StaffTicketController::class, 'transition'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::post('/tickets/{ref}/assign', [StaffTicketController::class, 'assign'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::patch('/tickets/{ref}', [StaffTicketController::class, 'update'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::post('/tickets/{ref}/convert', [StaffTicketController::class, 'convert'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::get('/tickets/{ref}/assignments', [StaffTicketController::class, 'assignments'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::get('/dashboard', [StaffTicketController::class, 'dashboard']);
+    Route::post('/tickets/{ref}/scope', [StaffTicketController::class, 'classify'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::post('/tickets/{ref}/scope/approve', [StaffTicketController::class, 'approveScope'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::get('/tickets/{ref}/time', [StaffTicketController::class, 'time'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/time', [StaffTicketController::class, 'logTime'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::get('/canned-responses', [CannedResponseController::class, 'index']);
+    Route::post('/canned-responses', [CannedResponseController::class, 'store'])->middleware('throttle:work-order');
+    Route::patch('/canned-responses/{response}', [CannedResponseController::class, 'update'])->whereNumber('response');
+    Route::delete('/canned-responses/{response}', [CannedResponseController::class, 'destroy'])->whereNumber('response');
+    Route::get('/tickets/{ref}/qa', [StaffSupportToolsController::class, 'qa'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/qa', [StaffSupportToolsController::class, 'recordQa'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::put('/tickets/{ref}/bug', [StaffSupportToolsController::class, 'saveBug'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::get('/tickets/{ref}/approvals', [StaffSupportToolsController::class, 'approvals'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/approvals', [StaffSupportToolsController::class, 'requestApproval'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::post('/tickets/{ref}/approvals/{approval}', [StaffSupportToolsController::class, 'decideApproval'])->where('ref', '[A-Za-z]+-[0-9]+')->whereNumber('approval')->middleware('throttle:work-order');
+    Route::get('/tickets/{ref}/relations', [StaffSupportToolsController::class, 'relations'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/relations', [StaffSupportToolsController::class, 'addRelation'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::delete('/tickets/{ref}/relations/{relation}', [StaffSupportToolsController::class, 'removeRelation'])->where('ref', '[A-Za-z]+-[0-9]+')->whereNumber('relation');
+    Route::post('/tickets/{ref}/watch', [StaffSupportToolsController::class, 'watch'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::post('/tickets/{ref}/quote', [StaffSupportToolsController::class, 'sendQuote'])->where('ref', '[A-Za-z]+-[0-9]+')->middleware('throttle:work-order');
+    Route::delete('/tickets/{ref}/quote', [StaffSupportToolsController::class, 'withdrawQuote'])->where('ref', '[A-Za-z]+-[0-9]+');
+    Route::get('/saved-views', [StaffSupportToolsController::class, 'savedViews']);
+    Route::post('/saved-views', [StaffSupportToolsController::class, 'saveView'])->middleware('throttle:work-order');
+    Route::delete('/saved-views/{view}', [StaffSupportToolsController::class, 'deleteView'])->whereNumber('view');
+    Route::post('/tickets/bulk', [StaffSupportToolsController::class, 'bulk'])->middleware('throttle:work-order');
+    Route::get('/workload', [StaffSupportToolsController::class, 'workload']);
+    Route::get('/settings', [StaffSupportToolsController::class, 'settings']);
+    Route::put('/settings', [StaffSupportToolsController::class, 'saveSettings'])->middleware('throttle:work-order');
+    Route::get('/agencies/{agency}/entitlement', [StaffSupportToolsController::class, 'entitlement'])->whereNumber('agency');
+    Route::put('/agencies/{agency}/entitlement', [StaffSupportToolsController::class, 'saveEntitlement'])->whereNumber('agency')->middleware('throttle:work-order');
+    Route::get('/people', [StaffTicketController::class, 'people']);
+    Route::patch('/people/{user}/capabilities', [StaffTicketController::class, 'setCapabilities'])->whereNumber('user');
 });
 
 // Browser tab history, synced from the Chrome extension. Employees only, and only after consent;
@@ -202,6 +278,9 @@ Route::middleware(['web', 'auth', 'role:admin'])->prefix('admin')->whereNumber('
     Route::post('/projects/{workItem}/timeline/start-review', [TimelineController::class, 'adminStartReview']);
     Route::post('/projects/{workItem}/timeline/confirm', [TimelineController::class, 'confirm']);
     Route::post('/projects/{workItem}/timeline/request-changes', [TimelineController::class, 'adminRequestChanges']);
+    // Internal notes (visible to administrators and the assigned employee only).
+    Route::patch('/projects/{workItem}/brief/internal-notes', [ProjectBriefController::class, 'updateInternalNotes']);
+    Route::patch('/tickets/{ticket}/internal-notes', [TicketDetailsController::class, 'updateInternalNotes'])->whereNumber('ticket');
 });
 Route::middleware(['web', 'auth', 'role:employee'])->prefix('work-items')->whereNumber('workItem')->group(function () {
     Route::get('/awaiting-timeline', [TimelineController::class, 'employeeAwaiting']);
@@ -287,8 +366,14 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth']);
     Route::get('/tickets/{ticket}/attachments', [AttachmentController::class, 'index'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::post('/tickets/{ticket}/links', [AttachmentController::class, 'storeLink'])->whereNumber('ticket')
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
     Route::post('/tickets/{ticket}/attachments', [AttachmentController::class, 'store'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'throttle:attachments']);
+    Route::get('/attachments/{attachment}/signed-url', [AttachmentController::class, 'signedUrl'])->whereNumber('attachment')
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
+    Route::get('/attachments/{attachment}/signed', [AttachmentController::class, 'signed'])->whereNumber('attachment')->name('attachments.signed')
+        ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin', 'signed']);
     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])
@@ -299,6 +384,13 @@ Route::middleware('web')->group(function () {
         ->middleware(['auth', 'role:agency_owner,agency_client,employee,admin']);
     Route::patch('/tickets/{ticket}/status', [TicketController::class, 'updateStatus'])
         ->middleware(['auth', 'role:employee']);
+    // Work order: the assigned employee delivers and flags a blocker; the employee or the agency ticks the checklist.
+    Route::patch('/tickets/{ticket}/delivery', [TicketDetailsController::class, 'delivery'])
+        ->whereNumber('ticket')->middleware(['auth', 'role:employee', 'throttle:work-order']);
+    Route::patch('/tickets/{ticket}/blocked', [TicketDetailsController::class, 'blocked'])
+        ->whereNumber('ticket')->middleware(['auth', 'role:employee', 'throttle:work-order']);
+    Route::patch('/tickets/{ticket}/checklist/{item}', [TicketDetailsController::class, 'toggleChecklist'])
+        ->whereNumber(['ticket', 'item'])->middleware(['auth', 'role:employee,agency_owner,agency_client', 'throttle:work-order']);
 });
 
 Route::middleware(['web', 'auth', 'role:employee'])->group(function () {

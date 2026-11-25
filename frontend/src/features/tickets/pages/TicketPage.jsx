@@ -13,6 +13,8 @@ import { getWaitingLabel } from '../../../lib/ticketStatus'
 import { FilesTab } from '../components/FilesTab'
 import { HoursRequestPanel } from '../components/HoursRequestPanel'
 import { TicketBriefView } from '../../briefs'
+import { GhlBriefView } from '../../workorder/BriefView'
+import { WorkOrderBadges, WorkOrderPanel } from '../../workorder/WorkOrderView'
 import { TimeProgress, TimeTab, TimerButton, useTimerChanged } from '../../time'
 
 const TABS = [
@@ -305,7 +307,7 @@ export function TicketPage() {
 
       <div className="ticket-layout">
         <div className="ticket-main">
-          <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />
+          <Tabs tabs={(ticket.details_summary || isAssignedEmployee) ? [TABS[0], { id: 'workorder', label: 'Work order' }, ...TABS.slice(1)] : TABS} activeTab={tab} onChange={setTab} />
           <Card>
             {tab === 'overview' && (
               <div className="ticket-overview">
@@ -321,6 +323,13 @@ export function TicketPage() {
                     {ticket.status_reason && <span className="ticket-waiting-reason"> · {ticket.status_reason}</span>}
                   </p>
                 )}
+              </div>
+            )}
+            {tab === 'workorder' && (
+              <div className="ticket-overview">
+                <WorkOrderBadges summary={ticket.details_summary} />
+                <WorkOrderPanel ticket={ticket} projectEmployeeId={project.employee?.id} />
+                {project.ghl_brief && <details className="tk-context"><summary>Project brief</summary><GhlBriefView brief={project.ghl_brief} /></details>}
               </div>
             )}
             {tab === 'activity' && <TicketActivity key={version} ticket={ticket} role={user.role} onPosted={commentPosted} />}

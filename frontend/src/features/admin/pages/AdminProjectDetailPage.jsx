@@ -6,6 +6,8 @@ import { ApiErrorMessage } from '../../auth/components/ApiErrorMessage'
 import { Button, Card, Icon, PageHeader, PriorityBadge, ScheduleSummary, Spinner, StatusBadge, TicketKey } from '../../../components/ui'
 import { formatDateRange, formatHours } from '../../../lib/format'
 import { WaitingChip } from '../../tickets'
+import { GhlBriefView } from '../../workorder/BriefView'
+import { WorkOrderBadges } from '../../workorder/WorkOrderView'
 
 export function AdminProjectDetailPage() {
   const { id } = useParams()
@@ -82,6 +84,8 @@ export function AdminProjectDetailPage() {
         </div>
       </Card>
 
+      {project.ghl_brief && <Card title="GoHighLevel brief" description="Read-only. Internal notes are shown to staff only."><GhlBriefView brief={project.ghl_brief} /></Card>}
+
       <Card
         className="admin-project-tickets"
         header={(
@@ -112,6 +116,7 @@ export function AdminProjectDetailPage() {
                     <div className="admin-project-ticket-meta">
                       <span title="Logged of estimated hours">{formatHours(ticket.logged_hours)} / {formatHours(ticket.estimated_hours)}</span>
                       {ticket.over_estimate && <span className="time-progress-badge">Over estimate</span>}
+                      <WorkOrderBadges summary={ticket.details_summary} />
                       <span>{ticket.start_date ? formatDateRange(ticket.start_date, ticket.due_date) : 'Not scheduled'}</span>
                     </div>
                     <ScheduleSummary className="admin-project-ticket-schedule" schedule={ticket.schedule} />

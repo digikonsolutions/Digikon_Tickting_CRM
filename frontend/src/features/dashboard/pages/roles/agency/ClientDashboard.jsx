@@ -40,6 +40,7 @@ export function ClientDashboard() {
     <section className="page dashboard agency-dashboard">
       <WelcomeBanner eyebrow={ROLE_LABELS[user.role]} title={`Welcome back, ${firstName}`} subtitle="Your projects, tickets and requests at a glance.">
         <Link to="/agency/projects?new=1" className="ui-button ui-button-primary ui-button-sm">Create project</Link>
+        <Link to="/agency/support/help" className="ui-button ui-button-secondary ui-button-sm">Get support</Link>
         <Link to="/agency/tickets?new=1" className="ui-button ui-button-secondary ui-button-sm">Create ticket</Link>
         <Button type="button" variant="secondary" size="sm" onClick={() => setRush(true)} disabled={!data || data.assignments.length === 0}>Request urgent help</Button>
       </WelcomeBanner>
@@ -90,6 +91,7 @@ export function ClientDashboard() {
               <ul className="adm-quick" aria-label="Quick actions">
                 {[
                   { icon: 'plus', label: 'Create project', hint: 'Send a project request to our team', to: '/agency/projects?new=1' },
+                  { icon: 'chat', label: 'Get support', hint: 'Report a problem, ask for help or request changes', to: '/agency/support/help' },
                   { icon: 'ticket', label: 'Create ticket', hint: 'Add a task to one of your projects', to: '/agency/tickets?new=1' },
                   { icon: 'users', label: 'Team and availability', hint: 'Who is free, what is next', to: '/agency/employees' },
                   { icon: 'chart', label: 'Reports', hint: 'Hours, projects and tickets', to: '/agency/reports' },

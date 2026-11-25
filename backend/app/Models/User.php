@@ -54,6 +54,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => Role::class,
+            'staff_capabilities' => 'array',
             'is_active' => 'boolean',
         ];
     }

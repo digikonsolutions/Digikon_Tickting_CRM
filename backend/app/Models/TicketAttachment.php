@@ -24,6 +24,9 @@ class TicketAttachment extends Model
         'size_bytes',
         'sha256',
         'is_internal',
+        'kind',
+        'url',
+        'title',
     ];
 
     protected $hidden = ['stored_path', 'disk', 'sha256'];

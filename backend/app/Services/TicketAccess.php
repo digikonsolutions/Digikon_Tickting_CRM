@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\Role;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\Support\StaffCapability;
 
 /**
  * The single source of truth for who may see, and who may see internal content on, a ticket.
@@ -26,18 +27,28 @@ class TicketAccess
             return $user->agency_id === null || $user->agency?->status === 'active';
         }
 
+        if ($this->isSupportStaff($user, $ticket)) {
+            return true;
+        }
+
         return $this->isAgencyParticipant($user, $ticket);
     }
 
     /** Internal comments, internal events and attachments on internal comments. */
     public function canSeeInternal(User $user, Ticket $ticket): bool
     {
-        return $user->role === Role::Admin || $this->isAssignedEmployee($user, $ticket);
+        return $user->role === Role::Admin || $this->isAssignedEmployee($user, $ticket) || $this->isSupportStaff($user, $ticket);
+    }
+
+    /** Staff on a support-module ticket: anyone holding a capability, or the person it is assigned to. */
+    public function isSupportStaff(User $user, Ticket $ticket): bool
+    {
+        return $ticket->usesLifecycle() && StaffCapability::isStaff($user) && (StaffCapability::any($user) || $ticket->assigned_to_id === $user->id);
     }
 
     public function isAssignedEmployee(User $user, Ticket $ticket): bool
     {
-        return $user->role === Role::Employee && $ticket->workItem?->employee_id === $user->id;
+        return $user->role === Role::Employee && ($ticket->workItem?->employee_id === $user->id || ($ticket->work_item_id === null && $ticket->assigned_to_id === $user->id));
     }
 
     public function isAgencyParticipant(User $user, Ticket $ticket): bool

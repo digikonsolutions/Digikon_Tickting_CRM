@@ -33,6 +33,9 @@ class Ticket extends Model
         'related_ticket_ids',
         'service_type',
         'details',
+        'kind', 'ref', 'type', 'end_client_id', 'related_project_id', 'service', 'submitted_by_id', 'assigned_to_id', 'assigned_team', 'reviewer_id',
+        'requested_deadline', 'impact', 'issue_started_at', 'scope_classification', 'billing_status', 'waiting_reason', 'waiting_kind', 'follow_up_date',
+        'resolution_summary', 'resolution_category', 'root_cause', 'secret_flagged_at',
     ];
 
     protected $appends = [
@@ -63,6 +66,18 @@ class Ticket extends Model
             'timeline_confirmed_at' => 'datetime',
             'related_ticket_ids' => 'array',
             'details' => 'array',
+            'impact' => 'array',
+            'requested_deadline' => 'date',
+            'follow_up_date' => 'date',
+            'issue_started_at' => 'datetime',
+            'first_response_at' => 'datetime',
+            'resolved_at' => 'datetime',
+            'closed_at' => 'datetime',
+            'scope_approved_at' => 'datetime',
+            'secret_flagged_at' => 'datetime',
+            'waiting_since' => 'datetime',
+            'scope_proposal' => 'array',
+            'reopened_count' => 'integer',
         ];
     }
 
@@ -136,5 +151,52 @@ class Ticket extends Model
     public function events(): HasMany
     {
         return $this->hasMany(TicketEvent::class);
+    }
+
+    /** The work order (what is specific to this ticket); absent for tickets created without one. */
+    public function detail(): HasOne
+    {
+        return $this->hasOne(TicketDetail::class);
+    }
+
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(TicketChecklistItem::class)->orderBy('position');
+    }
+
+    /** Tickets made through the support module use the lifecycle statuses; older hour-slice tickets have no `type`. */
+    public function usesLifecycle(): bool
+    {
+        return $this->type !== null;
+    }
+
+    public function endClient(): BelongsTo
+    {
+        return $this->belongsTo(EndClient::class);
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewer_id');
+    }
+
+    public function submitter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_by_id');
+    }
+
+    public function relatedProject(): BelongsTo
+    {
+        return $this->belongsTo(WorkItem::class, 'related_project_id');
+    }
+
+    public function slaClocks(): HasMany
+    {
+        return $this->hasMany(TicketSlaClock::class);
     }
 }
